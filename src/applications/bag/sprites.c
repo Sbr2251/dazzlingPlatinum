@@ -289,10 +289,17 @@ static void InitSprites(BagController *interface)
 
     ManagedSprite_SetAnim(interface->sprites[BAG_SPRITE_BAG], interface->bagCtx->accessiblePockets[interface->bagCtx->currPocketIdx].pocketType);
     ManagedSprite_SetPositionXY(interface->sprites[BAG_SPRITE_POCKET_HIGHLIGHT], CalcPocketHighlightXForPocket(interface, interface->bagCtx->currPocketIdx), 97);
-    ManagedSprite_SetPositionXY(interface->sprites[BAG_SPRITE_ITEM_HIGHLIGHT], 177, 24 + (interface->bagCtx->accessiblePockets[interface->bagCtx->currPocketIdx].cursorPos - 1) * 16);
+    ManagedSprite_SetPositionXY(interface->sprites[BAG_SPRITE_ITEM_HIGHLIGHT], Bag_IsWidePixelMode() ? 222 : 177, 24 + (interface->bagCtx->accessiblePockets[interface->bagCtx->currPocketIdx].cursorPos - 1) * 16);
 
     VecFx32 spriteScale = { FX32_ONE, FX32_ONE, FX32_ONE };
     Sprite_SetAffineScaleEx(interface->sprites[BAG_SPRITE_BAG]->sprite, &spriteScale, AFFINE_OVERWRITE_MODE_DOUBLE);
+    if (Bag_IsWidePixelMode()) {
+        // Preserve the original end caps while extending the authentic row
+        // highlight across the wider list. Nearest-neighbour OBJ rendering
+        // keeps every source pixel hard-edged.
+        VecFx32 highlightScale = { FX32_ONE * 7 / 4, FX32_ONE, FX32_ONE };
+        Sprite_SetAffineScaleEx(interface->sprites[BAG_SPRITE_ITEM_HIGHLIGHT]->sprite, &highlightScale, AFFINE_OVERWRITE_MODE_DOUBLE);
+    }
 }
 
 void BagUI_FreeSprites(BagController *controller)

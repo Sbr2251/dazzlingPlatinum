@@ -21,8 +21,17 @@
 #include "battle/battle_hud.h"
 
 #include <nitro.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#ifdef SDK_PORT
+#include <simulator/sim_headless.h>
+#endif
+
+#include "constants/charcode.h"
+#include "constants/graphics.h"
+#include "generated/pokemon_types.h"
 
 #include "battle/battle_context.h"
 #include "battle/battle_system.h"
@@ -34,6 +43,7 @@
 #include "message.h"
 #include "message_util.h"
 #include "move_table.h"
+#include "palette.h"
 #include "pokemon.h"
 #include "render_window.h"
 #include "string_gf.h"
@@ -56,15 +66,77 @@
 #define HUD_PALETTE 11 // battle text palette slot
 #define HUD_HEALTHBOX_LIFT 84
 
+// Native 16:9 wide pixel-art Battle HUD (342x192, 43x24 tiles).
+// All menus dock inside the bottom 6-tile bar (y=18..23, 48px tall) using
+// BG1 char base 500 (max 43x6 = 258 tiles -> 500..757, well below 1024) and
+// dedicated Platinum-harmonized palette slot 15.
+#define WIDE_HUD_WIDTH_PX 342
+#define WIDE_HUD_BAR_Y 18
+#define WIDE_HUD_BAR_H 6
+#define WIDE_HUD_BAR_Y_PX (WIDE_HUD_BAR_Y * 8)
+#define WIDE_HUD_BAR_H_PX (WIDE_HUD_BAR_H * 8)
+#define WIDE_HUD_CHAR_BASE 500
+#define WIDE_HUD_PALETTE 15
+
+#define WIDE_HUD_ACTION_X 20
+#define WIDE_HUD_ACTION_W 23
+#define WIDE_HUD_FULL_X 0
+#define WIDE_HUD_FULL_W 43
+#define WIDE_HUD_YESNO_X 32
+#define WIDE_HUD_YESNO_W 11
+
+// Palette slot 15 indices (4bpp).
+#define WHUD_COL_TRANSPARENT 0
+#define WHUD_COL_BORDER 1 // dark olive-charcoal border & normal text fg
+#define WHUD_COL_TEXT_SHADOW 2 // Platinum light warm-grey text shadow
+#define WHUD_COL_MINT_TRIM 3 // mint-sage outer frame trim (matches PL_WINFRAME)
+#define WHUD_COL_PANEL_BG 4 // deep olive-sage recessed panel backing
+#define WHUD_COL_BTN_FACE 5 // warm DS off-white beveled button face
+#define WHUD_COL_BTN_SHADOW 6 // soft warm-grey button bottom/right bevel
+#define WHUD_COL_WHITE 7 // pure white bevel highlight & selected text fg
+#define WHUD_COL_CRIMSON 8 // FIGHT crimson (Fire/Fighting)
+#define WHUD_COL_DARK_SHADOW 9 // deep shadow under white selected text
+#define WHUD_COL_CERULEAN 10 // BAG cerulean (Water/Flying/Ice)
+#define WHUD_COL_EMERALD 11 // POKeMON emerald (Grass/Bug)
+#define WHUD_COL_SLATE 12 // RUN / CANCEL slate (Normal/Steel/Dark)
+#define WHUD_COL_MEGA_GOLD 13 // MEGA gold (Electric / active highlight trim)
+#define WHUD_COL_VIOLET 14 // Psychic/Poison/Ghost/Dragon/Fairy accent
+#define WHUD_COL_AMBER 15 // Ground/Rock / warm selected fill accent
+
+static const u16 sWideHudPalette[16] = {
+    GX_RGB(0, 0, 0),    //  0: transparent
+    GX_RGB(5, 6, 5),    //  1: dark olive-charcoal border & ink
+    GX_RGB(20, 21, 20), //  2: light warm-grey text shadow
+    GX_RGB(19, 24, 17), //  3: mint-sage trim matching PL_WINFRAME
+    GX_RGB(11, 14, 11), //  4: dark olive-sage panel backing
+    GX_RGB(30, 30, 29), //  5: warm DS off-white button face
+    GX_RGB(23, 23, 22), //  6: button bottom/right bevel shadow
+    GX_RGB(31, 31, 31), //  7: pure white highlight & selected text
+    GX_RGB(25, 6, 6),   //  8: FIGHT crimson
+    GX_RGB(8, 4, 5),    //  9: deep shadow under white selected text
+    GX_RGB(5, 14, 25),  // 10: BAG cerulean
+    GX_RGB(5, 18, 9),   // 11: POKeMON emerald
+    GX_RGB(10, 12, 15), // 12: RUN / CANCEL slate
+    GX_RGB(29, 22, 5),  // 13: MEGA gold
+    GX_RGB(16, 8, 22),  // 14: royal violet
+    GX_RGB(22, 12, 3),  // 15: warm amber-ochre
+};
+
 typedef struct BattleHudState {
     Window window;
     BOOL windowAdded;
     BOOL tilesLoaded;
     BOOL healthboxesLifted;
+    BOOL wideModeWindow;
+    u8 winX;
+    u8 winY;
+    u8 winW;
+    u8 winH;
     int lastMenu;
     int lastCursorX;
     int lastCursorY;
     int lastMega;
+    int lastMoveSlot;
     u16 lastMovePP[4];
 } BattleHudState;
 
@@ -86,6 +158,76 @@ BOOL BattleHud_IsEnabled(void)
         return FALSE;
     }
     return SIM_Config_prj_GetConfig()->battleHud;
+}
+
+BOOL BattleHud_IsWidePixelMode(void)
+{
+#ifdef SDK_PORT
+    if (!SIM_Wide_IsWideLayout() || !BattleHud_IsEnabled()) {
+        return FALSE;
+    }
+    if (!SIM_Headless_Enabled()) {
+        return TRUE;
+    }
+    {
+        const char *wideHud = getenv("SIM_FX_WIDE_BATTLEHUD");
+        const char *interactive = getenv("SIM_HEADLESS_INTERACTIVE_FX");
+        if ((wideHud != NULL && wideHud[0] == '1') || (interactive != NULL && interactive[0] == '1')) {
+            return TRUE;
+        }
+    }
+    return FALSE;
+#else
+    return FALSE;
+#endif
+}
+
+void BattleHud_DrawWideMessageFrame(BattleSystem *battleSys)
+{
+    BgConfig *bgConfig;
+    Window *msgWin;
+
+    if (battleSys == NULL) {
+        return;
+    }
+    bgConfig = BattleSystem_GetBgConfig(battleSys);
+    if (bgConfig == NULL) {
+        return;
+    }
+
+    // Authentic Platinum PL_WINFRAME (tiles 1..18, slot 10) spanning 43x6 tiles
+    // across x=0..42, y=18..23 around windows[0] (x=2..28, y=19..22).
+    // Top border (y = 18):
+    Bg_FillTilemapRect(bgConfig, BG_LAYER_MAIN_1, 1, 0, 18, 1, 1, 10);
+    Bg_FillTilemapRect(bgConfig, BG_LAYER_MAIN_1, 2, 1, 18, 1, 1, 10);
+    Bg_FillTilemapRect(bgConfig, BG_LAYER_MAIN_1, 3, 2, 18, 38, 1, 10);
+    Bg_FillTilemapRect(bgConfig, BG_LAYER_MAIN_1, 4, 40, 18, 1, 1, 10);
+    Bg_FillTilemapRect(bgConfig, BG_LAYER_MAIN_1, 5, 41, 18, 1, 1, 10);
+    Bg_FillTilemapRect(bgConfig, BG_LAYER_MAIN_1, 6, 42, 18, 1, 1, 10);
+
+    // Middle rows (y = 19..22): left border 0..1, windows[0] 2..28,
+    // solid interior tile 9 at 29..39, right border 40..42.
+    Bg_FillTilemapRect(bgConfig, BG_LAYER_MAIN_1, 7, 0, 19, 1, 4, 10);
+    Bg_FillTilemapRect(bgConfig, BG_LAYER_MAIN_1, 8, 1, 19, 1, 4, 10);
+    Bg_FillTilemapRect(bgConfig, BG_LAYER_MAIN_1, 9, 29, 19, 11, 4, 10);
+    Bg_FillTilemapRect(bgConfig, BG_LAYER_MAIN_1, 10, 40, 19, 1, 4, 10);
+    Bg_FillTilemapRect(bgConfig, BG_LAYER_MAIN_1, 11, 41, 19, 1, 4, 10);
+    Bg_FillTilemapRect(bgConfig, BG_LAYER_MAIN_1, 12, 42, 19, 1, 4, 10);
+
+    // Bottom border (y = 23):
+    Bg_FillTilemapRect(bgConfig, BG_LAYER_MAIN_1, 13, 0, 23, 1, 1, 10);
+    Bg_FillTilemapRect(bgConfig, BG_LAYER_MAIN_1, 14, 1, 23, 1, 1, 10);
+    Bg_FillTilemapRect(bgConfig, BG_LAYER_MAIN_1, 15, 2, 23, 38, 1, 10);
+    Bg_FillTilemapRect(bgConfig, BG_LAYER_MAIN_1, 16, 40, 23, 1, 1, 10);
+    Bg_FillTilemapRect(bgConfig, BG_LAYER_MAIN_1, 17, 41, 23, 1, 1, 10);
+    Bg_FillTilemapRect(bgConfig, BG_LAYER_MAIN_1, 18, 42, 23, 1, 1, 10);
+
+    msgWin = BattleSystem_GetWindow(battleSys, 0);
+    if (msgWin != NULL && msgWin->bgConfig != NULL) {
+        Window_PutToTilemap(msgWin);
+    }
+
+    Bg_ScheduleTilemapTransfer(bgConfig, BG_LAYER_MAIN_1);
 }
 
 // Button/panel fills are window-bitmap colours (palette slot 11 indices:
@@ -120,6 +262,9 @@ static void HudLiftHealthboxes(BattleSubscreen *btlSubscreen, BOOL lift)
     BattleSystem *battleSys = btlSubscreen->battleSys;
     int i, maxBattlers;
 
+    if (BattleHud_IsWidePixelMode()) {
+        return; // wide pixel mode keeps player healthboxes docked lower-right
+    }
     if (!lift && !sHud.healthboxesLifted) {
         return;
     }
@@ -146,18 +291,26 @@ static void HudLiftHealthboxes(BattleSubscreen *btlSubscreen, BOOL lift)
 static void HudHideInternal(BattleSubscreen *btlSubscreen)
 {
     if (sHud.windowAdded && btlSubscreen != NULL) {
-        // Clear the strip so no panel tiles linger over the scene: wipe
-        // the window bitmap to transparent and upload both the char
-        // tiles and the tilemap (a tilemap-buffer write alone never
-        // reaches VRAM).
         BgConfig *bgConfig = BattleSystem_GetBgConfig(btlSubscreen->battleSys);
-        Window_FillRectWithColor(&sHud.window, 0, 0, 0, HUD_TILE_W * 8, HUD_TILE_H * 8);
-        Window_ScheduleCopyToVRAM(&sHud.window);
-        Bg_FillTilemapRect(bgConfig, BG_LAYER_MAIN_1,
-            0, HUD_TILE_X, HUD_TILE_Y, HUD_TILE_W, HUD_TILE_H, HUD_PALETTE);
-        Bg_ScheduleTilemapTransfer(bgConfig, BG_LAYER_MAIN_1);
-        Window_Remove(&sHud.window);
-        sHud.windowAdded = FALSE;
+        if (sHud.wideModeWindow) {
+            Window_FillRectWithColor(&sHud.window, 0, 0, 0, (u16)(sHud.winW * 8), (u16)(sHud.winH * 8));
+            Window_Remove(&sHud.window);
+            sHud.windowAdded = FALSE;
+            sHud.wideModeWindow = FALSE;
+            BattleHud_DrawWideMessageFrame(btlSubscreen->battleSys);
+        } else {
+            // Clear the strip so no panel tiles linger over the scene: wipe
+            // the window bitmap to transparent and upload both the char
+            // tiles and the tilemap (a tilemap-buffer write alone never
+            // reaches VRAM).
+            Window_FillRectWithColor(&sHud.window, 0, 0, 0, HUD_TILE_W * 8, HUD_TILE_H * 8);
+            Window_ScheduleCopyToVRAM(&sHud.window);
+            Bg_FillTilemapRect(bgConfig, BG_LAYER_MAIN_1,
+                0, HUD_TILE_X, HUD_TILE_Y, HUD_TILE_W, HUD_TILE_H, HUD_PALETTE);
+            Bg_ScheduleTilemapTransfer(bgConfig, BG_LAYER_MAIN_1);
+            Window_Remove(&sHud.window);
+            sHud.windowAdded = FALSE;
+        }
     }
     if (btlSubscreen != NULL) {
         HudLiftHealthboxes(btlSubscreen, FALSE);
@@ -354,12 +507,689 @@ static void HudDrawYesNo(BattleSubscreen *btlSubscreen)
     String_Free(no);
 }
 
+// --- Native 16:9 Wide Pixel-Art Battle HUD (342x192, bottom bar y=18..23) ---
+
+static String *WideHudAsciiString(const char *ascii)
+{
+    charcode_t buf[32];
+    int i = 0;
+
+    while (ascii[i] != '\0' && i < 31) {
+        char c = ascii[i];
+        if (c >= 'A' && c <= 'Z') {
+            buf[i] = (charcode_t)(CHAR_A + (c - 'A'));
+        } else if (c >= 'a' && c <= 'z') {
+            buf[i] = (charcode_t)(CHAR_a + (c - 'a'));
+        } else if (c >= '0' && c <= '9') {
+            buf[i] = (charcode_t)(CHAR_0 + (c - '0'));
+        } else if (c == '-') {
+            buf[i] = CHAR_MINUS;
+        } else if (c == '/') {
+            buf[i] = CHAR_SLASH;
+        } else if (c == ':') {
+            buf[i] = CHAR_COLON;
+        } else if (c == '+') {
+            buf[i] = CHAR_PLUS;
+        } else if (c == '*') {
+            buf[i] = CHAR_STAR;
+        } else {
+            buf[i] = CHAR_SPACE;
+        }
+        i++;
+    }
+    buf[i] = CHAR_EOS;
+    {
+        String *str = String_Init(32, HEAP_ID_BATTLE);
+        String_CopyChars(str, buf);
+        return str;
+    }
+}
+
+static u8 WideHudMoveTypeStripeColor(int type)
+{
+    switch (type) {
+    case TYPE_FIRE:
+    case TYPE_FIGHTING:
+        return WHUD_COL_CRIMSON;
+    case TYPE_WATER:
+    case TYPE_FLYING:
+    case TYPE_ICE:
+        return WHUD_COL_CERULEAN;
+    case TYPE_GRASS:
+    case TYPE_BUG:
+        return WHUD_COL_EMERALD;
+    case TYPE_ELECTRIC:
+        return WHUD_COL_MEGA_GOLD;
+    case TYPE_GROUND:
+    case TYPE_ROCK:
+        return WHUD_COL_AMBER;
+    case TYPE_POISON:
+    case TYPE_GHOST:
+    case TYPE_PSYCHIC:
+    case TYPE_DRAGON:
+    case TYPE_FAIRY:
+        return WHUD_COL_VIOLET;
+    case TYPE_NORMAL:
+    case TYPE_STEEL:
+    case TYPE_MYSTERY:
+    case TYPE_DARK:
+    default:
+        return WHUD_COL_SLATE;
+    }
+}
+
+static u8 WideHudMoveTypeFillColor(int type)
+{
+    // Electric uses warm amber for the selected fill so pure white text pops
+    // while keeping gold for the stripe and highlight trim.
+    if (type == TYPE_ELECTRIC) {
+        return WHUD_COL_AMBER;
+    }
+    return WideHudMoveTypeStripeColor(type);
+}
+
+static void WideHudFillPx(int x, int y, int w, int h, u8 color)
+{
+    if (w <= 0 || h <= 0) {
+        return;
+    }
+    Window_FillRectWithColor(&sHud.window, color, (u16)x, (u16)y, (u16)w, (u16)h);
+}
+
+static void WideHudDrawPanelFrame(int visW)
+{
+    // Clear full tile-aligned window width (including 2px right of 342px edge)
+    // to border color, then draw authentic Platinum olive-charcoal + mint-sage
+    // frame matching PL_WINFRAME's 4px bezel around the 40px button interior.
+    WideHudFillPx(0, 0, sHud.winW * 8, WIDE_HUD_BAR_H_PX, WHUD_COL_BORDER);
+    WideHudFillPx(1, 1, visW - 2, WIDE_HUD_BAR_H_PX - 2, WHUD_COL_MINT_TRIM);
+    WideHudFillPx(3, 3, visW - 6, WIDE_HUD_BAR_H_PX - 6, WHUD_COL_BORDER);
+    WideHudFillPx(4, 4, visW - 8, WIDE_HUD_BAR_H_PX - 8, WHUD_COL_PANEL_BG);
+}
+
+static void WideHudDrawVerticalDivider(int x)
+{
+    // Crisp 4px vertical mint-sage divider between left/right zones.
+    WideHudFillPx(x, 3, 4, WIDE_HUD_BAR_H_PX - 6, WHUD_COL_BORDER);
+    WideHudFillPx(x + 1, 3, 2, WIDE_HUD_BAR_H_PX - 6, WHUD_COL_MINT_TRIM);
+}
+
+static void WideHudDrawRecessedPlaque(int x, int y, int w, int h, u8 stripeCol)
+{
+    WideHudFillPx(x, y, w, h, WHUD_COL_BORDER);
+    WideHudFillPx(x + 1, y + 1, w - 2, h - 2, WHUD_COL_PANEL_BG);
+    // Subtle bottom/right mint inset rim.
+    WideHudFillPx(x + 1, y + h - 2, w - 2, 1, WHUD_COL_MINT_TRIM);
+    WideHudFillPx(x + w - 2, y + 1, 1, h - 2, WHUD_COL_MINT_TRIM);
+    if (stripeCol != 0) {
+        WideHudFillPx(x + 1, y + 1, 2, h - 2, stripeCol);
+    }
+}
+
+static void WideHudDrawButton(int x, int y, int w, int h, u8 stripeCol, u8 selectedFillCol,
+    BOOL selected, BOOL drawStripe, const String *label, BOOL centerLabel, const String *rightLabel)
+{
+    int contentLeft;
+    int textY = y + (h - 12) / 2;
+
+    if (selected) {
+        // Selected DS pixel-art button: dark outer border, crisp white inner
+        // highlight rim, rich saturated fill, gold cursor bar, pure white text.
+        WideHudFillPx(x, y, w, h, WHUD_COL_BORDER);
+        WideHudFillPx(x + 1, y + 1, w - 2, h - 2, WHUD_COL_WHITE);
+        WideHudFillPx(x + 2, y + 2, w - 4, h - 4, selectedFillCol);
+        if (drawStripe) {
+            u8 barCol = (selectedFillCol == WHUD_COL_AMBER || selectedFillCol == WHUD_COL_MEGA_GOLD)
+                ? WHUD_COL_WHITE : WHUD_COL_MEGA_GOLD;
+            WideHudFillPx(x + 2, y + 2, 3, h - 4, barCol);
+            contentLeft = 7;
+        } else {
+            contentLeft = 4;
+        }
+    } else {
+        // Normal DS beveled button: dark border, off-white face, top/left white
+        // highlight, bottom/right soft warm-grey shadow, optional 3px accent stripe.
+        WideHudFillPx(x, y, w, h, WHUD_COL_BORDER);
+        WideHudFillPx(x + 1, y + 1, w - 2, h - 2, WHUD_COL_BTN_FACE);
+        WideHudFillPx(x + 1, y + 1, w - 2, 1, WHUD_COL_WHITE);
+        WideHudFillPx(x + 1, y + 1, 1, h - 2, WHUD_COL_WHITE);
+        WideHudFillPx(x + 1, y + h - 2, w - 2, 1, WHUD_COL_BTN_SHADOW);
+        WideHudFillPx(x + w - 2, y + 1, 1, h - 2, WHUD_COL_BTN_SHADOW);
+        if (drawStripe) {
+            WideHudFillPx(x + 1, y + 1, 3, h - 2, stripeCol);
+            contentLeft = 7;
+        } else {
+            contentLeft = 4;
+        }
+    }
+
+    if (label != NULL) {
+        TextColor col = selected
+            ? TEXT_COLOR(WHUD_COL_WHITE, WHUD_COL_DARK_SHADOW, 0)
+            : TEXT_COLOR(WHUD_COL_BORDER, WHUD_COL_TEXT_SHADOW, 0);
+        int labelX = x + contentLeft;
+        if (centerLabel && rightLabel == NULL) {
+            int textW = Font_CalcStringWidth(FONT_SYSTEM, label, 0);
+            int availW = w - contentLeft - 3;
+            int centered = x + contentLeft + (availW - textW) / 2;
+            if (centered > labelX) {
+                labelX = centered;
+            }
+        }
+        Text_AddPrinterWithParamsAndColor(&sHud.window, FONT_SYSTEM, label,
+            (u32)labelX, (u32)textY, TEXT_SPEED_NO_TRANSFER, col, NULL);
+    }
+
+    if (rightLabel != NULL) {
+        TextColor col = selected
+            ? TEXT_COLOR(WHUD_COL_WHITE, WHUD_COL_DARK_SHADOW, 0)
+            : TEXT_COLOR(WHUD_COL_SLATE, WHUD_COL_TEXT_SHADOW, 0);
+        int rightW = Font_CalcStringWidth(FONT_SYSTEM, rightLabel, 0);
+        int rightX = x + w - 4 - rightW;
+        if (rightX < x + contentLeft) {
+            rightX = x + contentLeft;
+        }
+        Text_AddPrinterWithParamsAndColor(&sHud.window, FONT_SYSTEM, rightLabel,
+            (u32)rightX, (u32)textY, TEXT_SPEED_NO_TRANSFER, col, NULL);
+    }
+}
+
+static void WideHudEnsureWindow(BattleSubscreen *btlSubscreen, int menu)
+{
+    u8 tx, ty, tw, th;
+    BgConfig *bgConfig = BattleSystem_GetBgConfig(btlSubscreen->battleSys);
+    PaletteData *paletteData = BattleSystem_GetPaletteData(btlSubscreen->battleSys);
+
+    ty = WIDE_HUD_BAR_Y;
+    th = WIDE_HUD_BAR_H;
+    if (menu == HUD_MENU_MOVE || menu == HUD_MENU_TARGET) {
+        tx = WIDE_HUD_FULL_X;
+        tw = WIDE_HUD_FULL_W;
+    } else if (menu >= 13 && menu <= 17) {
+        tx = WIDE_HUD_YESNO_X;
+        tw = WIDE_HUD_YESNO_W;
+    } else {
+        tx = WIDE_HUD_ACTION_X;
+        tw = WIDE_HUD_ACTION_W;
+    }
+
+    if (sHud.windowAdded && (!sHud.wideModeWindow || sHud.winX != tx || sHud.winY != ty
+            || sHud.winW != tw || sHud.winH != th)) {
+        Window_FillRectWithColor(&sHud.window, 0, 0, 0, (u16)(sHud.winW * 8), (u16)(sHud.winH * 8));
+        Window_Remove(&sHud.window);
+        sHud.windowAdded = FALSE;
+        sHud.wideModeWindow = FALSE;
+        BattleHud_DrawWideMessageFrame(btlSubscreen->battleSys);
+    }
+
+    if (!sHud.windowAdded) {
+        Window_Add(bgConfig, &sHud.window, BG_LAYER_MAIN_1,
+            tx, ty, tw, th, WIDE_HUD_PALETTE, WIDE_HUD_CHAR_BASE);
+        sHud.windowAdded = TRUE;
+        sHud.wideModeWindow = TRUE;
+        sHud.winX = tx;
+        sHud.winY = ty;
+        sHud.winW = tw;
+        sHud.winH = th;
+        sHud.lastMenu = -2;
+    }
+
+    if (paletteData != NULL) {
+        PaletteData_LoadBuffer(paletteData, sWideHudPalette, PLTTBUF_MAIN_BG,
+            WIDE_HUD_PALETTE * 16, sizeof(sWideHudPalette));
+    }
+}
+
+static void WideHudKeepTilemapIntact(BattleSubscreen *btlSubscreen)
+{
+    BgConfig *bgConfig;
+    u16 *tilemap;
+    u32 x, y, idx;
+    u16 expected;
+
+    if (!sHud.windowAdded || !sHud.wideModeWindow) {
+        return;
+    }
+    bgConfig = BattleSystem_GetBgConfig(btlSubscreen->battleSys);
+    if (bgConfig == NULL) {
+        return;
+    }
+    tilemap = Bg_GetTilemapBuffer(bgConfig, BG_LAYER_MAIN_1);
+    if (tilemap == NULL) {
+        return;
+    }
+
+    // windows[0] overlaps x=20..28, y=19..22. If message text reprinted and
+    // put windows[0] back into the tilemap over our right-docked menu, restore
+    // our menu window's tilemap entries cleanly.
+    x = sHud.winX;
+    y = sHud.winY + 1;
+    idx = ((y & 0x20) * 32) + ((x & 0x20) * 32) + ((y & 0x1F) * 32) + (x & 0x1F);
+    expected = (u16)((sHud.window.baseTile + sHud.winW) | (WIDE_HUD_PALETTE << 12));
+    if (tilemap[idx] != expected) {
+        Window_PutToTilemap(&sHud.window);
+        Bg_ScheduleTilemapTransfer(bgConfig, BG_LAYER_MAIN_1);
+    }
+}
+
+static void WideHudDrawAction(BattleSubscreen *btlSubscreen)
+{
+    MessageLoader *msgLoader = BattleSystem_GetMessageLoader(btlSubscreen->battleSys);
+    u32 battleType = BattleSystem_GetBattleType(btlSubscreen->battleSys);
+    int menu = btlSubscreen->activeMenuConfigIndex;
+    int cx = btlSubscreen->cursor.x;
+    int cy = btlSubscreen->cursor.y;
+    int visW = WIDE_HUD_WIDTH_PX - WIDE_HUD_ACTION_X * 8; // 182px
+
+    WideHudDrawPanelFrame(visW);
+
+    if (menu == 5 || menu == 6) {
+        // First battle: FIGHT only (sFirstBattleMenuTouchRects, button 0).
+        String *fight = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_Fight);
+        WideHudDrawButton(4, 4, 174, 40, WHUD_COL_CRIMSON, WHUD_COL_CRIMSON,
+            TRUE, TRUE, fight, TRUE, NULL);
+        String_Free(fight);
+        return;
+    }
+
+    if (menu == 9 || menu == 10) {
+        // Pal Park: BALL (cy==0, button 0) and RUN (cy==1, button 1).
+        String *ball = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_BallPalPark);
+        String *run = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_Run);
+        WideHudDrawButton(4, 4, 174, 19, WHUD_COL_CRIMSON, WHUD_COL_CRIMSON,
+            cy == 0, TRUE, ball, TRUE, NULL);
+        WideHudDrawButton(4, 25, 174, 19, WHUD_COL_SLATE, WHUD_COL_SLATE,
+            cy == 1, TRUE, run, TRUE, NULL);
+        String_Free(ball);
+        String_Free(run);
+        return;
+    }
+
+    {
+        String *fight, *bag, *party, *run;
+        if (battleType & BATTLE_TYPE_SAFARI) {
+            fight = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_Ball);
+            bag = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_Bait);
+            party = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_Mud);
+        } else {
+            fight = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_Fight);
+            bag = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_Bag);
+            party = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_Pokemon);
+        }
+        run = MessageLoader_GetNewString(msgLoader,
+            btlSubscreen->activeMenuData.actionData.isWaitingForPartner
+                ? BattleStrings_Text_Cancel : BattleStrings_Text_Run);
+
+        // Authentic Platinum 2x3 silhouette matching sBattleMenuButtonLayout[2][3]:
+        // Top full-width FIGHT (cy==0, button 0);
+        // Bottom trio: BAG (cx==0, btn 1), RUN/CANCEL (cx==1, btn 3), POKeMON (cx==2, btn 2).
+        WideHudDrawButton(4, 4, 174, 19, WHUD_COL_CRIMSON, WHUD_COL_CRIMSON,
+            cy == 0, TRUE, fight, TRUE, NULL);
+        WideHudDrawButton(4, 25, 52, 19, WHUD_COL_CERULEAN, WHUD_COL_CERULEAN,
+            cy == 1 && cx == 0, TRUE, bag, TRUE, NULL);
+        WideHudDrawButton(58, 25, 56, 19, WHUD_COL_SLATE, WHUD_COL_SLATE,
+            cy == 1 && cx == 1, TRUE, run, TRUE, NULL);
+        WideHudDrawButton(116, 25, 62, 19, WHUD_COL_EMERALD, WHUD_COL_EMERALD,
+            cy == 1 && cx == 2, TRUE, party, TRUE, NULL);
+
+        String_Free(fight);
+        String_Free(bag);
+        String_Free(party);
+        String_Free(run);
+    }
+}
+
+static void WideHudDrawMoves(BattleSubscreen *btlSubscreen)
+{
+    MoveSelectData *moveData = &btlSubscreen->activeMenuData.moveData;
+    MessageLoader *msgLoader = BattleSystem_GetMessageLoader(btlSubscreen->battleSys);
+    StringTemplate *template = BattleSystem_GetStringTemplate(btlSubscreen->battleSys);
+    int cx = btlSubscreen->cursor.x;
+    int cy = btlSubscreen->cursor.y;
+    int i;
+
+    WideHudDrawPanelFrame(WIDE_HUD_WIDTH_PX);
+    WideHudDrawVerticalDivider(258);
+
+    // Track last focused move slot so the info plaque stays meaningful even
+    // while cursor rests on CANCEL.
+    if (cy >= 0 && cy < 2 && cx >= 0 && cx < 2) {
+        int focusIdx = cy * 2 + cx;
+        if (moveData->moveIDs[focusIdx] != 0) {
+            sHud.lastMoveSlot = focusIdx;
+        }
+    }
+    if (sHud.lastMoveSlot < 0 || sHud.lastMoveSlot >= 4 || moveData->moveIDs[sHud.lastMoveSlot] == 0) {
+        sHud.lastMoveSlot = 0;
+        for (i = 0; i < 4; i++) {
+            if (moveData->moveIDs[i] != 0) {
+                sHud.lastMoveSlot = i;
+                break;
+            }
+        }
+    }
+
+    // Left 2x2 move grid: 125x19px beveled buttons with 3px type-color stripe,
+    // FONT_SYSTEM move name + right-aligned PP.
+    // Col 0: x=4..128 (w=125), gap 3px, Col 1: x=132..256 (w=125).
+    for (i = 0; i < 4; i++) {
+        int col = i & 1;
+        int row = i >> 1;
+        int bx = col ? 132 : 4;
+        int by = row ? 25 : 4;
+        BOOL selected = (cx == col && cy == row);
+
+        sHud.lastMovePP[i] = moveData->currPP[i];
+
+        if (moveData->moveIDs[i] == 0) {
+            WideHudDrawRecessedPlaque(bx, by, 125, 19, 0);
+            continue;
+        }
+        {
+            int moveType = (int)MoveTable_LoadParam(moveData->moveIDs[i], MOVEATTRIBUTE_TYPE);
+            u8 stripeCol = WideHudMoveTypeStripeColor(moveType);
+            u8 fillCol = WideHudMoveTypeFillColor(moveType);
+            String *name = MessageUtil_MoveName(moveData->moveIDs[i], HEAP_ID_BATTLE);
+            String *fmt = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_CurPPOutOfMaxPP);
+            String *pp = String_Init(16, HEAP_ID_BATTLE);
+
+            StringTemplate_SetNumber(template, 0, moveData->currPP[i], 2, 1, 0);
+            StringTemplate_SetNumber(template, 1, moveData->maxPP[i], 2, 1, 0);
+            StringTemplate_Format(template, pp, fmt);
+
+            WideHudDrawButton(bx, by, 125, 19, stripeCol, fillCol,
+                selected, TRUE, name, FALSE, pp);
+
+            String_Free(name);
+            String_Free(fmt);
+            String_Free(pp);
+        }
+    }
+
+    // Right column (x=264..337, 74px wide):
+    // Top (y=4, h=19): MEGA toggle button when megaEvolutionAvailable,
+    // else official Type name (TEXT_BANK_POKEMON_TYPE_NAMES) + base power.
+    if (moveData->megaEvolutionAvailable) {
+        BattleContext *ctx = BattleSystem_GetBattleContext(btlSubscreen->battleSys);
+        int battler = BattleSystem_GetBattlerOfType(btlSubscreen->battleSys, btlSubscreen->battlerType);
+        int on = ctx->megaEvolutionTriggered[battler] ? 1 : 0;
+        BOOL megaSel = (cy == 2 && cx == 0);
+        String *mega = MessageLoader_GetNewString(msgLoader, 1272); // "MEGA"
+        String *stateStr = on ? WideHudAsciiString("ON") : NULL;
+
+        if (on) {
+            // Armed Mega Evolution: glowing gold/amber fill with crisp border.
+            WideHudFillPx(264, 4, 74, 19, WHUD_COL_BORDER);
+            WideHudFillPx(265, 5, 72, 17, megaSel ? WHUD_COL_WHITE : WHUD_COL_MEGA_GOLD);
+            WideHudFillPx(266, 6, 70, 15, WHUD_COL_AMBER);
+            WideHudFillPx(266, 6, 3, 15, WHUD_COL_MEGA_GOLD);
+            Text_AddPrinterWithParamsAndColor(&sHud.window, FONT_SYSTEM, mega,
+                272, 7, TEXT_SPEED_NO_TRANSFER,
+                TEXT_COLOR(WHUD_COL_WHITE, WHUD_COL_BORDER, 0), NULL);
+            if (stateStr != NULL) {
+                int sw = Font_CalcStringWidth(FONT_SYSTEM, stateStr, 0);
+                Text_AddPrinterWithParamsAndColor(&sHud.window, FONT_SYSTEM, stateStr,
+                    (u32)(264 + 74 - 4 - sw), 7, TEXT_SPEED_NO_TRANSFER,
+                    TEXT_COLOR(WHUD_COL_MEGA_GOLD, WHUD_COL_BORDER, 0), NULL);
+            }
+        } else {
+            WideHudDrawButton(264, 4, 74, 19, WHUD_COL_MEGA_GOLD, WHUD_COL_VIOLET,
+                megaSel, TRUE, mega, TRUE, NULL);
+        }
+
+        if (stateStr != NULL) {
+            String_Free(stateStr);
+        }
+        String_Free(mega);
+        sHud.lastMega = on;
+    } else {
+        u16 selMoveId = moveData->moveIDs[sHud.lastMoveSlot];
+        int moveType = selMoveId ? (int)MoveTable_LoadParam(selMoveId, MOVEATTRIBUTE_TYPE) : TYPE_NORMAL;
+        int movePower = selMoveId ? (int)MoveTable_LoadParam(selMoveId, MOVEATTRIBUTE_POWER) : 0;
+        u8 stripeCol = WideHudMoveTypeStripeColor(moveType);
+        MessageLoader *typeLoader = MessageLoader_Init(MSG_LOADER_LOAD_ON_DEMAND,
+            NARC_INDEX_MSGDATA__PL_MSG, TEXT_BANK_POKEMON_TYPE_NAMES, HEAP_ID_BATTLE);
+        String *typeName = MessageLoader_GetNewString(typeLoader, (u32)moveType);
+        char pwrBuf[8];
+        String *pwrStr;
+        int pwrW;
+
+        MessageLoader_Free(typeLoader);
+        if (movePower > 0) {
+            snprintf(pwrBuf, sizeof(pwrBuf), "%d", movePower);
+        } else {
+            snprintf(pwrBuf, sizeof(pwrBuf), "--");
+        }
+        pwrStr = WideHudAsciiString(pwrBuf);
+        pwrW = Font_CalcStringWidth(FONT_SYSTEM, pwrStr, 0);
+
+        WideHudDrawRecessedPlaque(264, 4, 74, 19, stripeCol);
+        Text_AddPrinterWithParamsAndColor(&sHud.window, FONT_SYSTEM, typeName,
+            268, 7, TEXT_SPEED_NO_TRANSFER,
+            TEXT_COLOR(WHUD_COL_WHITE, WHUD_COL_BORDER, 0), NULL);
+        Text_AddPrinterWithParamsAndColor(&sHud.window, FONT_SYSTEM, pwrStr,
+            (u32)(264 + 74 - 3 - pwrW), 7, TEXT_SPEED_NO_TRANSFER,
+            TEXT_COLOR(WHUD_COL_MEGA_GOLD, WHUD_COL_BORDER, 0), NULL);
+
+        String_Free(typeName);
+        String_Free(pwrStr);
+        sHud.lastMega = -1;
+    }
+
+    // Bottom right (x=264, y=25, w=74, h=19): CANCEL / BACK button (button 0).
+    {
+        BOOL cancelSel = (cy == 2 && (cx == 1 || !moveData->megaEvolutionAvailable));
+        String *cancel = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_Cancel2);
+        WideHudDrawButton(264, 25, 74, 19, WHUD_COL_SLATE, WHUD_COL_SLATE,
+            cancelSel, TRUE, cancel, TRUE, NULL);
+        String_Free(cancel);
+    }
+}
+
+static BOOL WideHudTargetMultiSelected(int targetingLayout, int row, int col)
+{
+    // Multi-target layouts from BattleSystem_Cursor_Battler:
+    // 1=opponents, 2=all adj (slot1), 3=field, 5=user side, 7=all adj (slot2).
+    switch (targetingLayout) {
+    case 1:
+        return row == 0;
+    case 2:
+        return row == 0 || (row == 1 && col == 1);
+    case 7:
+        return row == 0 || (row == 1 && col == 0);
+    case 3:
+        return TRUE;
+    case 5:
+        return row == 1;
+    default:
+        return FALSE;
+    }
+}
+
+static void WideHudDrawTarget(BattleSubscreen *btlSubscreen)
+{
+    TargetSelectData *data = &btlSubscreen->activeMenuData.targetSelectData;
+    MessageLoader *msgLoader = BattleSystem_GetMessageLoader(btlSubscreen->battleSys);
+    StringTemplate *template = BattleSystem_GetStringTemplate(btlSubscreen->battleSys);
+    int cx = btlSubscreen->cursor.x;
+    int cy = btlSubscreen->cursor.y;
+    int layout = btlSubscreen->targetingLayout;
+    BOOL isMultiTarget = (layout == 1 || layout == 2 || layout == 3 || layout == 5 || layout == 7);
+    BOOL cancelSel = isMultiTarget ? (cy > 0) : (cy == 2);
+    String *targetHdr = WideHudAsciiString("TARGET");
+    String *cancel = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_Cancel3);
+    String *message = String_Init(32, HEAP_ID_BATTLE);
+    u8 battlersByType[6];
+    // Spatial 2x2 grid matching sSelectTargetMenuButtonLayout[3][2] & 3D battlefield:
+    // Row 0 (Enemies): Left = battlersByType[5] (btn 3), Right = battlersByType[3] (btn 1)
+    // Row 1 (Allies):  Left = battlersByType[2] (btn 0), Right = battlersByType[4] (btn 2)
+    static const u8 sGridTypeIdx[2][2] = {
+        { 5, 3 },
+        { 2, 4 }
+    };
+    int row, col;
+
+    BattleSystem_SetBattlersByType(btlSubscreen->battleSys, battlersByType);
+
+    WideHudDrawPanelFrame(WIDE_HUD_WIDTH_PX);
+    WideHudDrawVerticalDivider(83);
+
+    // Left column (x=4..81, 78px wide): "TARGET" plaque + CANCEL button (btn 4).
+    WideHudDrawRecessedPlaque(4, 4, 78, 19, WHUD_COL_MINT_TRIM);
+    {
+        int hw = Font_CalcStringWidth(FONT_SYSTEM, targetHdr, 0);
+        int hx = 4 + (78 - hw) / 2;
+        Text_AddPrinterWithParamsAndColor(&sHud.window, FONT_SYSTEM, targetHdr,
+            (u32)hx, 7, TEXT_SPEED_NO_TRANSFER,
+            TEXT_COLOR(WHUD_COL_WHITE, WHUD_COL_BORDER, 0), NULL);
+    }
+    WideHudDrawButton(4, 25, 78, 19, WHUD_COL_SLATE, WHUD_COL_SLATE,
+        cancelSel, TRUE, cancel, TRUE, NULL);
+
+    // Right 2x2 spatial grid (x=88..337: two 124px cols + 2px gap).
+    for (row = 0; row < 2; row++) {
+        for (col = 0; col < 2; col++) {
+            int battlerIndex = battlersByType[sGridTypeIdx[row][col]];
+            int bx = col ? 214 : 88;
+            int by = row ? 25 : 4;
+            BOOL isEnemy = (row == 0);
+            u8 accent = isEnemy ? WHUD_COL_CRIMSON : WHUD_COL_EMERALD;
+            BOOL selected;
+
+            if (isMultiTarget) {
+                selected = (!cancelSel) && WideHudTargetMultiSelected(layout, row, col);
+            } else {
+                selected = (!cancelSel) && (cy == row && cx == col);
+            }
+
+            if (!data->targetMonData[battlerIndex].isPresent) {
+                WideHudDrawRecessedPlaque(bx, by, 124, 19, 0);
+                continue;
+            }
+            {
+                String *formatMsg = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_HealthBoxPokemonName);
+                Pokemon *partyMon = BattleSystem_GetPartyPokemon(btlSubscreen->battleSys,
+                    battlerIndex, data->targetMonData[battlerIndex].partySlot);
+                StringTemplate_SetNickname(template, 0, Pokemon_GetBoxPokemon(partyMon));
+                StringTemplate_Format(template, message, formatMsg);
+                WideHudDrawButton(bx, by, 124, 19, accent, accent,
+                    selected, TRUE, message, FALSE, NULL);
+                String_Free(formatMsg);
+            }
+        }
+    }
+
+    String_Free(targetHdr);
+    String_Free(cancel);
+    String_Free(message);
+}
+
+static void WideHudDrawYesNo(BattleSubscreen *btlSubscreen)
+{
+    MessageLoader *msgLoader = BattleSystem_GetMessageLoader(btlSubscreen->battleSys);
+    String *yes = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_Yes);
+    String *no = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_No);
+    int cy = btlSubscreen->cursor.y;
+    int visW = WIDE_HUD_WIDTH_PX - WIDE_HUD_YESNO_X * 8; // 86px
+
+    WideHudDrawPanelFrame(visW);
+    WideHudDrawButton(4, 4, 78, 19, WHUD_COL_EMERALD, WHUD_COL_EMERALD,
+        cy == 0, TRUE, yes, TRUE, NULL);
+    WideHudDrawButton(4, 25, 78, 19, WHUD_COL_CRIMSON, WHUD_COL_CRIMSON,
+        cy == 1, TRUE, no, TRUE, NULL);
+
+    String_Free(yes);
+    String_Free(no);
+}
+
+static int WideHudTouchButtonIndex(BattleSubscreen *btlSubscreen, int x, int y)
+{
+    int menu = btlSubscreen->activeMenuConfigIndex;
+    int ly;
+
+    // Wide pixel-art HUD bar lives at y=144..191 (tiles 18..23), x=0..341.
+    if (y < WIDE_HUD_BAR_Y_PX || y >= WIDE_HUD_BAR_Y_PX + WIDE_HUD_BAR_H_PX) {
+        return -1;
+    }
+    if (x < 0 || x >= WIDE_HUD_WIDTH_PX) {
+        return -1;
+    }
+    ly = y - WIDE_HUD_BAR_Y_PX; // 0..47; top row 4..22, bottom row 25..43
+
+    if (menu >= 13 && menu <= 17) {
+        if (x < WIDE_HUD_YESNO_X * 8) {
+            return -1;
+        }
+        return ly < 24 ? 0 : 1; // YES=0, NO=1
+    }
+
+    if (menu == HUD_MENU_MOVE) {
+        if (x >= 260) {
+            if (ly < 24) {
+                return btlSubscreen->activeMenuData.moveData.megaEvolutionAvailable ? 5 : -1;
+            }
+            return 0; // CANCEL / BACK
+        }
+        {
+            int col = x < 130 ? 0 : 1;
+            int row = ly < 24 ? 0 : 1;
+            int moveIdx = row * 2 + col;
+            if (btlSubscreen->activeMenuData.moveData.moveIDs[moveIdx] == 0) {
+                return -1;
+            }
+            return 1 + moveIdx; // moves 1..4 at touch indices 1..4
+        }
+    }
+
+    if (menu == HUD_MENU_TARGET) {
+        if (x < 84) {
+            return ly >= 24 ? 4 : -1; // CANCEL=4; top is TARGET header
+        }
+        {
+            static const u8 layout[2][2] = { { 3, 1 }, { 0, 2 } };
+            int col = x < 213 ? 0 : 1;
+            int row = ly < 24 ? 0 : 1;
+            return layout[row][col];
+        }
+    }
+
+    if (menu >= 1 && menu <= 10) {
+        int lx;
+        if (x < WIDE_HUD_ACTION_X * 8) {
+            return -1;
+        }
+        lx = x - WIDE_HUD_ACTION_X * 8; // 0..181
+        if (menu == 5 || menu == 6) {
+            return 0; // First battle: FIGHT only
+        }
+        if (menu == 9 || menu == 10) {
+            return ly < 24 ? 0 : 1; // Pal Park: BALL=0, RUN=1
+        }
+        if (ly < 24) {
+            return 0; // FIGHT / BALL
+        }
+        if (lx < 57) {
+            return 1; // BAG / BAIT
+        }
+        if (lx < 115) {
+            return 3; // RUN / CANCEL
+        }
+        return 2; // POKeMON / MUD
+    }
+
+    return -1;
+}
+
 // Map a main-touch click (DS coords) to a touch-array button index for
 // the current menu, mirroring the bottom screen's button layout.
 static int HudTouchButtonIndex(BattleSubscreen *btlSubscreen, int x, int y)
 {
     int menu = btlSubscreen->activeMenuConfigIndex;
     int col, row;
+
+    if (BattleHud_IsWidePixelMode()) {
+        return WideHudTouchButtonIndex(btlSubscreen, x, y);
+    }
 
     // Strip at tiles (0,11,32,7) -> pixels y 88..144, full width.
     if (y < HUD_TILE_Y * 8 || y >= (HUD_TILE_Y + HUD_TILE_H) * 8) {
@@ -395,6 +1225,7 @@ static int HudTouchButtonIndex(BattleSubscreen *btlSubscreen, int x, int y)
 int BattleHud_Update(BattleSubscreen *btlSubscreen)
 {
     int menu, cx, cy, touchX, touchY;
+    BOOL widePixel;
 
     if (!BattleHud_IsEnabled() || btlSubscreen == NULL) {
         if (btlSubscreen != NULL) {
@@ -408,6 +1239,8 @@ int BattleHud_Update(BattleSubscreen *btlSubscreen)
         HudHideInternal(btlSubscreen);
         return -1;
     }
+
+    widePixel = BattleHud_IsWidePixelMode();
 
     // Wide layout: HUD is up on the top screen, bottom panel not needed.
     if (SIM_Wide_IsWideLayout()) {
@@ -427,12 +1260,18 @@ int BattleHud_Update(BattleSubscreen *btlSubscreen)
     cx = btlSubscreen->cursor.x;
     cy = btlSubscreen->cursor.y;
 
-    if (sHud.windowAdded && menu == sHud.lastMenu && cx == sHud.lastCursorX && cy == sHud.lastCursorY
+    if (sHud.windowAdded && sHud.wideModeWindow == widePixel
+        && menu == sHud.lastMenu && cx == sHud.lastCursorX && cy == sHud.lastCursorY
         && menu != HUD_MENU_MOVE) {
-        HudLiftHealthboxes(btlSubscreen, TRUE);
+        if (widePixel) {
+            WideHudKeepTilemapIntact(btlSubscreen);
+        } else {
+            HudLiftHealthboxes(btlSubscreen, TRUE);
+        }
         return -1;
     }
-    if (menu == HUD_MENU_MOVE && sHud.windowAdded && menu == sHud.lastMenu && cx == sHud.lastCursorX && cy == sHud.lastCursorY) {
+    if (menu == HUD_MENU_MOVE && sHud.windowAdded && sHud.wideModeWindow == widePixel
+        && menu == sHud.lastMenu && cx == sHud.lastCursorX && cy == sHud.lastCursorY) {
         MoveSelectData *md = &btlSubscreen->activeMenuData.moveData;
         BattleContext *ctx = BattleSystem_GetBattleContext(btlSubscreen->battleSys);
         int battler = BattleSystem_GetBattlerOfType(btlSubscreen->battleSys, btlSubscreen->battlerType);
@@ -445,26 +1284,44 @@ int BattleHud_Update(BattleSubscreen *btlSubscreen)
             }
         }
         if (same) {
-            HudLiftHealthboxes(btlSubscreen, TRUE);
+            if (widePixel) {
+                WideHudKeepTilemapIntact(btlSubscreen);
+            } else {
+                HudLiftHealthboxes(btlSubscreen, TRUE);
+            }
             return -1;
         }
     }
 
-    HudEnsureWindow(btlSubscreen);
-    HudLiftHealthboxes(btlSubscreen, TRUE);
+    if (widePixel) {
+        WideHudEnsureWindow(btlSubscreen, menu);
 
-    Window_FillTilemap(&sHud.window, 0xFF);
-    // Panel background: dark fill over the whole strip.
-    HudFillRect(btlSubscreen, 1, 0, 0, HUD_TILE_W, HUD_TILE_H);
-
-    if (menu == HUD_MENU_MOVE) {
-        HudDrawMoves(btlSubscreen);
-    } else if (menu == HUD_MENU_TARGET) {
-        HudDrawTarget(btlSubscreen);
-    } else if (menu >= 13 && menu <= 17) {
-        HudDrawYesNo(btlSubscreen);
+        if (menu == HUD_MENU_MOVE) {
+            WideHudDrawMoves(btlSubscreen);
+        } else if (menu == HUD_MENU_TARGET) {
+            WideHudDrawTarget(btlSubscreen);
+        } else if (menu >= 13 && menu <= 17) {
+            WideHudDrawYesNo(btlSubscreen);
+        } else {
+            WideHudDrawAction(btlSubscreen);
+        }
     } else {
-        HudDrawAction(btlSubscreen);
+        HudEnsureWindow(btlSubscreen);
+        HudLiftHealthboxes(btlSubscreen, TRUE);
+
+        Window_FillTilemap(&sHud.window, 0xFF);
+        // Panel background: dark fill over the whole strip.
+        HudFillRect(btlSubscreen, 1, 0, 0, HUD_TILE_W, HUD_TILE_H);
+
+        if (menu == HUD_MENU_MOVE) {
+            HudDrawMoves(btlSubscreen);
+        } else if (menu == HUD_MENU_TARGET) {
+            HudDrawTarget(btlSubscreen);
+        } else if (menu >= 13 && menu <= 17) {
+            HudDrawYesNo(btlSubscreen);
+        } else {
+            HudDrawAction(btlSubscreen);
+        }
     }
 
     Window_ScheduleCopyToVRAM(&sHud.window);

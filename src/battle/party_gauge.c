@@ -1,4 +1,5 @@
 #include "battle/party_gauge.h"
+#include "battle/battle_hud.h"
 
 #include <nitro.h>
 #include <string.h>
@@ -94,17 +95,17 @@ static const SpriteTemplate sPokeballTemplate = {
 #define ARROW_TASK_PRIORITY    500
 #define POKEBALL_TASK_PRIORITY (ARROW_TASK_PRIORITY + 1)
 
-#define SCREEN_EDGE_RIGHT 256
+#define SCREEN_EDGE_RIGHT (BattleHud_IsWidePixelMode() ? 342 : 256)
 #define SCREEN_EDGE_LEFT  0
 
-#define ARROW_X_START_OURS   (SCREEN_EDGE_RIGHT + 96) // 96 pixels off-screen
+#define ARROW_X_START_OURS   (BattleHud_IsWidePixelMode() ? 380 : (256 + 96)) // off-screen right without 9-bit OAM wrap
 #define ARROW_X_START_THEIRS (SCREEN_EDGE_LEFT - 96) // 96 pixels off-screen
 #define ARROW_X_END_OURS     (SCREEN_EDGE_RIGHT - 32)
 #define ARROW_X_END_THEIRS   (SCREEN_EDGE_LEFT + 32)
 #define ARROW_Y_POS_OURS     120
 #define ARROW_Y_POS_THEIRS   56
 
-#define POKEBALL_X_START_OURS   (SCREEN_EDGE_RIGHT + 20)
+#define POKEBALL_X_START_OURS   (BattleHud_IsWidePixelMode() ? 362 : (256 + 20))
 #define POKEBALL_X_START_THEIRS (SCREEN_EDGE_LEFT - 20)
 #define POKEBALL_X_END_OURS     (SCREEN_EDGE_RIGHT - 128 + 34)
 #define POKEBALL_X_END_THEIRS   (SCREEN_EDGE_LEFT + 128 - 34)

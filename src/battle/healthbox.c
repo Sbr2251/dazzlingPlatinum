@@ -1,4 +1,5 @@
 #include "battle/healthbox.h"
+#include "battle/battle_hud.h"
 #include "battle/mega_evolution.h"
 
 #include <nitro.h>
@@ -616,11 +617,55 @@ static void HealthBox_LoadMainPalette(SpriteSystem *spriteSys, SpriteManager *ha
     }
 }
 
+static void HealthBox_BaseXY(u8 type, int *outX, int *outY)
+{
+    const SpriteTemplate *template = HealthBox_MainSpriteTemplate(type);
+
+    if (BattleHud_IsWidePixelMode()) {
+        switch (type) {
+        case HEALTHBOX_TYPE_PLAYER_SOLO:
+        case HEALTHBOX_TYPE_SAFARI_ZONE:
+        case HEALTHBOX_TYPE_PAL_PARK:
+            *outX = 278;
+            *outY = 114;
+            return;
+        case HEALTHBOX_TYPE_ENEMY_SOLO:
+            *outX = 58;
+            *outY = 28;
+            return;
+        case HEALTHBOX_TYPE_PLAYER_SLOT_1:
+            *outX = 278;
+            *outY = 102;
+            return;
+        case HEALTHBOX_TYPE_PLAYER_SLOT_2:
+            *outX = 284;
+            *outY = 131;
+            return;
+        case HEALTHBOX_TYPE_ENEMY_SLOT_1:
+            *outX = 64;
+            *outY = 18;
+            return;
+        case HEALTHBOX_TYPE_ENEMY_SLOT_2:
+            *outX = 58;
+            *outY = 47;
+            return;
+        default:
+            break;
+        }
+    }
+
+    *outX = template->x;
+    *outY = template->y;
+}
+
 ManagedSprite *HealthBox_DrawSprite(SpriteSystem *spriteSys, SpriteManager *handler, int type)
 {
     const SpriteTemplate *template = HealthBox_MainSpriteTemplate(type);
     ManagedSprite *managedSprite = SpriteSystem_NewSprite(spriteSys, handler, template);
+    int baseX, baseY;
 
+    HealthBox_BaseXY((u8)type, &baseX, &baseY);
+    Sprite_SetPositionXY(managedSprite->sprite, baseX, baseY);
     Sprite_TickFrame(managedSprite->sprite);
     return managedSprite;
 }
@@ -815,7 +860,9 @@ void Healthbox_CreateMainSprite(HealthBox *healthbox)
     HealthBox_LoadMainPalette(spriteSystem, spriteManager, narc, paletteData, healthbox->type);
 
     if (healthbox->arrowSprite != NULL) {
-        Sprite_SetPositionXY(healthbox->arrowSprite->sprite, spriteTemplate->x - sArrowOffsetX[healthbox->type], spriteTemplate->y + 0);
+        int baseX, baseY;
+        HealthBox_BaseXY(healthbox->type, &baseX, &baseY);
+        Sprite_SetPositionXY(healthbox->arrowSprite->sprite, baseX - sArrowOffsetX[healthbox->type], baseY + 0);
     }
 
     NARC_dtor(narc);
@@ -1037,19 +1084,23 @@ void HealthBox_Enable(HealthBox *battleSys, BOOL enable)
 
 void HealthBox_OffsetPositionXY(HealthBox *healthbox, int x, int y)
 {
-    GF_ASSERT(healthbox->mainSprite != NULL);
-    const SpriteTemplate *template = HealthBox_MainSpriteTemplate(healthbox->type);
+    int baseX, baseY;
 
-    Sprite_SetPositionXY(healthbox->mainSprite->sprite, template->x + x, template->y + y);
+    GF_ASSERT(healthbox->mainSprite != NULL);
+    HealthBox_BaseXY(healthbox->type, &baseX, &baseY);
+
+    Sprite_SetPositionXY(healthbox->mainSprite->sprite, baseX + x, baseY + y);
     if (healthbox->arrowSprite != NULL) {
         Sprite_SetPositionXY(healthbox->arrowSprite->sprite,
-            template->x + x - sArrowOffsetX[healthbox->type],
-            template->y + y + 0);
+            baseX + x - sArrowOffsetX[healthbox->type],
+            baseY + y + 0);
     }
 }
 
 void HealthBox_Scroll(HealthBox *healthbox, enum HealthBoxScrollDirection direction)
 {
+    int scrollOut = BattleHud_IsWidePixelMode() ? 128 : HEALTHBOX_SCROLL_OUT_OFFSET;
+
     GF_ASSERT(healthbox != NULL);
     GF_ASSERT(healthbox->mainSprite != NULL);
 
@@ -1064,12 +1115,12 @@ void HealthBox_Scroll(HealthBox *healthbox, enum HealthBoxScrollDirection direct
         case HEALTHBOX_TYPE_SAFARI_ZONE:
         case HEALTHBOX_TYPE_PAL_PARK:
             // Player-side healthbox
-            HealthBox_OffsetPositionXY(healthbox, HEALTHBOX_SCROLL_OUT_OFFSET, 0);
+            HealthBox_OffsetPositionXY(healthbox, scrollOut, 0);
             break;
 
         default:
             // Enemy-side healthbox
-            HealthBox_OffsetPositionXY(healthbox, -HEALTHBOX_SCROLL_OUT_OFFSET, 0);
+            HealthBox_OffsetPositionXY(healthbox, -scrollOut, 0);
             break;
         }
     } else {
@@ -1089,7 +1140,10 @@ static void Healthbox_Task_Scroll(SysTask *task, void *data)
 {
     HealthBox *healthbox = data;
     int done = 0;
-    const SpriteTemplate *template = HealthBox_MainSpriteTemplate(healthbox->type);
+    int baseX, baseY;
+    int scrollOut = BattleHud_IsWidePixelMode() ? 128 : HEALTHBOX_SCROLL_OUT_OFFSET;
+
+    HealthBox_BaseXY(healthbox->type, &baseX, &baseY);
 
     s16 x, y;
     ManagedSprite_GetPositionXY(healthbox->mainSprite, &x, &y);
@@ -1105,15 +1159,15 @@ static void Healthbox_Task_Scroll(SysTask *task, void *data)
         if (healthbox->scrollDirection == HEALTHBOX_SCROLL_IN) {
             x -= HEALTHBOX_SCROLL_SPEED;
 
-            if (x < template->x) {
-                x = template->x;
+            if (x < baseX) {
+                x = baseX;
                 done++;
             }
         } else {
             x += HEALTHBOX_SCROLL_SPEED;
 
-            if (x > template->x + HEALTHBOX_SCROLL_OUT_OFFSET) {
-                x = template->x + HEALTHBOX_SCROLL_OUT_OFFSET;
+            if (x > baseX + scrollOut) {
+                x = baseX + scrollOut;
                 done++;
             }
         }
@@ -1124,15 +1178,15 @@ static void Healthbox_Task_Scroll(SysTask *task, void *data)
         if (healthbox->scrollDirection == HEALTHBOX_SCROLL_IN) {
             x += HEALTHBOX_SCROLL_SPEED;
 
-            if (x > template->x) {
-                x = template->x;
+            if (x > baseX) {
+                x = baseX;
                 done++;
             }
         } else {
             x -= HEALTHBOX_SCROLL_SPEED;
 
-            if (x < template->x - HEALTHBOX_SCROLL_SPEED) {
-                x = template->x - HEALTHBOX_SCROLL_SPEED;
+            if (x < baseX - HEALTHBOX_SCROLL_SPEED) {
+                x = baseX - HEALTHBOX_SCROLL_SPEED;
                 done++;
             }
         }

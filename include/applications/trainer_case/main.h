@@ -6,5 +6,6 @@
 BOOL TrainerCaseApp_Init(ApplicationManager *appMan, int *state);
 BOOL TrainerCaseApp_Main(ApplicationManager *appMan, int *state);
 BOOL TrainerCaseApp_Exit(ApplicationManager *appMan, int *state);
+BOOL TrainerCase_IsWidePixelMode(void);
 
 #endif // POKEPLATINUM_APPLICATIONS_TRAINER_CASE_MAIN_H

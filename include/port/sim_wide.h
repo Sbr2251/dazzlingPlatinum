@@ -49,6 +49,9 @@ BOOL SIM_Wide_IsWideLayout(void);
 // battlehud hook: opt-in main-screen click routing (sim_layout.h).
 void SIM_Wide_SetMainTouchEnabled(int enabled);
 int SIM_Wide_PollMainTouch(int *x, int *y);
+int SIM_Wide_GetMainTouchHeld(int *x, int *y);
+// Native-width main-engine 2D opt-in (0 restores classic 256 pixels).
+void SIM_Wide_SetWide2DWidth(int widthPx);
 
 // Aspect ratio for game cameras: the wide aspect (16/9) when the wide
 // layout is in effect, else the classic 4/3.

@@ -31,9 +31,9 @@
 #include "res/graphics/bag/bag_graphics.naix"
 #include "res/text/bank/bag.h"
 
-#define ITEM_LIST_WINDOW_WIDTH         17
+#define ITEM_LIST_WINDOW_WIDTH         (Bag_IsWidePixelMode() ? 28 : 17)
 #define ITEM_LIST_WINDOW_HEIGHT        TEXT_LINES_TILES(BAG_UI_NUM_VISIBLE_ITEMS)
-#define ITEM_DESCRIPTION_WINDOW_WIDTH  (HW_LCD_WIDTH / TILE_WIDTH_PIXELS)
+#define ITEM_DESCRIPTION_WINDOW_WIDTH  (Bag_IsWidePixelMode() ? 42 : (HW_LCD_WIDTH / TILE_WIDTH_PIXELS))
 #define ITEM_DESCRIPTION_WINDOW_HEIGHT TEXT_LINES_TILES(3)
 #define MSG_BOX_WINDOW_WIDTH           14
 #define MSG_BOX_NARROW_WINDOW_WIDTH    13
@@ -53,14 +53,16 @@
 #define POFFIN_COUNT_WINDOW_HEIGHT     TEXT_LINES_TILES(2)
 
 #define BASE_TILE_ITEM_LIST         1
-#define BASE_TILE_ITEM_DESCRIPTION  (BASE_TILE_ITEM_LIST + (ITEM_LIST_WINDOW_WIDTH * ITEM_LIST_WINDOW_HEIGHT))
-#define BASE_TILE_POCKET_NAMES      (BASE_TILE_ITEM_DESCRIPTION + ITEM_DESCRIPTION_WINDOW_WIDTH * ITEM_DESCRIPTION_WINDOW_HEIGHT)
-#define BASE_TILE_MSG_BOX           (BASE_TILE_POCKET_NAMES + POCKET_NAMES_WINDOW_WIDTH * POCKET_NAMES_WINDOW_HEIGHT)
+// Classic allocations are kept constant so static templates remain valid;
+// BagUI_CreateWindows supplies compact alternate bases in native-wide mode.
+#define BASE_TILE_ITEM_DESCRIPTION  307
+#define BASE_TILE_POCKET_NAMES      499
+#define BASE_TILE_MSG_BOX           607
 #define BASE_TILE_MSG_BOX_NARROW    BASE_TILE_MSG_BOX
-#define BASE_TILE_POCKET_SELECTOR   (BASE_TILE_MSG_BOX + MSG_BOX_WINDOW_WIDTH * MSG_BOX_WINDOW_HEIGHT)
-#define BASE_TILE_MSG_BOX_WIDE      (BASE_TILE_POCKET_SELECTOR + POCKET_SELECTOR_WINDOW_WIDTH * POCKET_SELECTOR_WINDOW_HEIGHT)
-#define BASE_TILE_YES_NO            (BASE_TILE_MSG_BOX_WIDE + MSG_BOX_WIDE_WINDOW_WIDTH * MSG_BOX_WINDOW_HEIGHT)
-#define BASE_TILE_SELL_COUNT_VALUE  (BASE_TILE_YES_NO + YES_NO_WINDOW_WIDTH * YES_NO_WINDOW_HEIGHT)
+#define BASE_TILE_POCKET_SELECTOR   663
+#define BASE_TILE_MSG_BOX_WIDE      687
+#define BASE_TILE_YES_NO            795
+#define BASE_TILE_SELL_COUNT_VALUE  823
 #define BASE_TILE_ITEM_ACTIONS_MENU BASE_TILE_SELL_COUNT_VALUE
 #define BASE_TILE_MONEY             (BASE_TILE_SELL_COUNT_VALUE + SELL_WINDOW_WIDTH * SELL_WINDOW_HEIGHT)
 #define BASE_TILE_POFFIN_COUNT      903
@@ -88,17 +90,23 @@ static const WindowTemplate sYesNoMenuTemplate = {
 
 void BagUI_CreateWindows(BagController *controller)
 {
+    BOOL wide = Bag_IsWidePixelMode();
+    u16 descriptionBase = wide ? 1 : BASE_TILE_ITEM_DESCRIPTION;
+    u16 pocketNamesBase = wide ? 505 : BASE_TILE_POCKET_NAMES;
+    u16 pocketIndicatorBase = wide ? 253 : BASE_TILE_POCKET_SELECTOR;
+    u16 transientBase = wide ? 277 : BASE_TILE_MSG_BOX;
+
     Window_Add(controller->bgConfig, &controller->windows[BAG_UI_WINDOW_ITEM_LIST], BG_LAYER_MAIN_2, 14, 0, ITEM_LIST_WINDOW_WIDTH, ITEM_LIST_WINDOW_HEIGHT, 3, BASE_TILE_ITEM_LIST);
-    Window_Add(controller->bgConfig, &controller->windows[BAG_UI_WINDOW_ITEM_DESCRIPTION], BG_LAYER_MAIN_0, 0, 18, ITEM_DESCRIPTION_WINDOW_WIDTH, ITEM_DESCRIPTION_WINDOW_HEIGHT, 3, BASE_TILE_ITEM_DESCRIPTION);
-    Window_Add(controller->bgConfig, &controller->windows[BAG_UI_WINDOW_POCKET_NAMES], BG_LAYER_MAIN_2, 0, 13, POCKET_NAMES_WINDOW_WIDTH, POCKET_NAMES_WINDOW_HEIGHT, 3, BASE_TILE_POCKET_NAMES);
-    Window_Add(controller->bgConfig, &controller->windows[BAG_UI_WINDOW_MSG_BOX], BG_LAYER_MAIN_0, 6, 19, MSG_BOX_WINDOW_WIDTH, MSG_BOX_WINDOW_HEIGHT, 11, BASE_TILE_MSG_BOX);
-    Window_Add(controller->bgConfig, &controller->windows[BAG_UI_WINDOW_MSG_BOX_NARROW], BG_LAYER_MAIN_0, 6, 19, MSG_BOX_NARROW_WINDOW_WIDTH, MSG_BOX_WINDOW_HEIGHT, 11, BASE_TILE_MSG_BOX_NARROW);
-    Window_Add(controller->bgConfig, &controller->windows[BAG_UI_WINDOW_POCKET_INDICATOR], BG_LAYER_MAIN_0, 0, 11, POCKET_SELECTOR_WINDOW_WIDTH, POCKET_SELECTOR_WINDOW_HEIGHT, 13, BASE_TILE_POCKET_SELECTOR);
-    Window_Add(controller->bgConfig, &controller->windows[BAG_UI_WINDOW_MSG_BOX_WIDE], BG_LAYER_MAIN_0, 2, 19, MSG_BOX_WIDE_WINDOW_WIDTH, MSG_BOX_WINDOW_HEIGHT, 11, BASE_TILE_MSG_BOX_WIDE);
-    Window_Add(controller->bgConfig, &controller->windows[BAG_UI_WINDOW_SELL_COUNT_VALUE], BG_LAYER_MAIN_0, 19, 13, SELL_WINDOW_WIDTH, SELL_WINDOW_HEIGHT, 3, BASE_TILE_SELL_COUNT_VALUE);
-    Window_Add(controller->bgConfig, &controller->windows[BAG_UI_WINDOW_MONEY], BG_LAYER_MAIN_0, 1, 1, MONEY_WINDOW_WIDTH, TEXT_LINES_TILES(2), 3, BASE_TILE_MONEY);
-    Window_Add(controller->bgConfig, &controller->windows[BAG_UI_WINDOW_THROW_AWAY_COUNT], BG_LAYER_MAIN_0, 24, 19, 7, 4, 3, BASE_TILE_THROW_AWAY_COUNT);
-    Window_Add(controller->bgConfig, &controller->windows[BAG_UI_WINDOW_POFFIN_COUNT], BG_LAYER_MAIN_0, 1, 12, POFFIN_COUNT_WINDOW_WIDTH, TEXT_LINES_TILES(2), 3, BASE_TILE_POFFIN_COUNT);
+    Window_Add(controller->bgConfig, &controller->windows[BAG_UI_WINDOW_ITEM_DESCRIPTION], BG_LAYER_MAIN_0, 0, 18, ITEM_DESCRIPTION_WINDOW_WIDTH, ITEM_DESCRIPTION_WINDOW_HEIGHT, 3, descriptionBase);
+    Window_Add(controller->bgConfig, &controller->windows[BAG_UI_WINDOW_POCKET_NAMES], BG_LAYER_MAIN_2, 0, 13, wide ? 12 : POCKET_NAMES_WINDOW_WIDTH, POCKET_NAMES_WINDOW_HEIGHT, 3, pocketNamesBase);
+    Window_Add(controller->bgConfig, &controller->windows[BAG_UI_WINDOW_MSG_BOX], BG_LAYER_MAIN_0, wide ? 8 : 6, 19, wide ? 25 : MSG_BOX_WINDOW_WIDTH, MSG_BOX_WINDOW_HEIGHT, 11, transientBase);
+    Window_Add(controller->bgConfig, &controller->windows[BAG_UI_WINDOW_MSG_BOX_NARROW], BG_LAYER_MAIN_0, wide ? 8 : 6, 19, wide ? 24 : MSG_BOX_NARROW_WINDOW_WIDTH, MSG_BOX_WINDOW_HEIGHT, 11, transientBase);
+    Window_Add(controller->bgConfig, &controller->windows[BAG_UI_WINDOW_POCKET_INDICATOR], BG_LAYER_MAIN_0, 0, 11, POCKET_SELECTOR_WINDOW_WIDTH, POCKET_SELECTOR_WINDOW_HEIGHT, 13, pocketIndicatorBase);
+    Window_Add(controller->bgConfig, &controller->windows[BAG_UI_WINDOW_MSG_BOX_WIDE], BG_LAYER_MAIN_0, wide ? 6 : 2, 19, wide ? 31 : MSG_BOX_WIDE_WINDOW_WIDTH, MSG_BOX_WINDOW_HEIGHT, 11, transientBase);
+    Window_Add(controller->bgConfig, &controller->windows[BAG_UI_WINDOW_SELL_COUNT_VALUE], BG_LAYER_MAIN_0, wide ? 30 : 19, 13, SELL_WINDOW_WIDTH, SELL_WINDOW_HEIGHT, 3, transientBase);
+    Window_Add(controller->bgConfig, &controller->windows[BAG_UI_WINDOW_MONEY], BG_LAYER_MAIN_0, 1, 1, MONEY_WINDOW_WIDTH, TEXT_LINES_TILES(2), 3, transientBase);
+    Window_Add(controller->bgConfig, &controller->windows[BAG_UI_WINDOW_THROW_AWAY_COUNT], BG_LAYER_MAIN_0, wide ? 35 : 24, 19, 7, 4, 3, wide ? 425 : BASE_TILE_THROW_AWAY_COUNT);
+    Window_Add(controller->bgConfig, &controller->windows[BAG_UI_WINDOW_POFFIN_COUNT], BG_LAYER_MAIN_0, 1, 12, POFFIN_COUNT_WINDOW_WIDTH, TEXT_LINES_TILES(2), 3, transientBase);
 }
 
 void BagUI_DeleteWindows(Window windows[NUM_BAG_UI_WINDOWS])
@@ -128,15 +136,21 @@ void BagUI_FreePocketNames(BagController *controller)
 
 void BagUI_ClearPocketNameBox(BagController *controller)
 {
+    u16 baseTile = Bag_IsWidePixelMode() ? 505 : BASE_TILE_POCKET_NAMES;
+    u16 width = Bag_IsWidePixelMode() ? 12 : POCKET_NAMES_WINDOW_WIDTH;
+    u16 xOffset = Bag_IsWidePixelMode() ? 0 : 12;
     for (u16 i = 0; i < 12; i++) {
-        Bg_FillTilemapRect(controller->bgConfig, BG_LAYER_MAIN_2, BASE_TILE_POCKET_NAMES + 12 + i, i, 13, 1, 1, 3);
-        Bg_FillTilemapRect(controller->bgConfig, BG_LAYER_MAIN_2, BASE_TILE_POCKET_NAMES + POCKET_NAMES_WINDOW_WIDTH + 12 + i, i, 13 + 1, 1, 1, 3);
+        Bg_FillTilemapRect(controller->bgConfig, BG_LAYER_MAIN_2, baseTile + xOffset + i, i, 13, 1, 1, 3);
+        Bg_FillTilemapRect(controller->bgConfig, BG_LAYER_MAIN_2, baseTile + width + xOffset + i, i, 13 + 1, 1, 1, 3);
     }
 }
 
 static void PrintPocketNameCentered(BagController *controller, String *string, u16 centerY)
 {
     u32 stringWidth = Font_CalcStringWidth(FONT_SYSTEM, string, 0);
+    if (Bag_IsWidePixelMode()) {
+        centerY = 48;
+    }
     Text_AddPrinterWithParamsAndColor(&controller->windows[BAG_UI_WINDOW_POCKET_NAMES], FONT_SYSTEM, string, centerY - stringWidth / 2, 2, TEXT_SPEED_NO_TRANSFER, TEXT_COLOR(1, 2, 0), NULL);
 }
 
@@ -146,6 +160,11 @@ void BagUI_PrintPocketNames(BagController *controller)
 
     BagPocketSelector *pocketSelector = &controller->pocketSelector;
     String *currentPocketName = controller->pocketNames[controller->bagCtx->accessiblePockets[controller->bagCtx->currPocketIdx].pocketType];
+    if (Bag_IsWidePixelMode()) {
+        PrintPocketNameCentered(controller, currentPocketName, 48);
+        Window_LoadTiles(&controller->windows[BAG_UI_WINDOW_POCKET_NAMES]);
+        return;
+    }
     String *nextPocketName = controller->pocketNames[controller->bagCtx->accessiblePockets[pocketSelector->nextPocket].pocketType];
 
     u16 curPocketNamePos;
@@ -404,10 +423,10 @@ void BagUI_ShowItemActionsMenu(BagController *controller, u8 *actions, u8 numAct
 {
     u16 msgBoxWindowIdx;
     if (controller->bagCtx->accessiblePockets[controller->bagCtx->currPocketIdx].pocketType == POCKET_BERRIES) {
-        Window_Add(controller->bgConfig, &controller->itemActionsWindow, BG_LAYER_MAIN_0, 23, 23 - TEXT_LINES_TILES(numActions), 8, TEXT_LINES_TILES(numActions), 3, BASE_TILE_ITEM_ACTIONS_MENU);
+        Window_Add(controller->bgConfig, &controller->itemActionsWindow, BG_LAYER_MAIN_0, Bag_IsWidePixelMode() ? 34 : 23, 23 - TEXT_LINES_TILES(numActions), 8, TEXT_LINES_TILES(numActions), 3, Bag_IsWidePixelMode() ? 425 : BASE_TILE_ITEM_ACTIONS_MENU);
         msgBoxWindowIdx = BAG_UI_WINDOW_MSG_BOX_NARROW;
     } else {
-        Window_Add(controller->bgConfig, &controller->itemActionsWindow, BG_LAYER_MAIN_0, 23 + 1, 23 - TEXT_LINES_TILES(numActions), 8 - 1, TEXT_LINES_TILES(numActions), 3, BASE_TILE_ITEM_ACTIONS_MENU);
+        Window_Add(controller->bgConfig, &controller->itemActionsWindow, BG_LAYER_MAIN_0, Bag_IsWidePixelMode() ? 35 : 23 + 1, 23 - TEXT_LINES_TILES(numActions), 8 - 1, TEXT_LINES_TILES(numActions), 3, Bag_IsWidePixelMode() ? 425 : BASE_TILE_ITEM_ACTIONS_MENU);
         msgBoxWindowIdx = BAG_UI_WINDOW_MSG_BOX;
     }
 
@@ -592,7 +611,12 @@ static BOOL BagUITextPrinterCallback(TextPrinterTemplate *template, u16 param1)
 
 void BagUI_ShowYesNoMenu(BagController *controller)
 {
-    controller->menu = Menu_MakeYesNoChoice(controller->bgConfig, &sYesNoMenuTemplate, BASE_TILE_BAG_WINDOW_FRAME, 14, HEAP_ID_BAG);
+    WindowTemplate menuTemplate = sYesNoMenuTemplate;
+    if (Bag_IsWidePixelMode()) {
+        menuTemplate.tilemapLeft = 34;
+        menuTemplate.baseTile = 425;
+    }
+    controller->menu = Menu_MakeYesNoChoice(controller->bgConfig, &menuTemplate, BASE_TILE_BAG_WINDOW_FRAME, 14, HEAP_ID_BAG);
 }
 
 void BagUI_PrintSellCountAndValue(BagController *controller, u8 skipFrame)

@@ -1,4 +1,5 @@
 #include "battle/battle_textbox.h"
+#include "battle/battle_hud.h"
 
 #include <nitro.h>
 
@@ -202,6 +203,12 @@ void BattleTextbox_Update(void)
     u16 first;
 
     if (sTextboxBattleSys == NULL || sTextboxSuspended) {
+        return;
+    }
+
+    // In wide pixel mode, the authentic Platinum frame and battle HUD stay
+    // crisp and opaque on BG1 (no translucent BW2 dark-panel alpha blend).
+    if (BattleHud_IsWidePixelMode()) {
         return;
     }
 

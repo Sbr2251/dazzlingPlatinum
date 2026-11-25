@@ -1,5 +1,6 @@
 #include "battle/battle_lib.h"
 #include "battle/battle_debug.h"
+#include "battle/battle_hud.h"
 #include "battle/battle_stage.h"
 #include "battle/battle_textbox.h"
 #include "battle/totem_aura.h"
@@ -316,6 +317,7 @@ BOOL Battle_Main(ApplicationManager *appMan, int *state)
 
 void BattleSystem_EnterSubMenu(BattleSystem *battleSys)
 {
+    SIM_Wide_SetWide2DWidth(0);
     SIM_Wide_SetScene(SIM_WIDE_SCENE_MENU); // battlehud hook (widegame note)
     BattleSubscreen_Free(battleSys->btlSubscreen);
     BattleSubscreenBg_Free(battleSys->bgConfig);
@@ -336,6 +338,7 @@ void BattleSystem_EnterSubMenu(BattleSystem *battleSys)
 
 void BattleSystem_FreeGraphics(BattleSystem *battleSys)
 {
+    SIM_Wide_SetWide2DWidth(0);
     SetVBlankCallback(NULL, NULL);
     BattleSubscreen_Free(battleSys->btlSubscreen);
     Window_Remove(&battleSys->windows[0]);
@@ -387,6 +390,7 @@ void BattleSystem_ExitSubMenu(BattleSystem *battleSys)
 
 void BattleSystem_HideBattleScreen(BattleSystem *battleSys)
 {
+    SIM_Wide_SetWide2DWidth(0);
     // Only used after a capture: the Pokedex entry takes over BG0, then the
     // platforms stay hidden until the battle ends, so the stage stays off
     // too. BattleStage_Init clears the suppression.
@@ -403,15 +407,20 @@ void BattleSystem_HideBattleScreen(BattleSystem *battleSys)
 
 void BattleSystem_SetupBattleScreen(BattleSystem *battleSys)
 {
+    BOOL widePixel = BattleHud_IsWidePixelMode();
     battleSys->pendingBlendReset = 1;
+
+    if (widePixel) {
+        SIM_Wide_SetWide2DWidth(342);
+    }
 
     BgTemplate bgTemplates[] = {
         {
             .x = 0,
             .y = 0,
-            .bufferSize = 0x800,
+            .bufferSize = widePixel ? 0x1000 : 0x800,
             .baseTile = 0,
-            .screenSize = BG_SCREEN_SIZE_256x256,
+            .screenSize = widePixel ? BG_SCREEN_SIZE_512x256 : BG_SCREEN_SIZE_256x256,
             .colorMode = GX_BG_COLORMODE_16,
             .screenBase = GX_BG_SCRBASE_0x0000,
             .charBase = GX_BG_CHARBASE_0x04000,
@@ -466,8 +475,12 @@ void BattleSystem_SetupBattleScreen(BattleSystem *battleSys)
     Graphics_LoadTilesToBgLayer(NARC_INDEX_BATTLE__GRAPHIC__PL_BATT_BG, 3 + battleSys->background, battleSys->bgConfig, BG_LAYER_MAIN_3, 0, 0, 1, HEAP_ID_BATTLE);
     PaletteData_LoadBufferFromFileStart(battleSys->paletteData, NARC_INDEX_BATTLE__GRAPHIC__PL_BATT_BG, 172 + battleSys->background * 3 + BattleSystem_GetBackgroundTimeOffset(battleSys), HEAP_ID_BATTLE, PLTTBUF_MAIN_BG, 0, PLTT_DEST(0));
     PaletteData_LoadBufferFromFileStart(battleSys->paletteData, NARC_INDEX_GRAPHIC__PL_WINFRAME, GetMessageBoxPaletteNARCMember(frame), HEAP_ID_BATTLE, PLTTBUF_MAIN_BG, PALETTE_SIZE_BYTES, PLTT_DEST(10));
-    BattleTextbox_LoadCursorPalette(battleSys->paletteData);
-    BattleTextbox_LoadTextPalette(battleSys->paletteData);
+    if (widePixel) {
+        PaletteData_LoadBufferFromFileStart(battleSys->paletteData, NARC_INDEX_GRAPHIC__PL_FONT, 7, HEAP_ID_BATTLE, PLTTBUF_MAIN_BG, PALETTE_SIZE_BYTES, PLTT_DEST(11));
+    } else {
+        BattleTextbox_LoadCursorPalette(battleSys->paletteData);
+        BattleTextbox_LoadTextPalette(battleSys->paletteData);
+    }
     Graphics_LoadTilemapToBgLayer(NARC_INDEX_BATTLE__GRAPHIC__PL_BATT_BG, 2, battleSys->bgConfig, 3, 0, 0, 1, HEAP_ID_BATTLE);
 
     GX_SetVisibleWnd(GX_WNDMASK_NONE);
@@ -485,7 +498,12 @@ void BattleSystem_SetupBattleScreen(BattleSystem *battleSys)
 
     Window_Add(battleSys->bgConfig, battleSys->windows, 1, 2, 19, 27, 4, 11, (18 + 12) + 1);
     Window_FillTilemap(battleSys->windows, 0xFF);
-    BattleTextbox_DrawMessageWindow(&battleSys->windows[0]);
+    if (widePixel) {
+        Window_DrawMessageBoxWithScrollCursor(&battleSys->windows[0], 0, 1, 10);
+        BattleHud_DrawWideMessageFrame(battleSys);
+    } else {
+        BattleTextbox_DrawMessageWindow(&battleSys->windows[0]);
+    }
 
     BattleSys_SetRenderControlFlags(battleSys);
     BattleTextbox_Resume();
@@ -581,6 +599,9 @@ static void BattleMain_InitGraphics(ApplicationManager *appMan)
     Window_Add(battleSys->bgConfig, &battleSys->windows[0], 1, 2, 0x13, 27, 4, 11, (18 + 12) + 1);
     Window_FillTilemap(&battleSys->windows[0], 0xFF);
     Window_DrawMessageBoxWithScrollCursor(&battleSys->windows[0], 0, 1, 10);
+    if (BattleHud_IsWidePixelMode()) {
+        BattleHud_DrawWideMessageFrame(battleSys);
+    }
 
     battleSys->spriteSys = SpriteSystem_Alloc(HEAP_ID_BATTLE);
 
@@ -841,6 +862,11 @@ static void BattleMain_CopyBattleSysToDTOAndFree(ApplicationManager *appMan)
 
 static void BattleMain_InitBattleGraphics(BattleSystem *battleSys, BgConfig *bgConfig)
 {
+    BOOL widePixel = BattleHud_IsWidePixelMode();
+    if (widePixel) {
+        SIM_Wide_SetWide2DWidth(342);
+    }
+
     GXLayers_DisableEngineALayers();
     ResetScreenMasterBrightness(DS_SCREEN_MAIN);
     ResetScreenMasterBrightness(DS_SCREEN_SUB);
@@ -880,9 +906,9 @@ static void BattleMain_InitBattleGraphics(BattleSystem *battleSys, BgConfig *bgC
         {
             .x = 0,
             .y = 0,
-            .bufferSize = 0x800,
+            .bufferSize = widePixel ? 0x1000 : 0x800,
             .baseTile = 0,
-            .screenSize = BG_SCREEN_SIZE_256x256,
+            .screenSize = widePixel ? BG_SCREEN_SIZE_512x256 : BG_SCREEN_SIZE_256x256,
             .colorMode = GX_BG_COLORMODE_16,
             .screenBase = GX_BG_SCRBASE_0x0000,
             .charBase = GX_BG_CHARBASE_0x04000,

@@ -29,6 +29,11 @@ extern "C" {
 #endif
 
 BOOL BattleHud_IsEnabled(void);
+BOOL BattleHud_IsWidePixelMode(void);
+
+// Wide pixel mode (342x192, 43x24 tiles): extend the authentic Platinum
+// message box frame cleanly across the bottom of the 16:9 screen.
+void BattleHud_DrawWideMessageFrame(BattleSystem *battleSys);
 
 // Call every frame a battle menu is up (from BattleSystem_MenuInput).
 // Returns a touch-array button index when a main-screen click confirms

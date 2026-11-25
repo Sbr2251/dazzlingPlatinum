@@ -3,6 +3,7 @@
 #include <nitro.h>
 
 #include "applications/trainer_case/defs.h"
+#include "applications/trainer_case/main.h"
 
 #include "badges.h"
 #include "char_transfer.h"
@@ -12,6 +13,7 @@
 #include "narc.h"
 #include "pltt_transfer.h"
 #include "render_oam.h"
+#include "render_view.h"
 #include "sprite.h"
 #include "sprite_resource.h"
 #include "sprite_transfer.h"
@@ -48,6 +50,42 @@ static const CoordinatesInt sSparkleCoordinates[] = {
     [BADGE_ID_BEACON] = { .x = 192, .y = 96 }
 };
 
+// In badge_case_sprites.png, badges 0..3 occupy rows y=0..39 of their 64x64 cell
+// while badges 4..7 occupy rows y=25..62 (+24px lower). These positions center
+// all 8 badges inside the 2x4 recessed wells at centers x={264,312}, y={40,80,120,160}.
+static const CoordinatesInt sWideBadgeCoordinates[] = {
+    [BADGE_ID_COAL] = { .x = 244, .y = 20 },
+    [BADGE_ID_FOREST] = { .x = 292, .y = 20 },
+    [BADGE_ID_COBBLE] = { .x = 244, .y = 60 },
+    [BADGE_ID_FEN] = { .x = 292, .y = 60 },
+    [BADGE_ID_RELIC] = { .x = 244, .y = 76 },
+    [BADGE_ID_MINE] = { .x = 292, .y = 76 },
+    [BADGE_ID_ICICLE] = { .x = 244, .y = 116 },
+    [BADGE_ID_BEACON] = { .x = 292, .y = 116 }
+};
+
+static const CoordinatesInt sWideTwoSparkleCoordinates[] = {
+    [BADGE_ID_COAL] = { .x = 248, .y = 24 },
+    [BADGE_ID_FOREST] = { .x = 296, .y = 24 },
+    [BADGE_ID_COBBLE] = { .x = 248, .y = 64 },
+    [BADGE_ID_FEN] = { .x = 296, .y = 64 },
+    [BADGE_ID_RELIC] = { .x = 248, .y = 104 },
+    [BADGE_ID_MINE] = { .x = 296, .y = 104 },
+    [BADGE_ID_ICICLE] = { .x = 248, .y = 144 },
+    [BADGE_ID_BEACON] = { .x = 296, .y = 144 }
+};
+
+static const CoordinatesInt sWideFourSparkleCoordinates[] = {
+    [BADGE_ID_COAL] = { .x = 244, .y = 16 },
+    [BADGE_ID_FOREST] = { .x = 292, .y = 16 },
+    [BADGE_ID_COBBLE] = { .x = 244, .y = 56 },
+    [BADGE_ID_FEN] = { .x = 292, .y = 56 },
+    [BADGE_ID_RELIC] = { .x = 244, .y = 96 },
+    [BADGE_ID_MINE] = { .x = 292, .y = 96 },
+    [BADGE_ID_ICICLE] = { .x = 244, .y = 136 },
+    [BADGE_ID_BEACON] = { .x = 292, .y = 136 }
+};
+
 static void TrainerCaseApp_InitCharPlttTransferBuffers(void);
 
 void TrainerCaseApp_InitSpriteData(TrainerCaseSpriteData *spriteData, NARC *narc)
@@ -57,6 +95,15 @@ void TrainerCaseApp_InitSpriteData(TrainerCaseSpriteData *spriteData, NARC *narc
     RenderOam_Init(0, 128, 0, 32, 0, 128, 0, 32, HEAP_ID_TRAINER_CASE);
 
     spriteData->spriteList = SpriteList_InitRendering(MAX_BADGES * 3 + 1, &spriteData->g2dRenderer, HEAP_ID_TRAINER_CASE);
+
+    if (TrainerCase_IsWidePixelMode()) {
+        NNSG2dViewRect viewRect;
+        viewRect.posTopLeft.x = 0;
+        viewRect.posTopLeft.y = 0;
+        viewRect.sizeView.x = (342 << FX32_SHIFT);
+        viewRect.sizeView.y = (192 << FX32_SHIFT);
+        SetRenderSurfaceViewRect(&spriteData->g2dRenderer.mainScreen, &viewRect);
+    }
 
     for (int resourceType = SPRITE_RESOURCE_CHAR; resourceType < MAX_SPRITE_RESOURCE_GEN4; resourceType++) {
         spriteData->spriteResourceCollection[resourceType] = SpriteResourceCollection_New(sSpriteResourceCapacities[resourceType], resourceType, HEAP_ID_TRAINER_CASE);
@@ -133,9 +180,13 @@ void TrainerCase_DrawBadgeCaseSprites(TrainerCaseSpriteData *spriteData, u8 *bad
     template.vramType = NNS_G2D_VRAM_TYPE_2DMAIN;
     template.heapID = HEAP_ID_TRAINER_CASE;
 
+    const CoordinatesInt *badgeCoords = TrainerCase_IsWidePixelMode() ? sWideBadgeCoordinates : sBadgeCoordinates;
+    const CoordinatesInt *twoSparkleCoords = TrainerCase_IsWidePixelMode() ? sWideTwoSparkleCoordinates : sSparkleCoordinates;
+    const CoordinatesInt *fourSparkleCoords = TrainerCase_IsWidePixelMode() ? sWideFourSparkleCoordinates : sSparkleCoordinates;
+
     for (int badgeID = 0; badgeID < MAX_BADGES; badgeID++) {
-        template.position.x = FX32_ONE * sBadgeCoordinates[badgeID].x;
-        template.position.y = FX32_ONE * sBadgeCoordinates[badgeID].y;
+        template.position.x = FX32_ONE * badgeCoords[badgeID].x;
+        template.position.y = FX32_ONE * badgeCoords[badgeID].y;
         spriteData->sprites[badgeID] = SpriteList_AddAffine(&template);
         Sprite_SetAnimateFlag(spriteData->sprites[badgeID], FALSE);
         Sprite_SetAnim(spriteData->sprites[badgeID], badgeID);
@@ -148,8 +199,8 @@ void TrainerCase_DrawBadgeCaseSprites(TrainerCaseSpriteData *spriteData, u8 *bad
     u8 index = TRAINER_CASE_TWO_SPARKLES_SPRITES_INDEX;
 
     for (int badgeID = 0; badgeID < MAX_BADGES; badgeID++) {
-        template.position.x = FX32_ONE * sSparkleCoordinates[badgeID].x;
-        template.position.y = FX32_ONE * sSparkleCoordinates[badgeID].y;
+        template.position.x = FX32_ONE * twoSparkleCoords[badgeID].x;
+        template.position.y = FX32_ONE * twoSparkleCoords[badgeID].y;
         template.priority = 1;
         spriteData->sprites[index + badgeID] = SpriteList_AddAffine(&template);
         Sprite_SetAnimateFlag(spriteData->sprites[index + badgeID], TRUE);
@@ -160,8 +211,8 @@ void TrainerCase_DrawBadgeCaseSprites(TrainerCaseSpriteData *spriteData, u8 *bad
     index += TRAINER_CASE_FOUR_SPARKLES_SPRITES_INDEX - TRAINER_CASE_TWO_SPARKLES_SPRITES_INDEX;
 
     for (int badgeID = 0; badgeID < MAX_BADGES; badgeID++) {
-        template.position.x = FX32_ONE * sSparkleCoordinates[badgeID].x;
-        template.position.y = FX32_ONE * sSparkleCoordinates[badgeID].y;
+        template.position.x = FX32_ONE * fourSparkleCoords[badgeID].x;
+        template.position.y = FX32_ONE * fourSparkleCoords[badgeID].y;
         template.priority = 1;
         spriteData->sprites[index + badgeID] = SpriteList_AddAffine(&template);
         Sprite_SetAnimateFlag(spriteData->sprites[index + badgeID], TRUE);

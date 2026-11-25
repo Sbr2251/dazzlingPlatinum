@@ -16,5 +16,6 @@ typedef struct OptionsMenu {
 BOOL OptionsMenu_Init(ApplicationManager *appMan, int *state);
 BOOL OptionsMenu_Exit(ApplicationManager *appMan, int *state);
 BOOL OptionsMenu_Main(ApplicationManager *appMan, int *state);
+BOOL OptionsMenu_IsWidePixelMode(void);
 
 #endif // POKEPLATINUM_APPLICATIONS_OPTIONS_MENU_H

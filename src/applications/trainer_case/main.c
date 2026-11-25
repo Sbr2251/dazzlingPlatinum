@@ -2,6 +2,13 @@
 
 #include <nitro.h>
 
+#ifdef SDK_PORT
+#include <stdlib.h>
+#include <simulator/sim_headless.h>
+
+#include "port/sim_wide.h"
+#endif
+
 #include "constants/trainer_card_levels.h"
 #include "constants/versions.h"
 #include "generated/genders.h"
@@ -131,6 +138,39 @@ static void TrainerCase_PlayOpenCloseBadgeCaseSoundEffect(int unused);
 static void TrainerCase_UpdatePlayTime(TrainerCaseApp *trainerCaseApp, u8 liveTimeDisplay);
 static int TrainerCase_CheckBadgeOrButtonTouched(BgConfig *bgConfig, const TouchScreenRect rects[]);
 static int TrainerCase_CheckBadgeOrButtonHeld(BgConfig *bgConfig, const TouchScreenRect rects[]);
+static void TrainerCase_SetWideTile(u16 *tilemap, int x, int y, u16 val);
+static u16 TrainerCase_BadgeTile(u16 rawTile);
+static void TrainerCase_DrawWideBackdropAndBadgeTray(BgConfig *bgConfig);
+static void TrainerCase_LoadWideCardTilemap(BgConfig *bgConfig, NARC *narc, u32 narcMemberIdx);
+static int TrainerCase_FindWideBadgeAt(int x, int y);
+static int TrainerCase_GetWidePlayerInput(TrainerCaseApp *trainerCaseApp, int *outTouchX, int *outTouchY);
+static void TrainerCase_HandleBadgePolishingAt(TrainerCaseApp *trainerCaseApp, int touchX, int touchY);
+static BOOL TrainerCase_FlipTrainerCardWide(TrainerCaseApp *trainerCaseApp);
+
+#define WIDE_TRAINER_CASE_WIDTH            342
+#define WIDE_TRAINER_CASE_CARD_OFFSET_X    (-1)
+#define WIDE_TRAINER_CASE_BADGE_TILES_BASE 64
+#define WIDE_TRAINER_CASE_BADGE_TRAY_X     240
+#define WIDE_TRAINER_CASE_BADGE_TRAY_RIGHT 336
+
+BOOL TrainerCase_IsWidePixelMode(void)
+{
+#ifdef SDK_PORT
+    if (!SIM_Wide_IsWideLayout()) {
+        return FALSE;
+    }
+
+    if (!SIM_Headless_Enabled()) {
+        return TRUE;
+    }
+
+    const char *wideCard = getenv("SIM_FX_WIDE_TRAINERCARD");
+    const char *interactive = getenv("SIM_HEADLESS_INTERACTIVE_FX");
+    return (wideCard != NULL && wideCard[0] == '1') || (interactive != NULL && interactive[0] == '1');
+#else
+    return FALSE;
+#endif
+}
 
 static const u8 sPolishThresholds[BADGE_POLISH_LEVEL_COUNT] = {
     1,
@@ -203,6 +243,16 @@ static const int sTrainerAppearanceNarcIndices[16] = {
 
 BOOL TrainerCaseApp_Init(ApplicationManager *appMan, int *state)
 {
+    BOOL wide = TrainerCase_IsWidePixelMode();
+
+#ifdef SDK_PORT
+    if (wide) {
+        SIM_Wide_PushScene(SIM_WIDE_SCENE_MENU_SINGLE);
+        SIM_Wide_SetWide2DWidth(WIDE_TRAINER_CASE_WIDTH);
+        SIM_Wide_SetMainTouchEnabled(1);
+    }
+#endif
+
     SetVBlankCallback(NULL, NULL);
     SetHBlankCallback(NULL, NULL);
     GXLayers_DisableEngineALayers();
@@ -248,14 +298,16 @@ BOOL TrainerCaseApp_Init(ApplicationManager *appMan, int *state)
 
     TrainerCard_AddWindows(trainerCaseApp->bgConfig, trainerCaseApp->windows);
 
-    for (u8 gymLeader = 0; gymLeader < MAX_BADGES; gymLeader++) {
-        if ((trainerCaseApp->trainerCase->gymLeadersToHideUnused >> gymLeader) & 0x1) {
-            // never reached, relevant field is always 0
-            TrainerCase_HideGymLeaderFace_Unused(trainerCaseApp, gymLeader);
+    if (!wide) {
+        for (u8 gymLeader = 0; gymLeader < MAX_BADGES; gymLeader++) {
+            if ((trainerCaseApp->trainerCase->gymLeadersToHideUnused >> gymLeader) & 0x1) {
+                // never reached, relevant field is always 0
+                TrainerCase_HideGymLeaderFace_Unused(trainerCaseApp, gymLeader);
+            }
         }
-    }
 
-    Bg_CopyTilemapBufferToVRAM(trainerCaseApp->bgConfig, BG_LAYER_MAIN_3);
+        Bg_CopyTilemapBufferToVRAM(trainerCaseApp->bgConfig, BG_LAYER_MAIN_3);
+    }
 
     TrainerCard_DrawFrontText(trainerCaseApp->windows, trainerCaseApp->trainerCase);
 
@@ -264,8 +316,10 @@ BOOL TrainerCaseApp_Init(ApplicationManager *appMan, int *state)
     }
 
     trainerCaseApp->viewingBack = FALSE;
-    trainerCaseApp->badgeCaseOpenState = BADGE_CASE_CLOSED;
+    trainerCaseApp->badgeCaseOpenState = wide ? BADGE_CASE_OPEN : BADGE_CASE_CLOSED;
     trainerCaseApp->touchedRectangleIndex = TOUCHSCREEN_INPUT_NONE;
+    trainerCaseApp->lastTouchedX = TOUCHSCREEN_INPUT_NONE;
+    trainerCaseApp->lastTouchedY = TOUCHSCREEN_INPUT_NONE;
     trainerCaseApp->badgeCaseButtonPushed = FALSE;
     trainerCaseApp->badgeCaseButtonState = BUTTON_STATE_DEFAULT;
 
@@ -291,12 +345,14 @@ BOOL TrainerCaseApp_Init(ApplicationManager *appMan, int *state)
         }
     }
 
-    TrainerCase_ResetAffineTransforms();
+    if (!wide) {
+        TrainerCase_ResetAffineTransforms();
+    }
 
     SetVBlankCallback(TrainerCase_TransferGraphicsOnVBlank, NULL);
     NetworkIcon_InitIfConnected();
     Sound_SetPlayerVolume(PLAYER_FIELD, SOUND_VOLUME_MAX / 3);
-    StartScreenFade(FADE_SUB_THEN_MAIN, FADE_TYPE_DOWNWARD_IN, FADE_TYPE_DOWNWARD_IN, COLOR_BLACK, 6, 1, HEAP_ID_TRAINER_CASE);
+    StartScreenFade(wide ? FADE_MAIN_ONLY : FADE_SUB_THEN_MAIN, FADE_TYPE_DOWNWARD_IN, FADE_TYPE_DOWNWARD_IN, COLOR_BLACK, 6, 1, HEAP_ID_TRAINER_CASE);
     NARC_dtor(narc);
 
     return TRUE;
@@ -305,6 +361,7 @@ BOOL TrainerCaseApp_Init(ApplicationManager *appMan, int *state)
 BOOL TrainerCaseApp_Main(ApplicationManager *appMan, int *state)
 {
     TrainerCaseApp *trainerCaseApp = ApplicationManager_Data(appMan);
+    BOOL wide = TrainerCase_IsWidePixelMode();
 
     switch (*state) {
     case TRAINER_CASE_STATE_INITIAL:
@@ -315,7 +372,11 @@ BOOL TrainerCaseApp_Main(ApplicationManager *appMan, int *state)
         break;
 
     case TRAINER_CASE_STATE_MAIN: {
-        int input = TrainerCase_GetPlayerInput(trainerCaseApp);
+        int wideTouchX = TOUCHSCREEN_INPUT_NONE;
+        int wideTouchY = TOUCHSCREEN_INPUT_NONE;
+        int input = wide
+            ? TrainerCase_GetWidePlayerInput(trainerCaseApp, &wideTouchX, &wideTouchY)
+            : TrainerCase_GetPlayerInput(trainerCaseApp);
 
         if (input == INPUT_TOUCH_SCREEN_TAP) {
             if (trainerCaseApp->touchedRectangleIndex == TOUCH_RECTANGLE_OPEN_CLOSE_BADGE_CASE) {
@@ -340,14 +401,18 @@ BOOL TrainerCaseApp_Main(ApplicationManager *appMan, int *state)
                 }
             }
         } else if (input == INPUT_TOUCH_SCREEN_HOLD) {
-            if (trainerCaseApp->badgeCaseButtonPushed && trainerCaseApp->touchedRectangleIndex != TOUCH_RECTANGLE_OPEN_CLOSE_BADGE_CASE) {
+            if (!wide && trainerCaseApp->badgeCaseButtonPushed && trainerCaseApp->touchedRectangleIndex != TOUCH_RECTANGLE_OPEN_CLOSE_BADGE_CASE) {
                 trainerCaseApp->badgeCaseButtonPushed = FALSE;
                 trainerCaseApp->badgeCaseButtonState = BUTTON_STATE_SPRING_BACK;
             }
 
-            TrainerCase_HandleBadgePolishing(trainerCaseApp);
+            if (wide) {
+                TrainerCase_HandleBadgePolishingAt(trainerCaseApp, wideTouchX, wideTouchY);
+            } else {
+                TrainerCase_HandleBadgePolishing(trainerCaseApp);
+            }
         } else {
-            if (trainerCaseApp->badgeCaseButtonPushed && trainerCaseApp->badgeCaseButtonState == BUTTON_STATE_DEFAULT) {
+            if (!wide && trainerCaseApp->badgeCaseButtonPushed && trainerCaseApp->badgeCaseButtonState == BUTTON_STATE_DEFAULT) {
                 trainerCaseApp->badgeCaseButtonPushed = FALSE;
                 trainerCaseApp->badgeCaseButtonState = BUTTON_STATE_SPRING_BACK;
             }
@@ -362,7 +427,7 @@ BOOL TrainerCaseApp_Main(ApplicationManager *appMan, int *state)
             } else if (input == INPUT_B_BUTTON) {
                 Sound_PlayEffect(SE_CONFIRM_sseq_3);
 
-                StartScreenFade(FADE_MAIN_THEN_SUB, FADE_TYPE_UPWARD_OUT, FADE_TYPE_UPWARD_OUT, COLOR_BLACK, 6, 1, HEAP_ID_TRAINER_CASE);
+                StartScreenFade(wide ? FADE_MAIN_ONLY : FADE_MAIN_THEN_SUB, FADE_TYPE_UPWARD_OUT, FADE_TYPE_UPWARD_OUT, COLOR_BLACK, 6, 1, HEAP_ID_TRAINER_CASE);
                 *state = TRAINER_CASE_STATE_EXIT;
             }
         }
@@ -376,7 +441,7 @@ BOOL TrainerCaseApp_Main(ApplicationManager *appMan, int *state)
         }
         break;
     case TRAINER_CASE_STATE_FLIP_CARD:
-        if (TrainerCase_FlipTrainerCard(trainerCaseApp)) {
+        if (wide ? TrainerCase_FlipTrainerCardWide(trainerCaseApp) : TrainerCase_FlipTrainerCard(trainerCaseApp)) {
             *state = TRAINER_CASE_STATE_MAIN;
         }
         break;
@@ -415,7 +480,9 @@ BOOL TrainerCaseApp_Main(ApplicationManager *appMan, int *state)
         break;
     }
 
-    TrainerCase_HandleBadgeCaseButtonAnimation(trainerCaseApp);
+    if (!wide) {
+        TrainerCase_HandleBadgeCaseButtonAnimation(trainerCaseApp);
+    }
     SpriteList_Update(trainerCaseApp->spriteData.spriteList);
 
     return FALSE;
@@ -424,8 +491,11 @@ BOOL TrainerCaseApp_Main(ApplicationManager *appMan, int *state)
 BOOL TrainerCaseApp_Exit(ApplicationManager *appMan, int *state)
 {
     TrainerCaseApp *trainerCaseApp = ApplicationManager_Data(appMan);
+    BOOL wide = TrainerCase_IsWidePixelMode();
 
-    TrainerCase_ResetAffineTransforms();
+    if (!wide) {
+        TrainerCase_ResetAffineTransforms();
+    }
     TrainerCase_FreeStrings(trainerCaseApp);
     TrainerCase_FreeSprites(&trainerCaseApp->spriteData);
 
@@ -440,6 +510,14 @@ BOOL TrainerCaseApp_Exit(ApplicationManager *appMan, int *state)
     SetVBlankCallback(NULL, NULL);
     Heap_Destroy(HEAP_ID_TRAINER_CASE);
     Sound_SetPlayerVolume(PLAYER_FIELD, SOUND_VOLUME_MAX);
+
+#ifdef SDK_PORT
+    if (wide) {
+        SIM_Wide_SetMainTouchEnabled(0);
+        SIM_Wide_SetWide2DWidth(0);
+        SIM_Wide_PopScene();
+    }
+#endif
 
     return TRUE;
 }
@@ -463,6 +541,24 @@ static void TrainerCase_FreeStrings(TrainerCaseApp *trainerCaseApp)
 
 static void TrainerCase_SetVRAMBanks(void)
 {
+    if (TrainerCase_IsWidePixelMode()) {
+        GXBanks banks = {
+            GX_VRAM_BG_128_A,
+            GX_VRAM_BGEXTPLTT_NONE,
+            GX_VRAM_SUB_BG_128_C,
+            GX_VRAM_SUB_BGEXTPLTT_NONE,
+            GX_VRAM_OBJ_128_B,
+            GX_VRAM_OBJEXTPLTT_NONE,
+            GX_VRAM_SUB_OBJ_16_I,
+            GX_VRAM_SUB_OBJEXTPLTT_NONE,
+            GX_VRAM_TEX_NONE,
+            GX_VRAM_TEXPLTT_NONE
+        };
+
+        GXLayers_SetBanks(&banks);
+        return;
+    }
+
     GXBanks banks = {
         GX_VRAM_BG_64_E,
         GX_VRAM_BGEXTPLTT_NONE,
@@ -512,8 +608,13 @@ static void TrainerCase_LoadCardPalette(u8 cardLevel, u8 pokedexObtained, NARC *
     DC_FlushRange(paletteData->pRawData, PALETTE_SIZE_EXT_BYTES);
     u8 *rawData = paletteData->pRawData;
 
-    GXS_LoadBGPltt(&rawData[PLTT_OFFSET(1)], PLTT_OFFSET(1), PALETTE_SIZE_BYTES * 3);
-    GXS_LoadBGPltt(&rawData[PLTT_OFFSET(15)], PLTT_OFFSET(15), PALETTE_SIZE_BYTES);
+    if (TrainerCase_IsWidePixelMode()) {
+        GX_LoadBGPltt(&rawData[PLTT_OFFSET(1)], PLTT_OFFSET(1), PALETTE_SIZE_BYTES * 3);
+        GX_LoadBGPltt(&rawData[PLTT_OFFSET(15)], PLTT_OFFSET(15), PALETTE_SIZE_BYTES);
+    } else {
+        GXS_LoadBGPltt(&rawData[PLTT_OFFSET(1)], PLTT_OFFSET(1), PALETTE_SIZE_BYTES * 3);
+        GXS_LoadBGPltt(&rawData[PLTT_OFFSET(15)], PLTT_OFFSET(15), PALETTE_SIZE_BYTES);
+    }
 
     Heap_Free(nclrBuffer);
 }
@@ -560,13 +661,111 @@ static void TrainerCase_LoadTrainerAppearancePalette(u8 trainerAppearance, NARC 
     u8 *rawData = (u8 *)paletteData->pRawData;
 
     DC_FlushRange(&rawData[PLTT_OFFSET(trainerAppearance)], PALETTE_SIZE_BYTES);
-    GXS_LoadBGPltt(&rawData[PLTT_OFFSET(trainerAppearance)], PLTT_OFFSET(4), PALETTE_SIZE_BYTES);
+    if (TrainerCase_IsWidePixelMode()) {
+        GX_LoadBGPltt(&rawData[PLTT_OFFSET(trainerAppearance)], PLTT_OFFSET(4), PALETTE_SIZE_BYTES);
+    } else {
+        GXS_LoadBGPltt(&rawData[PLTT_OFFSET(trainerAppearance)], PLTT_OFFSET(4), PALETTE_SIZE_BYTES);
+    }
 
     Heap_Free(nclrBuffer);
 }
 
 static void TrainerCaseApp_InitBackgrounds(BgConfig *bgConfig)
 {
+    if (TrainerCase_IsWidePixelMode()) {
+        GX_SetDispSelect(GX_DISP_SELECT_MAIN_SUB);
+
+        GraphicsModes graphicsModes = {
+            .displayMode = GX_DISPMODE_GRAPHICS,
+            .mainBgMode = GX_BGMODE_0,
+            .subBgMode = GX_BGMODE_0,
+            .bg0As2DOr3D = GX_BG0_AS_2D,
+        };
+
+        SetAllGraphicsModes(&graphicsModes);
+
+        // BG0: Case backdrop + right-side Badge Case tray (4bpp, palette 0, priority 3)
+        // Tiles: 0x00000..0x027FF (10 KB: case_top_screen 2 KB + badge_case 8 KB)
+        BgTemplate main0Template = {
+            .x = 0,
+            .y = 0,
+            .bufferSize = 0x1000,
+            .baseTile = 0,
+            .screenSize = BG_SCREEN_SIZE_512x256,
+            .colorMode = GX_BG_COLORMODE_16,
+            .screenBase = GX_BG_SCRBASE_0x3000,
+            .charBase = GX_BG_CHARBASE_0x00000,
+            .bgExtPltt = GX_BG_EXTPLTT_01,
+            .priority = 3,
+            .areaOver = 0,
+            .mosaic = FALSE,
+        };
+
+        Bg_InitFromTemplate(bgConfig, BG_LAYER_MAIN_0, &main0Template, BG_TYPE_STATIC);
+        Bg_ClearTilemap(bgConfig, BG_LAYER_MAIN_0);
+
+        // BG1: Trainer Card front/back (8bpp, palettes 1..3, priority 2)
+        // Tiles: 0x08000..0x0BBFF (15 KB)
+        BgTemplate main1Template = {
+            .x = 0,
+            .y = 0,
+            .bufferSize = 0x1000,
+            .baseTile = 0,
+            .screenSize = BG_SCREEN_SIZE_512x256,
+            .colorMode = GX_BG_COLORMODE_256,
+            .screenBase = GX_BG_SCRBASE_0x4000,
+            .charBase = GX_BG_CHARBASE_0x08000,
+            .bgExtPltt = GX_BG_EXTPLTT_01,
+            .priority = 2,
+            .areaOver = 0,
+            .mosaic = FALSE,
+        };
+
+        Bg_InitFromTemplate(bgConfig, BG_LAYER_MAIN_1, &main1Template, BG_TYPE_STATIC);
+        Bg_ClearTilemap(bgConfig, BG_LAYER_MAIN_1);
+
+        // BG2: Trainer portrait or Signature (8bpp, palettes 4..5 / idx 1, priority 1)
+        // Tiles: 0x0C000..0x0F03F (up to 12.4 KB)
+        BgTemplate main2Template = {
+            .x = 0,
+            .y = 0,
+            .bufferSize = 0x1000,
+            .baseTile = 0,
+            .screenSize = BG_SCREEN_SIZE_512x256,
+            .colorMode = GX_BG_COLORMODE_256,
+            .screenBase = GX_BG_SCRBASE_0x5000,
+            .charBase = GX_BG_CHARBASE_0x0c000,
+            .bgExtPltt = GX_BG_EXTPLTT_01,
+            .priority = 1,
+            .areaOver = 0,
+            .mosaic = FALSE,
+        };
+
+        Bg_InitFromTemplate(bgConfig, BG_LAYER_MAIN_2, &main2Template, BG_TYPE_STATIC);
+        Bg_ClearTilemap(bgConfig, BG_LAYER_MAIN_2);
+
+        // BG3: Trainer Card text windows (4bpp, palette 15, priority 0)
+        // Tiles: 0x10000..0x17FFF (32 KB)
+        BgTemplate main3Template = {
+            .x = 0,
+            .y = 0,
+            .bufferSize = 0x1000,
+            .baseTile = 0,
+            .screenSize = BG_SCREEN_SIZE_512x256,
+            .colorMode = GX_BG_COLORMODE_16,
+            .screenBase = GX_BG_SCRBASE_0x6000,
+            .charBase = GX_BG_CHARBASE_0x10000,
+            .bgExtPltt = GX_BG_EXTPLTT_01,
+            .priority = 0,
+            .areaOver = 0,
+            .mosaic = FALSE,
+        };
+
+        Bg_InitFromTemplate(bgConfig, BG_LAYER_MAIN_3, &main3Template, BG_TYPE_STATIC);
+        Bg_ClearTilemap(bgConfig, BG_LAYER_MAIN_3);
+        return;
+    }
+
     GX_SetDispSelect(GX_DISP_SELECT_SUB_MAIN);
 
     GraphicsModes graphicsModes = {
@@ -671,24 +870,31 @@ static void TrainerCaseApp_InitBackgrounds(BgConfig *bgConfig)
 
 static void TrainerCase_DrawTrainerCard(TrainerCaseApp *trainerCaseApp, NARC *narc)
 {
+    BOOL wide = TrainerCase_IsWidePixelMode();
     NNSG2dPaletteData *cardPaletteData;
 
     // will mostly be overwritten by TrainerCase_LoadCardPalette, with the exception of the palette for the trainer sprite
     void *nclrBuffer = Graphics_GetPlttDataFromOpenNARC(narc, trainer_card_normal_NCLR, &cardPaletteData, HEAP_ID_TRAINER_CASE);
 
     DC_FlushRange(cardPaletteData->pRawData, PALETTE_SIZE_EXT_BYTES);
-    GXS_LoadBGPltt(cardPaletteData->pRawData, 0, PALETTE_SIZE_EXT_BYTES);
+    if (wide) {
+        GX_LoadBGPltt(cardPaletteData->pRawData, 0, PALETTE_SIZE_EXT_BYTES);
+    } else {
+        GXS_LoadBGPltt(cardPaletteData->pRawData, 0, PALETTE_SIZE_EXT_BYTES);
+    }
     Heap_Free(nclrBuffer);
 
     TrainerCase_LoadCardPalette(trainerCaseApp->trainerCase->cardLevel, trainerCaseApp->trainerCase->pokedexObtained, narc);
 
-    NNSG2dPaletteData *lidPaletteData;
+    if (!wide) {
+        NNSG2dPaletteData *lidPaletteData;
 
-    nclrBuffer = Graphics_GetPlttDataFromOpenNARC(narc, badge_case_lid_tiles_NCLR, &lidPaletteData, HEAP_ID_TRAINER_CASE);
+        nclrBuffer = Graphics_GetPlttDataFromOpenNARC(narc, badge_case_lid_tiles_NCLR, &lidPaletteData, HEAP_ID_TRAINER_CASE);
 
-    DC_FlushRange(lidPaletteData->pRawData, PALETTE_SIZE_EXT_BYTES);
-    GX_LoadBGPltt(lidPaletteData->pRawData, 0, PALETTE_SIZE_EXT_BYTES);
-    Heap_Free(nclrBuffer);
+        DC_FlushRange(lidPaletteData->pRawData, PALETTE_SIZE_EXT_BYTES);
+        GX_LoadBGPltt(lidPaletteData->pRawData, 0, PALETTE_SIZE_EXT_BYTES);
+        Heap_Free(nclrBuffer);
+    }
 
     TrainerCase_LoadCasePalette(trainerCaseApp->trainerCase->gameVersion, narc);
 
@@ -716,7 +922,7 @@ static void TrainerCase_DrawTrainerCard(TrainerCaseApp *trainerCaseApp, NARC *na
         GF_ASSERT(success);
 
         if (trainerPaletteNarcIndex != -1) {
-            Graphics_LoadPaletteFromOpenNARC(narc, trainerPaletteNarcIndex, PAL_LOAD_SUB_BG, PLTT_OFFSET(4), 2 * PALETTE_SIZE_BYTES, HEAP_ID_TRAINER_CASE);
+            Graphics_LoadPaletteFromOpenNARC(narc, trainerPaletteNarcIndex, wide ? PAL_LOAD_MAIN_BG : PAL_LOAD_SUB_BG, PLTT_OFFSET(4), 2 * PALETTE_SIZE_BYTES, HEAP_ID_TRAINER_CASE);
         }
 
         if (trainerCaseApp->trainerCase->gender == GENDER_MALE) {
@@ -736,19 +942,31 @@ static void TrainerCase_DrawTrainerCard(TrainerCaseApp *trainerCaseApp, NARC *na
         TrainerCase_LoadTrainerAppearancePalette(trainerCaseApp->trainerCase->trainerAppearance, narc);
     }
 
-    TrainerCase_DrawTrainer(trainerCaseApp);
+    if (wide) {
+        Bg_FillTilesRange(trainerCaseApp->bgConfig, BG_LAYER_MAIN_2, 0, 1, 0);
+        TrainerCase_DrawTrainer(trainerCaseApp);
 
-    Graphics_LoadTilesToBgLayerFromOpenNARC(narc, trainer_card_tiles_NCGR, trainerCaseApp->bgConfig, BG_LAYER_SUB_2, 0, 0, FALSE, HEAP_ID_TRAINER_CASE);
-    Graphics_LoadTilemapToBgLayerFromOpenNARC(narc, trainer_card_front_NSCR, trainerCaseApp->bgConfig, BG_LAYER_SUB_2, 0, 0, FALSE, HEAP_ID_TRAINER_CASE);
+        Graphics_LoadTilesToBgLayerFromOpenNARC(narc, trainer_card_tiles_NCGR, trainerCaseApp->bgConfig, BG_LAYER_MAIN_1, 0, 0, FALSE, HEAP_ID_TRAINER_CASE);
+        TrainerCase_LoadWideCardTilemap(trainerCaseApp->bgConfig, narc, trainer_card_front_NSCR);
 
-    Graphics_LoadTilesToBgLayerFromOpenNARC(narc, case_top_screen_tiles_NCGR, trainerCaseApp->bgConfig, BG_LAYER_SUB_1, 0, 0, FALSE, HEAP_ID_TRAINER_CASE);
-    Graphics_LoadTilemapToBgLayerFromOpenNARC(narc, case_top_screen_NSCR, trainerCaseApp->bgConfig, BG_LAYER_SUB_1, 0, 0, FALSE, HEAP_ID_TRAINER_CASE);
+        Graphics_LoadTilesToBgLayerFromOpenNARC(narc, case_top_screen_tiles_NCGR, trainerCaseApp->bgConfig, BG_LAYER_MAIN_0, 0, 0, FALSE, HEAP_ID_TRAINER_CASE);
+        Graphics_LoadTilesToBgLayerFromOpenNARC(narc, badge_case_tiles_NCGR, trainerCaseApp->bgConfig, BG_LAYER_MAIN_0, WIDE_TRAINER_CASE_BADGE_TILES_BASE, 0, FALSE, HEAP_ID_TRAINER_CASE);
+        TrainerCase_DrawWideBackdropAndBadgeTray(trainerCaseApp->bgConfig);
+    } else {
+        TrainerCase_DrawTrainer(trainerCaseApp);
 
-    Graphics_LoadTilesToBgLayerFromOpenNARC(narc, badge_case_tiles_NCGR, trainerCaseApp->bgConfig, BG_LAYER_MAIN_2, 0, 0, FALSE, HEAP_ID_TRAINER_CASE);
-    Graphics_LoadTilemapToBgLayerFromOpenNARC(narc, badge_case_NSCR, trainerCaseApp->bgConfig, BG_LAYER_MAIN_2, 0, 0, FALSE, HEAP_ID_TRAINER_CASE);
+        Graphics_LoadTilesToBgLayerFromOpenNARC(narc, trainer_card_tiles_NCGR, trainerCaseApp->bgConfig, BG_LAYER_SUB_2, 0, 0, FALSE, HEAP_ID_TRAINER_CASE);
+        Graphics_LoadTilemapToBgLayerFromOpenNARC(narc, trainer_card_front_NSCR, trainerCaseApp->bgConfig, BG_LAYER_SUB_2, 0, 0, FALSE, HEAP_ID_TRAINER_CASE);
 
-    Graphics_LoadTilesToBgLayerFromOpenNARC(narc, badge_case_lid_tiles_NCGR, trainerCaseApp->bgConfig, BG_LAYER_MAIN_3, 0, 0, FALSE, HEAP_ID_TRAINER_CASE);
-    Graphics_LoadTilemapToBgLayerFromOpenNARC(narc, badge_case_lid_NSCR, trainerCaseApp->bgConfig, BG_LAYER_MAIN_3, 0, 0, FALSE, HEAP_ID_TRAINER_CASE);
+        Graphics_LoadTilesToBgLayerFromOpenNARC(narc, case_top_screen_tiles_NCGR, trainerCaseApp->bgConfig, BG_LAYER_SUB_1, 0, 0, FALSE, HEAP_ID_TRAINER_CASE);
+        Graphics_LoadTilemapToBgLayerFromOpenNARC(narc, case_top_screen_NSCR, trainerCaseApp->bgConfig, BG_LAYER_SUB_1, 0, 0, FALSE, HEAP_ID_TRAINER_CASE);
+
+        Graphics_LoadTilesToBgLayerFromOpenNARC(narc, badge_case_tiles_NCGR, trainerCaseApp->bgConfig, BG_LAYER_MAIN_2, 0, 0, FALSE, HEAP_ID_TRAINER_CASE);
+        Graphics_LoadTilemapToBgLayerFromOpenNARC(narc, badge_case_NSCR, trainerCaseApp->bgConfig, BG_LAYER_MAIN_2, 0, 0, FALSE, HEAP_ID_TRAINER_CASE);
+
+        Graphics_LoadTilesToBgLayerFromOpenNARC(narc, badge_case_lid_tiles_NCGR, trainerCaseApp->bgConfig, BG_LAYER_MAIN_3, 0, 0, FALSE, HEAP_ID_TRAINER_CASE);
+        Graphics_LoadTilemapToBgLayerFromOpenNARC(narc, badge_case_lid_NSCR, trainerCaseApp->bgConfig, BG_LAYER_MAIN_3, 0, 0, FALSE, HEAP_ID_TRAINER_CASE);
+    }
 
     TrainerCase_ConvertSignature1BppTo8Bpp(trainerCaseApp->trainerCase->signature, trainerCaseApp->signature);
 }
@@ -757,11 +975,19 @@ static void TrainerCase_TeardownBgs(BgConfig *bgConfig)
 {
     GXLayers_EngineAToggleLayers(GX_PLANEMASK_BG0 | GX_PLANEMASK_BG1 | GX_PLANEMASK_BG2 | GX_PLANEMASK_BG3 | GX_PLANEMASK_OBJ, FALSE);
     GXLayers_EngineBToggleLayers(GX_PLANEMASK_BG0 | GX_PLANEMASK_BG1 | GX_PLANEMASK_OBJ, FALSE);
-    Bg_FreeTilemapBuffer(bgConfig, BG_LAYER_SUB_3);
-    Bg_FreeTilemapBuffer(bgConfig, BG_LAYER_SUB_2);
-    Bg_FreeTilemapBuffer(bgConfig, BG_LAYER_SUB_1);
-    Bg_FreeTilemapBuffer(bgConfig, BG_LAYER_MAIN_2);
-    Bg_FreeTilemapBuffer(bgConfig, BG_LAYER_MAIN_3);
+
+    if (TrainerCase_IsWidePixelMode()) {
+        Bg_FreeTilemapBuffer(bgConfig, BG_LAYER_MAIN_0);
+        Bg_FreeTilemapBuffer(bgConfig, BG_LAYER_MAIN_1);
+        Bg_FreeTilemapBuffer(bgConfig, BG_LAYER_MAIN_2);
+        Bg_FreeTilemapBuffer(bgConfig, BG_LAYER_MAIN_3);
+    } else {
+        Bg_FreeTilemapBuffer(bgConfig, BG_LAYER_SUB_3);
+        Bg_FreeTilemapBuffer(bgConfig, BG_LAYER_SUB_2);
+        Bg_FreeTilemapBuffer(bgConfig, BG_LAYER_SUB_1);
+        Bg_FreeTilemapBuffer(bgConfig, BG_LAYER_MAIN_2);
+        Bg_FreeTilemapBuffer(bgConfig, BG_LAYER_MAIN_3);
+    }
     Heap_Free(bgConfig);
 }
 
@@ -1157,6 +1383,30 @@ static BOOL TrainerCase_AnimateBadgeCaseButton(TrainerCaseApp *trainerCaseApp, c
 
 static void TrainerCase_DrawTrainer(TrainerCaseApp *trainerCaseApp)
 {
+    if (TrainerCase_IsWidePixelMode()) {
+        Bg_LoadTiles(trainerCaseApp->bgConfig, BG_LAYER_MAIN_2, trainerCaseApp->trainerCharacterData->pRawData, trainerCaseApp->trainerCharacterData->szByte, 0);
+        Bg_ClearTilemap(trainerCaseApp->bgConfig, BG_LAYER_MAIN_2);
+
+        u16 *dst = (u16 *)Bg_GetTilemapBuffer(trainerCaseApp->bgConfig, BG_LAYER_MAIN_2);
+        const u16 *src = (const u16 *)trainerCaseApp->trainerScreenData->rawData;
+        int rows = (int)(trainerCaseApp->trainerScreenData->szByte / (SCREEN_WIDTH_TILES * sizeof(u16)));
+        if (rows > 24) {
+            rows = 24;
+        }
+
+        for (int y = 0; y < rows; y++) {
+            for (int x = 0; x < SCREEN_WIDTH_TILES; x++) {
+                u16 entry = src[y * SCREEN_WIDTH_TILES + x];
+                if (entry != 0) {
+                    TrainerCase_SetWideTile(dst, x + WIDE_TRAINER_CASE_CARD_OFFSET_X, y, entry);
+                }
+            }
+        }
+
+        Bg_CopyTilemapBufferToVRAM(trainerCaseApp->bgConfig, BG_LAYER_MAIN_2);
+        return;
+    }
+
     u32 size = trainerCaseApp->trainerScreenData->szByte;
 
     Bg_LoadTiles(trainerCaseApp->bgConfig, BG_LAYER_SUB_3, trainerCaseApp->trainerCharacterData->pRawData, trainerCaseApp->trainerCharacterData->szByte, 0);
@@ -1251,10 +1501,19 @@ static void TrainerCase_DisplaySignature(BgConfig *bgConfig, enum BgLayer bgLaye
     u8 x, y;
     u16 tileIndex = 0;
 
-    for (y = 0; y < SIGNATURE_HEIGHT; y++) {
-        for (x = 0; x < SIGNATURE_WIDTH; x++) {
-            tilemapBuffer[(14 + y) * SCREEN_WIDTH_TILES + x + 4] = 1 + tileIndex;
-            tileIndex++;
+    if (TrainerCase_IsWidePixelMode()) {
+        for (y = 0; y < SIGNATURE_HEIGHT; y++) {
+            for (x = 0; x < SIGNATURE_WIDTH; x++) {
+                TrainerCase_SetWideTile(tilemapBuffer, x + 4 + WIDE_TRAINER_CASE_CARD_OFFSET_X, 14 + y, 1 + tileIndex);
+                tileIndex++;
+            }
+        }
+    } else {
+        for (y = 0; y < SIGNATURE_HEIGHT; y++) {
+            for (x = 0; x < SIGNATURE_WIDTH; x++) {
+                tilemapBuffer[(14 + y) * SCREEN_WIDTH_TILES + x + 4] = 1 + tileIndex;
+                tileIndex++;
+            }
         }
     }
 
@@ -1321,4 +1580,336 @@ static int TrainerCase_CheckBadgeOrButtonHeld(BgConfig *bgConfig, const TouchScr
     }
 
     return heldRectangle;
+}
+
+static void TrainerCase_SetWideTile(u16 *tilemap, int x, int y, u16 val)
+{
+    if (x < 0 || x >= 64 || y < 0 || y >= 32) {
+        return;
+    }
+
+    int idx = ((x & 0x20) << 5) + (y * 32) + (x & 0x1F);
+    tilemap[idx] = val;
+}
+
+static u16 TrainerCase_BadgeTile(u16 rawTile)
+{
+    return (u16)((rawTile & 0xFC00) | ((rawTile & 0x03FF) + WIDE_TRAINER_CASE_BADGE_TILES_BASE));
+}
+
+static void TrainerCase_DrawWideBackdropAndBadgeTray(BgConfig *bgConfig)
+{
+    static const u16 sWideBadgeWellTiles[4][4] = {
+        { 0x0010, 0x0011, 0x0411, 0x0410 },
+        { 0x001A, 0x0012, 0x0012, 0x041A },
+        { 0x007D, 0x0012, 0x0012, 0x047D },
+        { 0x002E, 0x002F, 0x042F, 0x042E }
+    };
+
+    u16 *tilemap = (u16 *)Bg_GetTilemapBuffer(bgConfig, BG_LAYER_MAIN_0);
+    Bg_ClearTilemap(bgConfig, BG_LAYER_MAIN_0);
+
+    // Outer case top & bottom rim across all 43 visible tile columns (0..341px).
+    TrainerCase_SetWideTile(tilemap, 0, 0, 0x0001);
+    TrainerCase_SetWideTile(tilemap, 1, 0, 0x0002);
+    for (int x = 2; x <= 42; x++) {
+        TrainerCase_SetWideTile(tilemap, x, 0, 0x0003);
+    }
+
+    TrainerCase_SetWideTile(tilemap, 0, 23, 0x0024);
+    TrainerCase_SetWideTile(tilemap, 1, 23, 0x0025);
+    for (int x = 2; x <= 42; x++) {
+        TrainerCase_SetWideTile(tilemap, x, 23, 0x0026);
+    }
+
+    // Left interior behind the Trainer Card (cols 0..29, rows 1..22).
+    TrainerCase_SetWideTile(tilemap, 0, 1, 0x0022);
+    for (int x = 1; x <= 29; x++) {
+        TrainerCase_SetWideTile(tilemap, x, 1, 0x0023);
+    }
+    for (int y = 2; y <= 21; y++) {
+        TrainerCase_SetWideTile(tilemap, 0, y, 0x0008);
+        for (int x = 1; x <= 29; x++) {
+            TrainerCase_SetWideTile(tilemap, x, y, 0x0027);
+        }
+    }
+    TrainerCase_SetWideTile(tilemap, 0, 22, 0x0005);
+    for (int x = 1; x <= 29; x++) {
+        TrainerCase_SetWideTile(tilemap, x, 22, 0x0006);
+    }
+
+    // Right outer case rim (col 42 = x 336..341px).
+    for (int y = 1; y <= 22; y++) {
+        TrainerCase_SetWideTile(tilemap, 42, y, 0x0007);
+    }
+
+    // Authentic "LEAGUE BADGES" pixel-art header across cols 30..41, rows 1..2.
+    for (int dx = 0; dx < 12; dx++) {
+        TrainerCase_SetWideTile(tilemap, 30 + dx, 1, TrainerCase_BadgeTile(0x00D4 + dx));
+        TrainerCase_SetWideTile(tilemap, 30 + dx, 2, TrainerCase_BadgeTile(0x00F4 + dx));
+    }
+
+    // Dark velvet Badge Case tray (cols 30..41, rows 3..22).
+    for (int y = 3; y <= 21; y++) {
+        TrainerCase_SetWideTile(tilemap, 30, y, TrainerCase_BadgeTile(0x0041));
+        for (int x = 31; x <= 40; x++) {
+            TrainerCase_SetWideTile(tilemap, x, y, TrainerCase_BadgeTile(0x000B));
+        }
+        TrainerCase_SetWideTile(tilemap, 41, y, TrainerCase_BadgeTile(0x0441));
+    }
+
+    TrainerCase_SetWideTile(tilemap, 30, 22, TrainerCase_BadgeTile(0x0801));
+    for (int x = 31; x <= 40; x++) {
+        TrainerCase_SetWideTile(tilemap, x, 22, TrainerCase_BadgeTile(0x0040));
+    }
+    TrainerCase_SetWideTile(tilemap, 41, 22, TrainerCase_BadgeTile(0x0C01));
+
+    // Stamp 8 authentic 4x4 beveled circular badge wells in a 2x4 grid:
+    // Col 0: x=31..34 (center 264), Col 1: x=37..40 (center 312)
+    // Rows 0..3: y=3..6, 8..11, 13..16, 18..21 (centers 40, 80, 120, 160).
+    for (int row = 0; row < 4; row++) {
+        int baseY = 3 + row * 5;
+        for (int col = 0; col < 2; col++) {
+            int baseX = (col == 0) ? 31 : 37;
+            for (int dy = 0; dy < 4; dy++) {
+                for (int dx = 0; dx < 4; dx++) {
+                    TrainerCase_SetWideTile(tilemap, baseX + dx, baseY + dy, TrainerCase_BadgeTile(sWideBadgeWellTiles[dy][dx]));
+                }
+            }
+        }
+    }
+
+    Bg_CopyTilemapBufferToVRAM(bgConfig, BG_LAYER_MAIN_0);
+}
+
+static void TrainerCase_LoadWideCardTilemap(BgConfig *bgConfig, NARC *narc, u32 narcMemberIdx)
+{
+    NNSG2dScreenData *scrnData = NULL;
+    void *nscrBuffer;
+
+    if (narc != NULL) {
+        nscrBuffer = Graphics_GetScrnDataFromOpenNARC(narc, narcMemberIdx, FALSE, &scrnData, HEAP_ID_TRAINER_CASE);
+    } else {
+        nscrBuffer = Graphics_GetScrnData(NARC_INDEX_GRAPHIC__TRAINER_CASE, narcMemberIdx, FALSE, &scrnData, HEAP_ID_TRAINER_CASE);
+    }
+
+    Bg_ClearTilemap(bgConfig, BG_LAYER_MAIN_1);
+
+    if (nscrBuffer != NULL && scrnData != NULL) {
+        u16 *dst = (u16 *)Bg_GetTilemapBuffer(bgConfig, BG_LAYER_MAIN_1);
+        const u8 *src = (const u8 *)scrnData->rawData;
+        int rows = (int)(scrnData->szByte / SCREEN_WIDTH_TILES);
+        if (rows > 24) {
+            rows = 24;
+        }
+
+        for (int y = 0; y < rows; y++) {
+            for (int x = 0; x < SCREEN_WIDTH_TILES; x++) {
+                u8 tile = src[y * SCREEN_WIDTH_TILES + x];
+                if (tile != 0) {
+                    TrainerCase_SetWideTile(dst, x + WIDE_TRAINER_CASE_CARD_OFFSET_X, y, (u16)tile);
+                }
+            }
+        }
+
+        Heap_Free(nscrBuffer);
+    }
+
+    Bg_CopyTilemapBufferToVRAM(bgConfig, BG_LAYER_MAIN_1);
+}
+
+static int TrainerCase_FindWideBadgeAt(int x, int y)
+{
+    if (x < WIDE_TRAINER_CASE_BADGE_TRAY_X || x >= WIDE_TRAINER_CASE_BADGE_TRAY_RIGHT) {
+        return -1;
+    }
+
+    if (y < 20 || y >= 180) {
+        return -1;
+    }
+
+    int col = (x < 288) ? 0 : 1;
+    int row = (y - 20) / 40;
+    if (row < 0 || row >= 4) {
+        return -1;
+    }
+
+    return row * 2 + col;
+}
+
+static int TrainerCase_GetWidePlayerInput(TrainerCaseApp *trainerCaseApp, int *outTouchX, int *outTouchY)
+{
+    int input = INPUT_NONE;
+
+    trainerCaseApp->touchedRectangleIndex = TOUCHSCREEN_INPUT_NONE;
+
+#ifdef SDK_PORT
+    int tx = 0;
+    int ty = 0;
+
+    if (SIM_Wide_PollMainTouch(&tx, &ty)) {
+        int badgeID = TrainerCase_FindWideBadgeAt(tx, ty);
+
+        if (badgeID >= 0 && trainerCaseApp->trainerCase->badgesInteractable) {
+            trainerCaseApp->polishingEnabled = TRUE;
+            trainerCaseApp->lastTouchedX = tx;
+            trainerCaseApp->lastTouchedY = ty;
+            trainerCaseApp->touchedRectangleIndex = TOUCH_RECTANGLE_COAL_BADGE + badgeID;
+            *outTouchX = tx;
+            *outTouchY = ty;
+            return INPUT_TOUCH_SCREEN_TAP;
+        }
+
+        if (tx >= 0 && tx < WIDE_TRAINER_CASE_BADGE_TRAY_X && ty >= 8 && ty < 184) {
+            trainerCaseApp->polishingEnabled = FALSE;
+            trainerCaseApp->lastTouchedX = TOUCHSCREEN_INPUT_NONE;
+            trainerCaseApp->lastTouchedY = TOUCHSCREEN_INPUT_NONE;
+            return INPUT_A_BUTTON;
+        }
+
+        trainerCaseApp->polishingEnabled = TRUE;
+        trainerCaseApp->lastTouchedX = tx;
+        trainerCaseApp->lastTouchedY = ty;
+    } else if (SIM_Wide_GetMainTouchHeld(&tx, &ty)) {
+        if (trainerCaseApp->trainerCase->badgesInteractable) {
+            int badgeID = TrainerCase_FindWideBadgeAt(tx, ty);
+            trainerCaseApp->polishingEnabled = TRUE;
+            *outTouchX = tx;
+            *outTouchY = ty;
+
+            if (badgeID >= 0) {
+                trainerCaseApp->touchedRectangleIndex = TOUCH_RECTANGLE_COAL_BADGE + badgeID;
+                return INPUT_TOUCH_SCREEN_HOLD;
+            }
+
+            trainerCaseApp->lastTouchedX = tx;
+            trainerCaseApp->lastTouchedY = ty;
+        }
+    } else {
+        trainerCaseApp->polishingEnabled = FALSE;
+        trainerCaseApp->lastTouchedX = TOUCHSCREEN_INPUT_NONE;
+        trainerCaseApp->lastTouchedY = TOUCHSCREEN_INPUT_NONE;
+    }
+#else
+    (void)outTouchX;
+    (void)outTouchY;
+#endif
+
+    if (JOY_NEW(PAD_BUTTON_A)) {
+        input = INPUT_A_BUTTON;
+    } else if (JOY_NEW(PAD_BUTTON_B)) {
+        input = INPUT_B_BUTTON;
+    }
+
+    return input;
+}
+
+static void TrainerCase_HandleBadgePolishingAt(TrainerCaseApp *trainerCaseApp, int touchX, int touchY)
+{
+    int distance;
+    BOOL validMovement = FALSE;
+
+    if (touchX != TOUCHSCREEN_INPUT_NONE && touchY != TOUCHSCREEN_INPUT_NONE
+        && trainerCaseApp->lastTouchedX != TOUCHSCREEN_INPUT_NONE && trainerCaseApp->lastTouchedY != TOUCHSCREEN_INPUT_NONE) {
+        if (trainerCaseApp->touchedRectangleIndex != TOUCHSCREEN_INPUT_NONE
+            && trainerCaseApp->touchedRectangleIndex != TOUCH_RECTANGLE_OPEN_CLOSE_BADGE_CASE) {
+            u8 badgeID = trainerCaseApp->touchedRectangleIndex - TOUCH_RECTANGLE_COAL_BADGE;
+
+            if (trainerCaseApp->trainerCase->badges[badgeID].obtained) {
+                if (trainerCaseApp->lastTouchedX > touchX) {
+                    distance = trainerCaseApp->lastTouchedX - touchX;
+                    trainerCaseApp->badgePolishingState.currentXDirection = -1;
+                } else {
+                    distance = touchX - trainerCaseApp->lastTouchedX;
+                    trainerCaseApp->badgePolishingState.currentXDirection = 1;
+                }
+
+                if (3 <= distance && distance <= 40) {
+                    if (trainerCaseApp->lastTouchedY > touchY) {
+                        distance = trainerCaseApp->lastTouchedY - touchY;
+                        trainerCaseApp->badgePolishingState.currentYDirection = -1;
+                    } else {
+                        distance = touchY - trainerCaseApp->lastTouchedY;
+                        trainerCaseApp->badgePolishingState.currentYDirection = 1;
+                    }
+
+                    if (distance <= 40) {
+                        validMovement = TRUE;
+                        TrainerCase_PlayPolishingSoundEffects(&trainerCaseApp->badgePolishingState);
+                    } else {
+                        TrainerCase_ResetBadgePolishingDirection(&trainerCaseApp->badgePolishingState);
+                    }
+                } else if (distance <= 40) {
+                    if (trainerCaseApp->lastTouchedY > touchY) {
+                        distance = trainerCaseApp->lastTouchedY - touchY;
+                        trainerCaseApp->badgePolishingState.currentYDirection = -1;
+                    } else {
+                        distance = touchY - trainerCaseApp->lastTouchedY;
+                        trainerCaseApp->badgePolishingState.currentYDirection = 1;
+                    }
+
+                    if (3 <= distance && distance <= 40) {
+                        validMovement = TRUE;
+                        TrainerCase_PlayPolishingSoundEffects(&trainerCaseApp->badgePolishingState);
+                    } else {
+                        TrainerCase_ResetBadgePolishingDirection(&trainerCaseApp->badgePolishingState);
+                    }
+                }
+
+                if (validMovement) {
+                    TrainerCase_PolishBadge(trainerCaseApp, badgeID);
+                }
+            }
+        }
+    }
+
+    trainerCaseApp->lastTouchedX = touchX;
+    trainerCaseApp->lastTouchedY = touchY;
+}
+
+static BOOL TrainerCase_FlipTrainerCardWide(TrainerCaseApp *trainerCaseApp)
+{
+    switch (trainerCaseApp->subState) {
+    case FLIP_SUBSTATE_INITIAL:
+        Sound_PlayEffect(SEQ_SE_DP_CARD5_sseq);
+        Bg_ToggleLayer(BG_LAYER_MAIN_1, FALSE);
+        Bg_ToggleLayer(BG_LAYER_MAIN_2, FALSE);
+        Bg_ToggleLayer(BG_LAYER_MAIN_3, FALSE);
+        trainerCaseApp->cardScalingSpeed = 2;
+        trainerCaseApp->subState = FLIP_SUBSTATE_SCALE_DOWN;
+        return FALSE;
+
+    case FLIP_SUBSTATE_SCALE_DOWN:
+        trainerCaseApp->cardScalingSpeed--;
+        if (trainerCaseApp->cardScalingSpeed <= 0) {
+            trainerCaseApp->subState = FLIP_SUBSTATE_DRAW_OTHER_SIDE;
+        }
+        return FALSE;
+
+    case FLIP_SUBSTATE_DRAW_OTHER_SIDE:
+    default:
+        if (!trainerCaseApp->viewingBack) {
+            trainerCaseApp->viewingBack = TRUE;
+            TrainerCase_LoadWideCardTilemap(trainerCaseApp->bgConfig, NULL, trainer_card_back_NSCR);
+            TrainerCard_ClearWindows(trainerCaseApp->windows, TRAINER_CARD_WINDOW_ID, TRAINER_CARD_WINDOW_ADVENTURE_STARTED);
+            Bg_ClearTilemap(trainerCaseApp->bgConfig, BG_LAYER_MAIN_2);
+            TrainerCard_DrawBackText(trainerCaseApp->windows, trainerCaseApp->trainerCase);
+            TrainerCase_DisplaySignature(trainerCaseApp->bgConfig, BG_LAYER_MAIN_2, trainerCaseApp->signature);
+        } else {
+            trainerCaseApp->viewingBack = FALSE;
+            TrainerCase_LoadWideCardTilemap(trainerCaseApp->bgConfig, NULL, trainer_card_front_NSCR);
+            TrainerCard_ClearWindows(trainerCaseApp->windows, TRAINER_CARD_WINDOW_HOF_DEBUT, TRAINER_CARD_WINDOW_LINK_TRADES);
+            Bg_ClearTilemap(trainerCaseApp->bgConfig, BG_LAYER_MAIN_2);
+            TrainerCase_DrawTrainer(trainerCaseApp);
+            TrainerCard_DrawFrontText(trainerCaseApp->windows, trainerCaseApp->trainerCase);
+            if (trainerCaseApp->trainerCase->liveTimeDisplay) {
+                TrainerCard_BlinkPlaytimeColon(&trainerCaseApp->windows[TRAINER_CARD_WINDOW_TIME], TRUE, trainerCaseApp->colonString);
+            }
+        }
+
+        Bg_ToggleLayer(BG_LAYER_MAIN_1, TRUE);
+        Bg_ToggleLayer(BG_LAYER_MAIN_2, TRUE);
+        Bg_ToggleLayer(BG_LAYER_MAIN_3, TRUE);
+        return TRUE;
+    }
 }

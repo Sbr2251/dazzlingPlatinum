@@ -5,6 +5,7 @@
 #include "constants/heap.h"
 
 #include "applications/trainer_case/defs.h"
+#include "applications/trainer_case/main.h"
 
 #include "bg_window.h"
 #include "font.h"
@@ -141,6 +142,18 @@ static const WindowTemplate sTrainerCardWindowTemplates[] = {
 
 void TrainerCard_AddWindows(BgConfig *bgConfig, Window windows[])
 {
+    if (TrainerCase_IsWidePixelMode()) {
+        for (u8 i = 0; i < TRAINER_CARD_WINDOW_COUNT; i++) {
+            WindowTemplate tmpl = sTrainerCardWindowTemplates[i];
+            tmpl.bgLayer = BG_LAYER_MAIN_3;
+            tmpl.tilemapLeft = 1;
+            Window_AddFromTemplate(bgConfig, &windows[i], &tmpl);
+        }
+
+        Bg_FillTilesRange(bgConfig, BG_LAYER_MAIN_3, 0, 1, 0);
+        return;
+    }
+
     for (u8 i = 0; i < TRAINER_CARD_WINDOW_COUNT; i++) {
         Window_AddFromTemplate(bgConfig, &windows[i], &sTrainerCardWindowTemplates[i]);
     }
