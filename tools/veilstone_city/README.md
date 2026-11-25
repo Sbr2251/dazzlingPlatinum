@@ -17,7 +17,7 @@ Permissions, BDHC, props and every stock face of the chunk are unchanged (new ge
 ```
 python3 tools/veilstone_city/textures.py --write
 python3 tools/veilstone_city/build_shrine.py --write
-make release
+tools/macos/build.sh release
 ```
 
 ## The shrine

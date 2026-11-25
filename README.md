@@ -1,14 +1,33 @@
-# Pokémon Platinum
+# Pokémon Dazzling Platinum (macOS & iOS)
 
-This is a WIP decompilation of Pokémon Platinum. For instructions on how to set up the repository, please read [`INSTALL.md`](INSTALL.md).
+Native macOS (Apple Silicon) and iOS SDL3 + Metal port of Pokémon Dazzling Platinum, built directly from source.
 
-**Dazzling Platinum builds run on the devserver** (`/data/repos/dazzlingPlatinum`), not on a local machine or a separate VM. The toolchain is already set up there. Run `make release`; the ROM is copied to `out/dazzlingPlatinum.nds`. See the Build & Test Workflow section of [`CLAUDE.md`](CLAUDE.md).
+## Quick Start
 
-If you are interested in contributing, please read [`CONTRIBUTING.md`](/CONTRIBUTING.md).
+### macOS (Apple Silicon)
 
-This repository builds the following ROMs:
+```sh
+brew install sdl3 nasm ninja arm-none-eabi-gcc gcc@14 libpng pkg-config
+tools/macos/build.sh release
+open "build_macos_release/Dazzling Platinum.app"
+```
 
-* [**pokeplatinum.us.nds**](https://datomatic.no-intro.org/index.php?page=show_record&s=28&n=4997) (Rev 1): `sha1: 0862ec35b24de5c7e2dcb88c9eea0873110d755c`
-* [**pokeplatinum.us.nds**](https://datomatic.no-intro.org/index.php?page=show_record&s=28&n=3541) (Rev 0): `sha1: ce81046eda7d232513069519cb2085349896dec7`
+See [`INSTALL.md`](INSTALL.md) and [`README_macOS.md`](README_macOS.md) for prerequisites, controls, saves, and headless test automation.
 
-For contacts and other pret projects, see [pret.github.io](https://pret.github.io/).
+### iOS (iPhone, Landscape, Metal)
+
+```sh
+tools/ios/build.sh sim      # iOS Simulator
+tools/ios/build.sh device   # Device .app + unsigned .ipa for Sideloadly
+```
+
+See [`docs/ios.md`](docs/ios.md) for full iOS build and sideload instructions.
+
+### Static Checks & Headless Scenario Suite
+
+```sh
+python3 tools/dazzling/test/static_checks.py
+python3 tools/dazzling/test/run.py -j 2
+```
+
+See [`CLAUDE.md`](CLAUDE.md) for repository layout and content authoring conventions, and [`CONTRIBUTING.md`](CONTRIBUTING.md) for development guidelines.

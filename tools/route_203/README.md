@@ -21,7 +21,7 @@ Regenerate (run from the repo root with the system `python3`; standard library o
 ```
 python3 tools/route_203/textures.py --write
 python3 tools/route_203/build_scar.py --write
-make release
+tools/macos/build.sh release
 ```
 
 Both scripts read their stock inputs from git (`BASE_REV` = 68ae1fadde, arc1-part2 before the scar), so re-running

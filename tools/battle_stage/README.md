@@ -3,15 +3,14 @@
 Generates `res/prebuilt/battle/graphic/battle_stage.narc`, the 3D arenas that
 `src/battle/battle_stage.c` draws in place of the classic BG3 backdrop and platform
 OBJs. The file format is `include/battle/battle_stage_format.h`; the design is in
-`docs/living_battle_stage/stage_format.md`. The emulator critic is in `emu/`
-(see `emu/README.md`).
+`docs/living_battle_stage/stage_format.md`.
 
 ## Regenerating the NARC
 
 ```sh
 python3 tools/battle_stage/build_stage.py            # writes the checked-in NARC
-~/.venvs/desmume/bin/python tools/battle_stage/preview.py   # renders /tmp/battle_stage_preview
-flock /tmp/dazzling_build.lock make release
+python3 tools/battle_stage/preview.py                # renders /tmp/battle_stage_preview
+tools/macos/build.sh release
 ```
 
 `build_stage.py` only needs the standard library. It reads the stock
@@ -50,11 +49,10 @@ time of day, then views 1..3), `contact_home_{day,twilight,night}.png`,
 time of day and raster. In the diff images grey is equal, red differs (brighter is a
 larger difference) and magenta is a hole.
 
-Then run the critic on the ROM:
+Then verify visually via the headless scenario suite:
 
 ```sh
-SDL_VIDEODRIVER=dummy ~/.venvs/desmume39/bin/python tools/battle_stage/emu/critic.py \
-    out/dazzlingPlatinum.nds /tmp/stage_critic --scenario stage_ab debug_views
+python3 tools/dazzling/test/run.py -j 2 --filter visual_battle
 ```
 
 ## Files

@@ -54,7 +54,6 @@ SDK_PATH=$(xcrun --sdk "$SDK" --show-sdk-path)
 sed -e "s|@IOS_SDK_PATH@|$SDK_PATH|g" -e "s|@IOS_DEPS_PREFIX@|$DEPS|g" -e "s|@IOS_MIN_VERSION@|$MIN|g" \
   "$TEMPLATE" > "$BUILD/cross_ios.ini"
 
-python3 tools/scripts/lsfgen.py platinum.us/main.lsf.in --prefix-dir main.nef.p/ --dest-lsf platinum.us/main.lsf --dest-c src/meson.build
 if [ ! -f "$BUILD/build.ninja" ]; then
   # meson does not inherit PKG_CONFIG_PATH for the build machine; bake it into a
   # generated native file (with meson/native_ios_host.ini as the base).

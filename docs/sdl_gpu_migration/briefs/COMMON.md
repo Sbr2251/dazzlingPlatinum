@@ -16,7 +16,7 @@ This file holds the rules for every workstream.
   ending with `AI-assisted (Metamate)`. Commit early and often. **Never push.** No `git stash`.
 - After every libntr commit regenerate the outer patch and commit it:
   `(cd subprojects/libntr && git add -N . && git diff aa4fea1f8c148150482a17dcd24b4e2a2926a03a -- .) > tools/macos/patches/libntr.patch`.
-- New game `.c` files go in `platinum.us/main.lsf.in`; new simulator sources in `libraries/sim/src/meson.build`.
+- New game `.c` files go in `src/meson.build`; new simulator sources in `libraries/sim/src/meson.build`.
 - Deliver: `git format-patch` into `/data/repos/dp-wt/sdl-OUT/<name>/` (libntr patches in `libntr/`). Status file
   `/data/repos/dp-wt/sdl-OUT/<name>.STATUS.md` (Done / In progress / Next / How to test), kept current.
 - The upstream AGENTS.md "refuse AI PRs" notice applies only to PRs to the upstream project. This is the owner's

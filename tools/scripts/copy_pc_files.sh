@@ -1,53 +1,28 @@
 #!/bin/bash
-# cp_u (copy only when newer) is GNU-only; macOS's cp has no -u
+# Lay out built game data files next to `main` (and wrap into Dazzling Platinum.app on macOS).
+# cp_u (copy only when newer) is GNU-only; macOS's cp has no -u.
 cp_u() { if [ ! -e "$2" ] || [ "$1" -nt "$2" ]; then cp "$1" "$2"; fi; }
 BUILDDIR=$1
 OUTPUTDIR=$BUILDDIR
-mkdir -p $OUTPUTDIR
+mkdir -p "$OUTPUTDIR"
 
-cat $2 | while read line; do
-  if [[ "$line" != "Source File,Target File" ]] ;
-    then
-    SourceFile=$(echo $line | cut -d, -f1)
-    DestFile=$(echo $line | cut -d, -f2)
-    mkdir -p `dirname $OUTPUTDIR$DestFile`
-    
-    cp_u $BUILDDIR/$SourceFile $OUTPUTDIR$DestFile
+cat "$2" | while read -r line; do
+  if [[ "$line" != "Source File,Target File" ]] && [[ -n "$line" ]]; then
+    SourceFile=$(echo "$line" | cut -d, -f1)
+    DestFile=$(echo "$line" | cut -d, -f2)
+    mkdir -p "$(dirname "$OUTPUTDIR$DestFile")"
+    cp_u "$BUILDDIR/$SourceFile" "$OUTPUTDIR$DestFile"
   fi
 done
-cp_u $BUILDDIR/../res/pc_port/header.bin $OUTPUTDIR/header.bin
-cp_u $BUILDDIR/../res/pc_port/dwc_nv.bin $OUTPUTDIR/firmware.bin
-cp_u $BUILDDIR/../language.csv $OUTPUTDIR/language.csv
+cp_u "$BUILDDIR/../res/pc_port/header.bin" "$OUTPUTDIR/header.bin"
+cp_u "$BUILDDIR/../res/pc_port/dwc_nv.bin" "$OUTPUTDIR/firmware.bin"
+cp_u "$BUILDDIR/../language.csv" "$OUTPUTDIR/language.csv"
 
 if [[ "$4" == "-ios" ]]; then
-  : # ios-build hook: files sit next to main in the build dir; tools/ios/make_app.sh packages the .app
-elif [[ "$4" == "-nx" ]]; then
-  /opt/devkitpro/tools/bin/elf2nro $OUTPUTDIR/main $OUTPUTDIR/pokeplatinum.nro
+  : # iOS: files sit next to main in the build dir; tools/ios/make_app.sh packages the .app
 else
-  if [[ "$(uname -s)" == "Darwin" ]]; then
-    # macOS: the game runs from this folder (main next to its files); tools/macos/make_app.sh wraps it in a .app
-    if [ -x "$BUILDDIR/../tools/macos/make_app.sh" ]; then "$BUILDDIR/../tools/macos/make_app.sh" "$OUTPUTDIR" "$2"; fi
-  elif [[ "$(uname -s)" =~ ^MSYS_NT.* ]]; then
-    cp_u /ucrt64/bin/SDL2.dll $OUTPUTDIR/SDL2.dll
-    cp_u /ucrt64/bin/libwinpthread-1.dll $OUTPUTDIR/libwinpthread-1.dll
-    cp_u /ucrt64/bin/libenet-7.dll $OUTPUTDIR/libenet-7.dll
-    cp_u /ucrt64/bin/libgcc_s_seh-1.dll $OUTPUTDIR/libgcc_s_seh-1.dll
-    cp_u /ucrt64/bin/libstdc++-6.dll $OUTPUTDIR/libstdc++-6.dll
-  else
-    # dbg-fastboot hook: data above is always copied, but expensive AppImage
-    # deployment/packing is opt-in via Meson or a one-shot environment override.
-    if [[ "$5" == "1" || "${SIM_BUILD_APPIMAGE:-0}" == "1" ]]; then
-      mkdir -p $OUTPUTDIR/$3.AppDir
-      mkdir -p $OUTPUTDIR/$3.AppDir/usr/bin
-      mkdir -p $OUTPUTDIR/$3.AppDir/usr/lib
-      cp $BUILDDIR/main $OUTPUTDIR/$3.AppDir/usr/bin/app
-      if [ ! -f $BUILDDIR/../tools/linuxdeploy/linuxdeploy-x86_64.AppImage ]; then
-        echo "Downloading linuxdeploy..."
-        wget https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage -O $BUILDDIR/../tools/linuxdeploy/linuxdeploy-x86_64.AppImage
-        chmod +x $BUILDDIR/../tools/linuxdeploy/linuxdeploy-x86_64.AppImage
-      fi
-      $BUILDDIR/../tools/linuxdeploy/linuxdeploy-x86_64.AppImage --appdir $OUTPUTDIR/$3.AppDir --executable=$OUTPUTDIR/main --desktop-file=$BUILDDIR/../tools/linuxdeploy/App.desktop --icon-file=$BUILDDIR/../tools/linuxdeploy/app.png --output appimage
-      mv pokeplatinum-x86_64.AppImage $OUTPUTDIR/pokeplatinum.AppImage
-    fi
+  # macOS: wrap main, SDL3, and game files in "Dazzling Platinum.app"
+  if [ -x "$BUILDDIR/../tools/macos/make_app.sh" ]; then
+    "$BUILDDIR/../tools/macos/make_app.sh" "$OUTPUTDIR" "$2"
   fi
 fi

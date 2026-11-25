@@ -21,7 +21,7 @@ Regenerate (repo root, system `python3`, standard library only):
 ```
 python3 tools/route_212_north/textures.py --write
 python3 tools/route_212_north/build_gate.py --write
-make release
+tools/macos/build.sh release
 ```
 
 Both read their stock inputs from git (`BASE_REV` = 065698b277, arc2 before world-art), so re-running is deterministic

@@ -7,19 +7,15 @@ AI-assisted; not for upstream (that project does not accept AI-written pull requ
 
 ```sh
 brew install sdl3 nasm ninja arm-none-eabi-gcc gcc@14 libpng pkg-config
-tools/macos/build.sh
-open "build_macos/Pokemon Platinum.app"
+tools/macos/build.sh release
+open "build_macos_release/Dazzling Platinum.app"
 ```
 
 The game files are built from this source tree (no ROM needed). The app keeps its own files in
-`~/Library/Application Support/Pokemon Platinum`: `save.bin` (your save; compatible with emulators and DS hardware),
-`sim_config.ini` (window, scale, keys), `log.txt`.
+`~/Library/Application Support/Dazzling Platinum`: `save.bin` (your 512 KB raw save),
+`sim_config.ini` (window, scale, keys), `sim_config_prj.ini` (gameplay & Metal FX), `log.txt`.
 
-The DS ROM still builds from the same tree with `make release` as before.
-
-Build dirs configured before the iOS target was added (2026-11-21) crash meson's regenerate
-("Unhandled python exception" at `get_option('build_target')`). Run `tools/macos/build.sh` once: it recreates such a
-build dir. After that, `ninja -C build_macos` works again. The iOS build is described in `docs/ios.md`.
+The iOS build is described in `docs/ios.md`.
 
 ## Controls (defaults, `sim_config.ini`)
 

@@ -18,7 +18,7 @@ Permissions, BDHC, props and every other chunk are stock.
 ```
 python3 tools/solaceon_town/textures.py --write
 python3 tools/solaceon_town/build_wall.py --write
-make release
+tools/macos/build.sh release
 ```
 
 ## What it looks like

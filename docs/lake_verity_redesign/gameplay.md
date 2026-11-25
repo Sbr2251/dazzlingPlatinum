@@ -11,7 +11,7 @@ which is how we know the coordinates are absolute.
 | --- | --- |
 | Camera zones (new) | `include/overlay005/field_camera_zones.h`, `src/overlay005/field_camera_zones.c` |
 | Camera hooks | `src/overlay005/fieldmap.c` (`ov5_021D15F4`), `src/overlay005/field_camera.c` (`FieldCamera_Create`) |
-| Build registration | `src/meson.build`, `platinum.us/main.lsf` (Overlay overlay5) |
+| Build registration | `src/meson.build` |
 | New map headers | `generated/map_headers.txt`, `include/data/map_headers.h` (`MAP_HEADER_VERITY_CASTLE_1F`; the earlier 2F/3F placeholders are gone, see [interior_1f.md](interior_1f.md)) |
 | New events | `res/field/events/events_verity_castle_1f.json`, plus `meson.build` and `zone_event.order`; `events_verity_cavern.json` (exit retargeted) |
 | Location name | `res/text/location_names.json` (`LocationNames_Text_VerityCastle`, appended). Verity Castle 1F and Verity Cavern (below its stair) use it. |

@@ -233,7 +233,7 @@ Each commit should build on its own:
 
 ## Build and test
 
-- Build on the devserver with `make release` (see CLAUDE.md, Build & Test Workflow), then commit and push.
+- Build the macOS app with `tools/macos/build.sh release` (see CLAUDE.md, Build & Test Workflow), then commit and push.
 - Test checklist:
   - 1F South shows the lava theme.
   - 2F, 3F, B1F, North Rooms and the Iceberg Ruins look unchanged.

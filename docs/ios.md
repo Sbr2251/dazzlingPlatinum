@@ -53,4 +53,4 @@ the app's Documents survives a refresh install over the top).
   family, so SDL's `MTLGPUFamilyApple3` gate rejects it. For VM-only checks,
   that one check was relaxed in the VM's local SDL build; device/real-Mac
   builds pass the gate as-is.
-- The Mac (`tools/macos/build.sh`) and Linux builds are unchanged.
+- The macOS build (`tools/macos/build.sh`) shares the same Meson tree and data layout.

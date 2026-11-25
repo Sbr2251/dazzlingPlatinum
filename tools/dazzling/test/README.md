@@ -12,7 +12,7 @@ unit tests.
 # static checks (no game build, ~seconds)
 python3 tools/dazzling/test/static_checks.py
 
-# scenario suite (auto-detects build_linux/main or build_macos/main)
+# scenario suite (auto-detects build_macos/main)
 python3 tools/dazzling/test/run.py -j 4
 
 # high-signal pre-submit gate (static checks + curated scenario smoke tier)
@@ -191,12 +191,12 @@ are per-platform: Linux `references/visual/`, macOS `references/visual_mac/`
 (picked automatically on darwin); both sets verified 3x in a row.
 
 ```sh
-python3 tools/dazzling/test/run.py --game build_linux/main -j 4 --filter visual   # check
-python3 tools/dazzling/test/run.py --game build_linux/main -j 4 --record --filter visual  # re-record all
-python3 tools/dazzling/test/run.py --game build_linux/main --update --filter visual_intimidate  # accept new reference(s) after reviewing a diff
-python3 tools/dazzling/test/run.py --game build_linux/main --compare-renderers --filter visual_intimidate  # CPU vs GPU 2D
-python3 tools/dazzling/test/run.py --game build_linux/main -j 4 --compare-backends --filter visual_totem  # SIM_RENDERER=gl vs =gpu, same references (gpu run uses tolerance_gpu)
-python3 tools/dazzling/test/run.py --game build_linux/main -j 4 --compare-backends --compare-renderers --filter visual  # four runs: gl/gpu x CPU/GPU 2D
+python3 tools/dazzling/test/run.py --game build_macos/main -j 2 --filter visual   # check
+python3 tools/dazzling/test/run.py --game build_macos/main -j 2 --record --filter visual  # re-record all
+python3 tools/dazzling/test/run.py --game build_macos/main --update --filter visual_intimidate  # accept new reference(s) after reviewing a diff
+python3 tools/dazzling/test/run.py --game build_macos/main --compare-renderers --filter visual_intimidate  # CPU vs GPU 2D
+python3 tools/dazzling/test/run.py --game build_macos/main -j 2 --compare-backends --filter visual_totem  # SIM_RENDERER=gl vs =gpu, same references (gpu run uses tolerance_gpu)
+python3 tools/dazzling/test/run.py --game build_macos/main -j 2 --compare-backends --compare-renderers --filter visual  # four runs: gl/gpu x CPU/GPU 2D
 ```
 
 - On mismatch the failure prints `expected:` / `actual:` / `diff:` BMP

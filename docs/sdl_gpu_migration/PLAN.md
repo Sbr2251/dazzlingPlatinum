@@ -199,7 +199,7 @@ recorded; battle tests and determinism under `SIM_RENDERER=gpu`; performance aga
   moves commits to the Mac with git bundles. Workers never push.
 - Ramp up two workers at a time: ten started together all hit gateway 429s. Alternate models (`tbh-1005`,
   `tbh-1015`).
-- New game `.c` files go in `platinum.us/main.lsf.in` (`src/meson.build` is generated); new simulator sources in
+- New game `.c` files go in `src/meson.build`; new simulator sources in
   `libraries/sim/src/meson.build`; regenerate `libntr.patch` after every libntr commit.
 - Fixed-frame screenshots move whenever timing changes; anchor golden scenarios to engine events.
 - Every simulator change that touches pointers: remember the Mac maps statics above 4 GB (the `OSi_ROUND` bug only

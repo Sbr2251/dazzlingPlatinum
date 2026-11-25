@@ -54,8 +54,8 @@ exec "$here/pokeplatinum" "$@" >> "$data/log.txt" 2>&1
 LAUNCH
 chmod +x "$C/MacOS/launch"
 
-# Icon (the Linux AppImage's), Info.plist
-icon_png="$ROOT/tools/linuxdeploy/app.png"
+# Icon, Info.plist
+icon_png="$ROOT/tools/macos/app.png"
 if [ -f "$icon_png" ]; then
   set_dir="$BUILDDIR/app.iconset"; rm -rf "$set_dir"; mkdir -p "$set_dir"
   for s in 16 32 128 256 512; do

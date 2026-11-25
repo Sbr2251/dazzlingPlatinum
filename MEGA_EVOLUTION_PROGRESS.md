@@ -103,7 +103,7 @@ Added `OS_Printf` message at line 852 of battle_controller_player.c:
 ```c
 OS_Printf("[MEGA EVOLUTION] Garchomp is Mega Evolving!\n");
 ```
-Note: This requires DeSmuME console output to be visible (View → Show Console)
+Note: `OS_Printf` logs to stdout/stderr (or `~/Library/Application Support/Dazzling Platinum/log.txt`).
 
 ## Next Steps
 
@@ -115,7 +115,6 @@ Note: This requires DeSmuME console output to be visible (View → Show Console)
 6. **Extend to other Pokemon** (after Garchomp works perfectly)
 
 ## Notes
-- Build command: `make rom` (not `make check` to skip checksums)
-- ROM location: `/tmp/dazzlingPlatinum/pokeplatinum.us.nds`
-- Test in DeSmuME emulator
-- Current implementation is Garchomp-only (species ID 445 hardcoded)
+- Build command: `tools/macos/build.sh release` (see `README_macOS.md` / `docs/ios.md`)
+- Test via `tools/dazzling/test/run.py --filter mega` or directly in `Dazzling Platinum.app`
+- Historical note: initial prototype targeted Garchomp (species ID 445); expanded Mega Evolutions are active across the build.

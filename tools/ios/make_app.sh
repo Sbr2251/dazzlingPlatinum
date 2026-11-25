@@ -29,13 +29,13 @@ cp "$BUILDDIR/main" "$A/DazzlingPlatinum"
 chmod +x "$A/DazzlingPlatinum"
 cp "$ROOT/tools/ios/Info.plist" "$A/Info.plist"
 
-# Launch screen (compiled) and the app icon asset catalog from the Mac/Linux app icon
+# Launch screen (compiled) and the app icon asset catalog from the app icon
 if command -v ibtool >/dev/null; then
   ibtool --errors --warnings --notices --module DazzlingPlatinum --target-device iphone --target-device ipad \
     --minimum-deployment-target 17.0 --output-format human-readable-text \
     --compile "$A/LaunchScreen.storyboardc" "$ROOT/tools/ios/LaunchScreen.storyboard" >/dev/null
 fi
-icon_png="$ROOT/tools/linuxdeploy/app.png"
+icon_png="$ROOT/tools/macos/app.png"
 if [ -f "$icon_png" ] && command -v actool >/dev/null; then
   xc="$BUILDDIR/Assets.xcassets"; rm -rf "$xc"; cp -R "$ROOT/tools/ios/Assets.xcassets" "$xc"
   sips -z 1024 1024 "$icon_png" --out "$xc/AppIcon.appiconset/icon1024.png" >/dev/null 2>&1 || true

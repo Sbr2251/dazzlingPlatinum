@@ -1,32 +1,26 @@
-# Dazzling Platinum ROM Hack
+# Dazzling Platinum (macOS & iOS)
 
 ## Build & Test Workflow
 
-- **Target: the Mac app** (owner decision 2026-11-10). NDS ROM builds are no longer supported or tested. From now on the code is free to use more memory, bigger assets and PC-only features than the DS allows. iOS/Android ports come later.
-- Build with `tools/macos/build.sh`, or after edits with `ninja -C build_macos` (details in the next section). The result is `build_macos/Dazzling Platinum.app`.
-- The `make release` / mwccarm / Wine / py-desmume tooling still in the tree is legacy. Don't keep it working or use it to validate changes.
-- Test saves: `tools/dazzling/save_tool.py info|edit` inspects and edits raw `.sav`/`.dsv` saves (party order, held items, bag items) and re-signs them.
-- When a change builds, commit and push the branch so the owner can test it.
-
-## Mac app (PC port, branch `port/macos`)
-
-This branch adds the cybervisi0n PC port (`pc_port`) and a native macOS target on top of the pret-synced hack.
-- Build: `tools/macos/build.sh` gives `build_macos/Dazzling Platinum.app`. Prerequisites are in `README_macOS.md`.
-  - Rebuild after edits with `ninja -C build_macos`, with `LIBRARY_PATH`/`CPATH` set to /opt/homebrew plus `../pokeplatinum-macos-deps/prefix`.
-  - The ROM build (`make release`) is unchanged.
-- Saves and game files live in `~/Library/Application Support/Dazzling Platinum`. `save.bin` is a raw DS save; Cmd+E/Cmd+I export and import `.sav`/`.dsv`.
-- The same C code compiles for the DS (32-bit, mwcc) and for the Mac (64-bit, clang). New code must:
-  - include the header for every function it calls (clang rejects implicit declarations);
+- **Targets: macOS (Apple Silicon) and iOS (arm64)** via SDL3 + Metal. The NDS ROM build path has been removed; code is free to use native memory, wider 2D/3D assets, and Metal/SDL3 features.
+- **macOS build:** `tools/macos/build.sh [dev|release|asan]` (or `make macos` / `make macos-release` / `make macos-asan`). Outputs `build_macos[_release|_asan]/Dazzling Platinum.app`.
+  - Rebuild after edits with `ninja -C build_macos` (or `build_macos_release`), with `LIBRARY_PATH`/`CPATH` set to `/opt/homebrew` plus `$DEPS/prefix` (default `../pokeplatinum-macos-deps/prefix`).
+- **iOS build:** `tools/ios/build.sh [device|sim] [--dev|--release]` (see `docs/ios.md`). Outputs `build_ios[_sim]/Dazzling Platinum.app` (plus `build_ios/DazzlingPlatinum.ipa` for device).
+- **Adding C source files:** add new game `.c` files directly to `src/meson.build` (or port-only files to `pokeplatinum_port_c` in `meson.build`).
+- **Saves & app data:** live in `~/Library/Application Support/Dazzling Platinum` on macOS (and the app's Documents folder on iOS). `save.bin` is a raw 512 KB save; `Cmd+E`/`Cmd+I` export and import `.sav`/`.dsv`. Inspect/edit saves with `tools/dazzling/save_tool.py info|edit`.
+- **64-bit clang C rules:**
+  - include the header for every function called (clang rejects implicit declarations);
   - never store a pointer in a `u32`: use `uPtr` for pointer arithmetic and alignment;
   - never pass `NULL` for an integer parameter.
-- Fixes to the simulator (libntr) go in `subprojects/libntr` and are saved as `tools/macos/patches/libntr.patch`. Regenerate it with `git -C subprojects/libntr diff`, after `git add -N` on any new file.
-- After editing field scripts, run `tools/dazzling/check_script_targets.py`. It catches a GoTo/Call or movement command whose target isn't a label in the file; such scripts assemble but crash the Mac app and misbehave on the DS.
-- Headless testing works with the debug automation variables listed in `README_macOS.md`, e.g. `SIM_DEBUG_FAST=1 SIM_DEBUG_IMPORT_SAVE=20:<save> SIM_DEBUG_KEYS=... SIM_DEBUG_SHOT_DIR=... SIM_DEBUG_EXIT_FRAME=...`.
+- **Simulator (`libntr`) fixes:** edit inside `subprojects/libntr` and regenerate `tools/macos/patches/libntr.patch` with `git -C subprojects/libntr add -N . && git -C subprojects/libntr diff HEAD > tools/macos/patches/libntr.patch` (and verify with `git apply --check` against the revision pinned in `tools/macos/patches/REVISIONS`).
+- **Field script safety:** after editing field scripts, run `python3 tools/dazzling/test/static_checks.py` (which includes `check_script_targets` and catches invalid GoTo/Call targets, missing text labels, WaitFanfare hazards, and infinite self-loops).
+- **Headless testing:** debug automation variables are listed in `README_macOS.md`, e.g. `SIM_DEBUG_FAST=1 SIM_DEBUG_IMPORT_SAVE=20:<save> SIM_DEBUG_KEYS=... SIM_DEBUG_SHOT_DIR=... SIM_DEBUG_EXIT_FRAME=...`.
+- When a change builds and passes checks, commit and push the branch so the owner can test it.
 
 ## Test suite (tools/dazzling/test/)
 
 - Static checks (no game build): `python3 tools/dazzling/test/static_checks.py`
-- Scenario suite (headless lockstep, needs the debug-headless `SIM_HEADLESS`/`SIM_CONTROL` build): `python3 tools/dazzling/test/run.py -j 4`
+- Scenario suite (headless lockstep): `python3 tools/dazzling/test/run.py -j 2`
 - Record reference screenshots: `python3 tools/dazzling/test/run.py --record --filter title`
 - Runner unit tests against the mock game: `python3 tools/dazzling/test/test_runner.py`
 - Script coverage report: `python3 tools/dazzling/test/coverage.py <coverage.txt>` (game side: `SIM_SCRIPT_COVERAGE=<file>`)
@@ -35,19 +29,17 @@ This branch adds the cybervisi0n PC port (`pc_port`) and a native macOS target o
 ## Important: Text Encoding
 
 - **Always use straight/ASCII apostrophes** (`'` U+0027) in all text files, never curly/smart apostrophes (`'` `'` U+2018/U+2019)
-- Curly apostrophes cause build errors in the NDS text compiler
+- Curly apostrophes fail `static_checks.py` and the text compiler (`msgenc`)
 - When adding text to JSON files (`res/text/*.json`), double-check for curly quotes/apostrophes before saving
 
-## Repo layout (synced to pret on 2026-11-10)
+## Repo layout
 
-The hack was merged onto current pret (branch `sync/pret-2026-11`). pret's layout replaced several older conventions:
 - Each map's files live in `res/field/maps/<map>/`: `scripts.s`, `init.s`, `events.json`, `encounters.json`, `header.json`. Map groups and matrices are in `res/field/maps/groups.json`.
 - Events reference scripts **by label** (`"script": "Route206_Hiker"`), not by `7000 + index` numbers.
 - Text banks are generated: scripts include `res/text/bank/<map>.h` and use named message IDs (`Route206_Text_...`). Move and item names and descriptions come from each move's or item's data file.
-- Sound is vanilla pret. The hack has no custom music, and the Gen 5 species reuse vanilla cries.
 - Sound constants take the `_sseq` suffix (`SEQ_SE_DP_BEEP_sseq`).
 - Trainer parties use `iv_scale`, not `power`. An optional per-member `ability` override is supported by `tools/dataproc/src/trainerproc.c`.
-- The build needs the system libpng headers (`libpng-devel` on the devserver).
+- Asset-pipeline script assemblers still use Homebrew `arm-none-eabi-gcc` / `arm-none-eabi-objcopy` to compile field scripts, battle scripts, move animations, and trainer AI bytecode.
 
 ## Adding a New Move
 
@@ -55,11 +47,11 @@ The hack was merged onto current pret (branch `sync/pret-2026-11`). pret's layou
 2. **Move directory:** create `res/moves/<move_name>/` (the directory name maps to `MOVE_<NAME>`) containing:
    - `data.json`: `name`, `description` (lines ending in `\n`), `class`, `type`, `power`, `accuracy`, `pp`, `effect` (`type` and `chance`), `range`, `priority`, `flags`, `contest`. Copy an existing move such as `res/moves/moonblast/data.json`. The name and description text banks are generated from this file; do not edit `res/text/move_*.json`.
    - `anim.s`: the battle animation (`#include "macros/btlanimcmd.inc"`). Particle files (`.spa`) are prebuilt in `res/battle/particles/`; reuse existing ones.
-     - Key pattern: `LoadParticleResource` → `CreateEmitter` → `Func_MoveEmitterA2BLinear` → impact effects → `UnloadParticleSystem` → `End`.
+     - Key pattern: `LoadParticleResource` -> `CreateEmitter` -> `Func_MoveEmitterA2BLinear` -> impact effects -> `UnloadParticleSystem` -> `End`.
      - Colors: `include/constants/battle/battle_anim.h`. Background IDs: 42 (cosmic/lunar), 54 (night sky), 10 (misty).
      - Templates: `flash_cannon_spa`, `energy_ball_spa`, `shadow_ball_spa` (projectiles); `moonlight_spa`, `lunar_dance_spa`, `luster_purge_spa` (effects).
    - `script.s`: the battle logic (`#include "macros/btlcmd.inc"`). It is usually just `GoToEffectScript`, which dispatches on the move's `BATTLE_EFFECT_*`.
-3. **Learnsets:** add the move to `res/pokemon/<species>/data.json` → `learnset.by_level` as `[level, "MOVE_<NAME>"]`. Stone evolutions use level 1; level-up evolutions use mid-to-late levels.
+3. **Learnsets:** add the move to `res/pokemon/<species>/data.json` -> `learnset.by_level` as `[level, "MOVE_<NAME>"]`. Stone evolutions use level 1; level-up evolutions use mid-to-late levels.
 4. **Reference:** `generated/battle_move_effects.txt`, `generated/move_flags.txt`, `generated/move_ranges.txt`, `res/battle/particles/battle_particles.order`, `asm/macros/btlanimcmd.inc`, `asm/macros/btlanimfunc.inc`.
 
 ## Adding a New Item (with Bag Icon and Overworld Pickup)
@@ -82,7 +74,7 @@ The hack was merged onto current pret (branch `sync/pret-2026-11`). pret's layou
          GoTo VisibleItems_TryGiveItem
          End
      ```
-   - Add an object to `res/field/maps/<map>/events.json` → `object_events`:
+   - Add an object to `res/field/maps/<map>/events.json` -> `object_events`:
      ```json
      {
          "id": "LOCALID_ITEM_<NAME>",
@@ -103,8 +95,7 @@ The hack was merged onto current pret (branch `sync/pret-2026-11`). pret's layou
    - `hidden_flag` must be an unused flag. Name a free slot in `generated/vars_flags.txt`; never shift existing entries, because flag numbers are stored in saves.
    - Use coordinates near existing items on the same map.
 
-## Renderer migration to the SDL3 GPU API (merged, gpu opt-in)
+## Renderer (SDL3 GPU / Metal)
 
-- The simulator has two render backends: the SDL3 GPU API (Metal on macOS/iOS, Vulkan on Windows/Linux/Android; default) and OpenGL (fallback). Pick OpenGL with `Renderer=gl` in `sim_config.ini` `[General]`, or in the config window (restart to apply); `SIM_RENDERER=gl` env still wins, and a requested GPU backend with no creatable GPU device falls back to OpenGL with a log line. The test runner pins `SIM_RENDERER=gl` on Linux (lavapipe is slow); on the Mac the suite runs the GPU default.
-- Plan (v2), status, verification method and per-workstream briefs: `docs/sdl_gpu_migration/PLAN.md`. Devserver setup and worktree scripts: `tools/sdl_gpu_migration/`. The migration's A/B proof is `python3 tools/dazzling/test/run.py --compare-backends` (same references for both backends; per-scenario `tolerance_gpu` records the small gpu allowances).
-- The simulator's render files are frozen on `main` except through the migration until wave 3 signs off.
+- The SDL3 GPU API (Metal on macOS and iOS) is the primary render backend. On macOS, OpenGL remains available as a fallback (`Renderer=gl` in `sim_config.ini` or `SIM_RENDERER=gl`); iOS is Metal-only.
+- Architecture and verification details: `docs/sdl_gpu_migration/PLAN.md`. A/B backend verification: `python3 tools/dazzling/test/run.py --compare-backends`.

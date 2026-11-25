@@ -58,7 +58,6 @@ fi
 if [ ! -f "$BUILD/build.ninja" ]; then
   mkdir -p "$BUILD"
   printf "[constants]\nroot = '%s'\n" "$ROOT" > "$BUILD/root.ini"
-  python3 tools/scripts/lsfgen.py platinum.us/main.lsf.in --prefix-dir main.nef.p/ --dest-lsf platinum.us/main.lsf --dest-c src/meson.build
   $MESON setup -Dbuild_target=linux -Dbuild_variant="$VARIANT" \
     --native-file=meson/native_macos_port.ini --native-file="$BUILD/root.ini" \
     --cross-file=meson/cross_pcport_macos.ini --cross-file="$BUILD/root.ini" -- "$BUILD"
