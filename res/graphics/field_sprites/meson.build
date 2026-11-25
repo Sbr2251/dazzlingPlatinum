@@ -437,6 +437,12 @@ field_sprites_textures_two_frame_pokemon = [
     { 'file': 'objects/shard_frame.png' ,'basename': 'shard_frame' },
     { 'file': 'objects/rift_arc2.png' ,'basename': 'rift_arc2' },
     { 'file': 'objects/violet_crystal.png' ,'basename': 'violet_crystal' },
+    { 'file': 'objects/shard_generator.png' ,'basename': 'sol_gen' },
+    { 'file': 'objects/shard_generator_off.png' ,'basename': 'sol_gen_off' },
+    { 'file': 'objects/shard_barrier.png' ,'basename': 'sol_barrier' },
+    { 'file': 'objects/shard_frame_dark.png' ,'basename': 'sol_frame_dk' },
+    { 'file': 'objects/violet_crystal_dark.png' ,'basename': 'sol_crystal_dk' },
+    { 'file': 'objects/dig_rope.png' ,'basename': 'sol_dig_rope' },
 ]
 
 field_sprites_nsbtxs += custom_target(
