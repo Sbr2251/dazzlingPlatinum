@@ -1,0 +1,24 @@
+{
+ "format": "pltt16",
+ "repeat": [
+  true,
+  true
+ ],
+ "c0": 0,
+ "color0_transparent": false,
+ "group": "plaza",
+ "use": "memorial plaza: warm basket-weave setts, 2x2 tiles per repeat",
+ "palette_names": [
+  null,
+  "beige3",
+  "beige2",
+  "beige1",
+  "beige0"
+ ],
+ "palette_sources": {
+  "beige3": "areabm_texset 5 c5_s03_a_pl[3]",
+  "beige2": "areabm_texset 5 c5_s03_a_pl[4]",
+  "beige1": "areabm_texset 5 c5_s03_a_pl[5]",
+  "beige0": "areabm_texset 5 c5_s03_a_pl[2]"
+ }
+}

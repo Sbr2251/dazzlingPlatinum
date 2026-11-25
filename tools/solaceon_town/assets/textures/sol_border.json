@@ -1,0 +1,40 @@
+{
+ "format": "pltt16",
+ "repeat": [
+  true,
+  false
+ ],
+ "c0": 0,
+ "color0_transparent": false,
+ "group": "plaza",
+ "use": "garden of names edge (ground strip), 2x1 tiles, repeat s; grass side v=0, paving side v=1",
+ "palette_names": [
+  null,
+  "leaf2",
+  "stone5",
+  "grass3",
+  "stone4",
+  "beige1",
+  "grass2",
+  "grass1",
+  "sky",
+  "pink",
+  "stone2",
+  "lily",
+  "stone0"
+ ],
+ "palette_sources": {
+  "leaf2": "set010 imped[8]",
+  "stone5": "areabm_texset 6 r209s01_a_pl[5]",
+  "grass3": "set010 tshadow[2]",
+  "stone4": "areabm_texset 6 r209s01_a_pl[7]",
+  "beige1": "areabm_texset 5 c5_s03_a_pl[5]",
+  "grass2": "set010 grass[1]",
+  "grass1": "set010 grass[0]",
+  "sky": "set010 nhana[1]",
+  "pink": "set010 nhana[13]",
+  "stone2": "areabm_texset 6 r209s01_a_pl[8]",
+  "lily": "set010 shana[2]",
+  "stone0": "areabm_texset 6 r209s01_a_pl[9]"
+ }
+}

@@ -1,0 +1,44 @@
+{
+ "format": "pltt16",
+ "repeat": [
+  false,
+  false
+ ],
+ "c0": 1,
+ "color0_transparent": true,
+ "group": "plaza",
+ "use": "offerings cards, 1x1 tile each: lilies, posy, wreath, candles + photo",
+ "palette_names": [
+  null,
+  "violet2",
+  "leaf2",
+  "violet1",
+  "gold2",
+  "leaf1",
+  "orange",
+  "cream2",
+  "glow2",
+  "yellow",
+  "pink",
+  "cream1",
+  "glow0",
+  "lily",
+  "white"
+ ],
+ "palette_sources": {
+  "violet2": "areabm_texset 4 t3_h01_pl[2]",
+  "leaf2": "set010 imped[8]",
+  "violet1": "areabm_texset 4 t3_h01_pl[3]",
+  "gold2": "areabm_texset 7 container_pl[0]",
+  "leaf1": "set010 imped[9]",
+  "orange": "set010 rhana[9]",
+  "cream2": "set010 imped[6]",
+  "glow2": "areabm_texset 6 pcloof_pl[4]",
+  "yellow": "set010 rhana[8]",
+  "pink": "set010 nhana[13]",
+  "cream1": "set010 imped[4]",
+  "glow0": "set010 sandset[6]",
+  "lily": "set010 shana[2]",
+  "white": "areabm_texset 6 pcloof_pl[15]"
+ }
+}

@@ -1,0 +1,46 @@
+{
+ "format": "pltt16",
+ "repeat": [
+  false,
+  false
+ ],
+ "c0": 1,
+ "color0_transparent": true,
+ "group": "excavation",
+ "use": "work light (0,0 16x32), crate side/top (16,0/16,16), cable coil (32,0), cable (32,16 16x8), sandbags (32,24), KEEP OUT board (48,0 16x32)",
+ "palette_names": [
+  null,
+  "ink",
+  "ink2",
+  "wood3",
+  "steel3",
+  "violet2",
+  "steel2",
+  "dirt2",
+  "steel1",
+  "dirt1",
+  "board2",
+  "board1",
+  "glow1",
+  "gold0",
+  "yellow",
+  "glow0"
+ ],
+ "palette_sources": {
+  "ink": "areabm_texset 6 t4_h01_a_pl[1]",
+  "ink2": "areabm_texset 6 t4_h01_a_pl[14]",
+  "wood3": "areabm_texset 6 t4_h01_a_pl[7]",
+  "steel3": "areabm_texset 7 para_asi_pl[1]",
+  "violet2": "areabm_texset 4 t3_h01_pl[2]",
+  "steel2": "areabm_texset 7 para_asi_pl[2]",
+  "dirt2": "set010 ckado[8]",
+  "steel1": "areabm_texset 7 para_asi_pl[3]",
+  "dirt1": "set010 ckado[10]",
+  "board2": "areabm_texset 6 t4_s01_a_pl[7]",
+  "board1": "areabm_texset 6 t4_s01_a_pl[6]",
+  "glow1": "areabm_texset 6 pcloof_pl[6]",
+  "gold0": "areabm_texset 7 container_pl[4]",
+  "yellow": "set010 rhana[8]",
+  "glow0": "set010 sandset[6]"
+ }
+}

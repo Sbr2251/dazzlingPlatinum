@@ -1,0 +1,32 @@
+{
+ "format": "pltt16",
+ "repeat": [
+  false,
+  false
+ ],
+ "c0": 1,
+ "color0_transparent": true,
+ "group": "plaza",
+ "use": "violet Eclipse banner on a post, card 1x2 tiles",
+ "palette_names": [
+  null,
+  "ink",
+  "ink2",
+  "violet3",
+  "violet2",
+  "violet1",
+  "gold2",
+  "gold1",
+  "gold0"
+ ],
+ "palette_sources": {
+  "ink": "areabm_texset 6 t4_h01_a_pl[1]",
+  "ink2": "areabm_texset 6 t4_h01_a_pl[14]",
+  "violet3": "areabm_texset 4 t3_h01_pl[1]",
+  "violet2": "areabm_texset 4 t3_h01_pl[2]",
+  "violet1": "areabm_texset 4 t3_h01_pl[3]",
+  "gold2": "areabm_texset 7 container_pl[0]",
+  "gold1": "areabm_texset 7 container_pl[2]",
+  "gold0": "areabm_texset 7 container_pl[4]"
+ }
+}

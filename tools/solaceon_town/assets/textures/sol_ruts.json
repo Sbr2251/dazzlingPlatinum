@@ -1,0 +1,32 @@
+{
+ "format": "pltt16",
+ "repeat": [
+  true,
+  true
+ ],
+ "c0": 0,
+ "color0_transparent": false,
+ "group": "ranch",
+ "use": "yard lane: sol_yard dirt with two tyre ruts along t, 1 tile apart; lane 2 tiles wide (u 0..1)",
+ "palette_names": [
+  null,
+  "dirt4",
+  "dirt3",
+  "dirt2",
+  "rock2",
+  "dirt1",
+  "sand4",
+  "sand3",
+  "sand2"
+ ],
+ "palette_sources": {
+  "dirt4": "set010 ckado[7]",
+  "dirt3": "set010 ckado[6]",
+  "dirt2": "set010 ckado[8]",
+  "rock2": "set010 criff[11]",
+  "dirt1": "set010 ckado[10]",
+  "sand4": "set010 nsandp[7]",
+  "sand3": "set010 nsandp[5]",
+  "sand2": "set010 sandset[11]"
+ }
+}

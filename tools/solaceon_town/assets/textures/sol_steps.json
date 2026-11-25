@@ -1,0 +1,42 @@
+{
+ "format": "pltt16",
+ "repeat": [
+  false,
+  true
+ ],
+ "c0": 0,
+ "color0_transparent": false,
+ "group": "hall",
+ "use": "hall front steps / gate threshold: stock newstep texels (2x2 tiles, 4 treads) in pale stone with lilac cheeks",
+ "palette_names": [
+  "stone3",
+  "stone2",
+  null,
+  "stone4",
+  "stone0",
+  "lilac3",
+  "lilac2",
+  null,
+  "lilac4",
+  "lilac1",
+  "lilac2",
+  null,
+  null,
+  null,
+  null,
+  null
+ ],
+ "palette_sources": {
+  "stone3": "areabm_texset 6 r209s01_a_pl[6]",
+  "stone2": "areabm_texset 6 r209s01_a_pl[8]",
+  "stone4": "areabm_texset 6 r209s01_a_pl[7]",
+  "stone0": "areabm_texset 6 r209s01_a_pl[9]",
+  "lilac3": "areabm_texset 6 r209s01_a_pl[2]",
+  "lilac2": "areabm_texset 6 r209s01_a_pl[3]",
+  "lilac4": "areabm_texset 6 r209s01_a_pl[1]",
+  "lilac1": "areabm_texset 6 r209s01_a_pl[4]"
+ },
+ "texels_of": "newstep",
+ "stock_palette": "newstep",
+ "palette": "sol_steps"
+}

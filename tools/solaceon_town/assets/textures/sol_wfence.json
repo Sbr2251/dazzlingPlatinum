@@ -1,0 +1,30 @@
+{
+ "format": "pltt16",
+ "repeat": [
+  true,
+  false
+ ],
+ "c0": 1,
+ "color0_transparent": true,
+ "group": "excavation",
+ "use": "warning fence, 2x1 tiles, repeat s, see-through",
+ "palette_names": [
+  null,
+  "ink",
+  "ink2",
+  "red2",
+  "steel3",
+  "red1",
+  "steel1",
+  "yellow"
+ ],
+ "palette_sources": {
+  "ink": "areabm_texset 6 t4_h01_a_pl[1]",
+  "ink2": "areabm_texset 6 t4_h01_a_pl[14]",
+  "red2": "areabm_texset 6 pcloof_pl[12]",
+  "steel3": "areabm_texset 7 para_asi_pl[1]",
+  "red1": "areabm_texset 6 pcloof_pl[9]",
+  "steel1": "areabm_texset 7 para_asi_pl[3]",
+  "yellow": "set010 rhana[8]"
+ }
+}

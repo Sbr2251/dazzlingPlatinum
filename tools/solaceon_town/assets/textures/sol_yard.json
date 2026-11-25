@@ -1,0 +1,24 @@
+{
+ "format": "pltt16",
+ "repeat": [
+  true,
+  true
+ ],
+ "c0": 0,
+ "color0_transparent": false,
+ "group": "ranch",
+ "use": "loading yard: packed dirt, 2x2 tiles per repeat",
+ "palette_names": [
+  null,
+  "dirt3",
+  "rock2",
+  "sand4",
+  "sand3"
+ ],
+ "palette_sources": {
+  "dirt3": "set010 ckado[6]",
+  "rock2": "set010 criff[11]",
+  "sand4": "set010 nsandp[7]",
+  "sand3": "set010 nsandp[5]"
+ }
+}

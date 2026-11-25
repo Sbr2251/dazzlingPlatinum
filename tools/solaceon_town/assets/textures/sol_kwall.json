@@ -1,0 +1,38 @@
+{
+ "format": "pltt16",
+ "repeat": [
+  true,
+  false
+ ],
+ "c0": 0,
+ "color0_transparent": false,
+ "group": "ranch",
+ "use": "kennel block front, one kennel per 2 tiles, repeat s",
+ "palette_names": [
+  null,
+  "ink",
+  "ink2",
+  "wood3",
+  "wood2",
+  "stone5",
+  "board2",
+  "board1",
+  "stone3",
+  "stone2",
+  "board0",
+  "white"
+ ],
+ "palette_sources": {
+  "ink": "areabm_texset 6 t4_h01_a_pl[1]",
+  "ink2": "areabm_texset 6 t4_h01_a_pl[14]",
+  "wood3": "areabm_texset 6 t4_h01_a_pl[7]",
+  "wood2": "areabm_texset 6 t4_h01_a_pl[5]",
+  "stone5": "areabm_texset 6 r209s01_a_pl[5]",
+  "board2": "areabm_texset 6 t4_s01_a_pl[7]",
+  "board1": "areabm_texset 6 t4_s01_a_pl[6]",
+  "stone3": "areabm_texset 6 r209s01_a_pl[6]",
+  "stone2": "areabm_texset 6 r209s01_a_pl[8]",
+  "board0": "areabm_texset 6 t4_s01_a_pl[8]",
+  "white": "areabm_texset 6 pcloof_pl[15]"
+ }
+}

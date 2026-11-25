@@ -1,0 +1,42 @@
+{
+ "format": "pltt16",
+ "repeat": [
+  false,
+  false
+ ],
+ "c0": 1,
+ "color0_transparent": true,
+ "group": "plaza",
+ "use": "bench side (0,0 24x12) / top (0,12 24x8), card board (0,20 24x12), lantern post (24,0 8x32)",
+ "palette_names": [
+  null,
+  "ink",
+  "ink2",
+  "wood4",
+  "wood3",
+  "wood2",
+  "wood1",
+  "gold1",
+  "glow2",
+  "glow1",
+  "wood0",
+  "glass0",
+  "glow0",
+  "white"
+ ],
+ "palette_sources": {
+  "ink": "areabm_texset 6 t4_h01_a_pl[1]",
+  "ink2": "areabm_texset 6 t4_h01_a_pl[14]",
+  "wood4": "areabm_texset 6 t4_h01_a_pl[11]",
+  "wood3": "areabm_texset 6 t4_h01_a_pl[7]",
+  "wood2": "areabm_texset 6 t4_h01_a_pl[5]",
+  "wood1": "areabm_texset 6 t4_h01_a_pl[3]",
+  "gold1": "areabm_texset 7 container_pl[2]",
+  "glow2": "areabm_texset 6 pcloof_pl[4]",
+  "glow1": "areabm_texset 6 pcloof_pl[6]",
+  "wood0": "areabm_texset 6 t4_h01_a_pl[2]",
+  "glass0": "areabm_texset 6 h_mado_pl[0]",
+  "glow0": "set010 sandset[6]",
+  "white": "areabm_texset 6 pcloof_pl[15]"
+ }
+}

@@ -1,0 +1,11 @@
+{
+ "format": "pltt16",
+ "repeat": [
+  false,
+  false
+ ],
+ "c0": 1,
+ "color0_transparent": true,
+ "frame_of": "sol_candle",
+ "frame_index": 1
+}

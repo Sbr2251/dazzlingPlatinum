@@ -1,0 +1,26 @@
+{
+ "format": "pltt16",
+ "repeat": [
+  true,
+  true
+ ],
+ "c0": 0,
+ "color0_transparent": false,
+ "group": "tent",
+ "use": "tent canvas walls/roof, seams along t every tile",
+ "palette_names": [
+  null,
+  "cream2",
+  "mist2",
+  "mist1",
+  "cream1",
+  "cream0"
+ ],
+ "palette_sources": {
+  "cream2": "set010 imped[6]",
+  "mist2": "areabm_texset 4 t3_h01_pl[4]",
+  "mist1": "areabm_texset 4 t3_h01_pl[5]",
+  "cream1": "set010 imped[4]",
+  "cream0": "set010 imped[5]"
+ }
+}

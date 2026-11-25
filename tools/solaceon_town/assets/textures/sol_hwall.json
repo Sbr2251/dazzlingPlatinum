@@ -1,0 +1,26 @@
+{
+ "format": "pltt16",
+ "repeat": [
+  true,
+  true
+ ],
+ "c0": 0,
+ "color0_transparent": false,
+ "group": "hall",
+ "use": "Sanctuary hall + compound wall: pale ashlar, 2x2 tiles per repeat",
+ "palette_names": [
+  null,
+  "stone4",
+  "stone3",
+  "stone2",
+  "stone1",
+  "stone0"
+ ],
+ "palette_sources": {
+  "stone4": "areabm_texset 6 r209s01_a_pl[7]",
+  "stone3": "areabm_texset 6 r209s01_a_pl[6]",
+  "stone2": "areabm_texset 6 r209s01_a_pl[8]",
+  "stone1": "areabm_texset 6 r209s01_a_pl[10]",
+  "stone0": "areabm_texset 6 r209s01_a_pl[9]"
+ }
+}

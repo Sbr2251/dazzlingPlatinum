@@ -1,0 +1,36 @@
+{
+ "format": "pltt16",
+ "repeat": [
+  false,
+  false
+ ],
+ "c0": 1,
+ "color0_transparent": true,
+ "group": "plaza",
+ "use": "candle dish, 1x1 tile card, 3-frame flicker (fldtanime, 6 VBlanks per frame)",
+ "palette_names": [
+  null,
+  "gold2",
+  "gold1",
+  "cream2",
+  "glow2",
+  "glow1",
+  "glow0",
+  "cream0"
+ ],
+ "palette_sources": {
+  "gold2": "areabm_texset 7 container_pl[0]",
+  "gold1": "areabm_texset 7 container_pl[2]",
+  "cream2": "set010 imped[6]",
+  "glow2": "areabm_texset 6 pcloof_pl[4]",
+  "glow1": "areabm_texset 6 pcloof_pl[6]",
+  "glow0": "set010 sandset[6]",
+  "cream0": "set010 imped[5]"
+ },
+ "frames": [
+  "sol_candle.1",
+  "sol_candle.2",
+  "sol_candle.3"
+ ],
+ "frame_ticks": 6
+}

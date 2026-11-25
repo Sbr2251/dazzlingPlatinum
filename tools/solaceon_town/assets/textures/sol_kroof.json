@@ -1,0 +1,26 @@
+{
+ "format": "pltt16",
+ "repeat": [
+  true,
+  true
+ ],
+ "c0": 0,
+ "color0_transparent": false,
+ "group": "ranch",
+ "use": "kennel roof: corrugated sheet in the Day Care green, 2x1 tiles, ridges run down the slope (along t)",
+ "palette_names": [
+  null,
+  "slate3",
+  "slate2",
+  "groof3",
+  "groof2",
+  "groof1"
+ ],
+ "palette_sources": {
+  "slate3": "areabm_texset 6 t4_s01_c_pl[5]",
+  "slate2": "areabm_texset 6 t4_s01_c_pl[8]",
+  "groof3": "areabm_texset 6 t4_s01_c_pl[1]",
+  "groof2": "areabm_texset 6 t4_s01_c_pl[3]",
+  "groof1": "areabm_texset 6 t4_s01_c_pl[2]"
+ }
+}

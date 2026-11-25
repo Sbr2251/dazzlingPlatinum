@@ -1,0 +1,46 @@
+{
+ "format": "pltt16",
+ "repeat": [
+  false,
+  false
+ ],
+ "c0": 0,
+ "color0_transparent": false,
+ "group": "hall",
+ "use": "hall details: double door with eclipse (0,0 32x32), arched lit window (32,0 16x32), oculus (48,0), plaque (48,16), pilaster (0,32 16x32), medallion (16,32 32x16), sign (16,48 32x16), gate post (48,32 16x32)",
+ "palette_names": [
+  null,
+  "ink",
+  "violet3",
+  "violet2",
+  "violet1",
+  "gold2",
+  "gold1",
+  "stone4",
+  "glow2",
+  "glow1",
+  "stone3",
+  "gold0",
+  "stone2",
+  "stone1",
+  "glow0",
+  "stone0"
+ ],
+ "palette_sources": {
+  "ink": "areabm_texset 6 t4_h01_a_pl[1]",
+  "violet3": "areabm_texset 4 t3_h01_pl[1]",
+  "violet2": "areabm_texset 4 t3_h01_pl[2]",
+  "violet1": "areabm_texset 4 t3_h01_pl[3]",
+  "gold2": "areabm_texset 7 container_pl[0]",
+  "gold1": "areabm_texset 7 container_pl[2]",
+  "stone4": "areabm_texset 6 r209s01_a_pl[7]",
+  "glow2": "areabm_texset 6 pcloof_pl[4]",
+  "glow1": "areabm_texset 6 pcloof_pl[6]",
+  "stone3": "areabm_texset 6 r209s01_a_pl[6]",
+  "gold0": "areabm_texset 7 container_pl[4]",
+  "stone2": "areabm_texset 6 r209s01_a_pl[8]",
+  "stone1": "areabm_texset 6 r209s01_a_pl[10]",
+  "glow0": "set010 sandset[6]",
+  "stone0": "areabm_texset 6 r209s01_a_pl[9]"
+ }
+}

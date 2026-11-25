@@ -1,0 +1,46 @@
+{
+ "format": "pltt16",
+ "repeat": [
+  true,
+  false
+ ],
+ "c0": 0,
+ "color0_transparent": false,
+ "group": "hall",
+ "use": "bands, repeat s, 2 tiles per repeat: v 0-.25 ridge cap, .25-.5 eave + gold fascia, .5-.75 lilac plinth, .75-1 violet coping (compound wall top)",
+ "palette_names": [
+  null,
+  "violet4",
+  "violet3",
+  "violet2",
+  "lilac4",
+  "violet1",
+  "gold2",
+  "lilac3",
+  "gold1",
+  "violet0",
+  "stone4",
+  "lilac2",
+  "gold0",
+  "lilac1",
+  "mist1",
+  "stone0"
+ ],
+ "palette_sources": {
+  "violet4": "blend violet3/ink 0.45",
+  "violet3": "areabm_texset 4 t3_h01_pl[1]",
+  "violet2": "areabm_texset 4 t3_h01_pl[2]",
+  "lilac4": "areabm_texset 6 r209s01_a_pl[1]",
+  "violet1": "areabm_texset 4 t3_h01_pl[3]",
+  "gold2": "areabm_texset 7 container_pl[0]",
+  "lilac3": "areabm_texset 6 r209s01_a_pl[2]",
+  "gold1": "areabm_texset 7 container_pl[2]",
+  "violet0": "blend violet1/mist1 0.45",
+  "stone4": "areabm_texset 6 r209s01_a_pl[7]",
+  "lilac2": "areabm_texset 6 r209s01_a_pl[3]",
+  "gold0": "areabm_texset 7 container_pl[4]",
+  "lilac1": "areabm_texset 6 r209s01_a_pl[4]",
+  "mist1": "areabm_texset 4 t3_h01_pl[5]",
+  "stone0": "areabm_texset 6 r209s01_a_pl[9]"
+ }
+}

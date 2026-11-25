@@ -1,0 +1,28 @@
+{
+ "format": "pltt16",
+ "repeat": [
+  true,
+  false
+ ],
+ "c0": 1,
+ "color0_transparent": true,
+ "group": "tent",
+ "use": "striped valance, 2x1 tiles, repeat s, scalloped see-through lower edge",
+ "palette_names": [
+  null,
+  "violet4",
+  "violet3",
+  "violet2",
+  "cream2",
+  "cream1",
+  "cream0"
+ ],
+ "palette_sources": {
+  "violet4": "blend violet3/ink 0.45",
+  "violet3": "areabm_texset 4 t3_h01_pl[1]",
+  "violet2": "areabm_texset 4 t3_h01_pl[2]",
+  "cream2": "set010 imped[6]",
+  "cream1": "set010 imped[4]",
+  "cream0": "set010 imped[5]"
+ }
+}

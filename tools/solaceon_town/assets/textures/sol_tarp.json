@@ -1,0 +1,24 @@
+{
+ "format": "pltt16",
+ "repeat": [
+  true,
+  true
+ ],
+ "c0": 0,
+ "color0_transparent": false,
+ "group": "excavation",
+ "use": "tarp over the dig / crates, 2x2 tiles per repeat",
+ "palette_names": [
+  null,
+  "blue3",
+  "blue2",
+  "blue1",
+  "blue0"
+ ],
+ "palette_sources": {
+  "blue3": "areabm_texset 6 t4_s01_a_pl[4]",
+  "blue2": "areabm_texset 6 t4_s01_a_pl[1]",
+  "blue1": "areabm_texset 6 t4_s01_a_pl[2]",
+  "blue0": "areabm_texset 6 t4_s01_a_pl[0]"
+ }
+}

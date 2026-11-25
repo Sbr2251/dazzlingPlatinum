@@ -1,0 +1,44 @@
+{
+ "format": "pltt16",
+ "repeat": [
+  false,
+  false
+ ],
+ "c0": 0,
+ "color0_transparent": false,
+ "group": "tent",
+ "use": "table top with cards + ledger (v 0-.5, 2x1 tiles), front cloth (.5-.75), REGISTRY board (.75-1)",
+ "palette_names": [
+  null,
+  "ink",
+  "ink2",
+  "violet3",
+  "wood3",
+  "violet2",
+  "violet1",
+  "wood2",
+  "wood1",
+  "gold1",
+  "cream2",
+  "wood0",
+  "gold0",
+  "cream1",
+  "white"
+ ],
+ "palette_sources": {
+  "ink": "areabm_texset 6 t4_h01_a_pl[1]",
+  "ink2": "areabm_texset 6 t4_h01_a_pl[14]",
+  "violet3": "areabm_texset 4 t3_h01_pl[1]",
+  "wood3": "areabm_texset 6 t4_h01_a_pl[7]",
+  "violet2": "areabm_texset 4 t3_h01_pl[2]",
+  "violet1": "areabm_texset 4 t3_h01_pl[3]",
+  "wood2": "areabm_texset 6 t4_h01_a_pl[5]",
+  "wood1": "areabm_texset 6 t4_h01_a_pl[3]",
+  "gold1": "areabm_texset 7 container_pl[2]",
+  "cream2": "set010 imped[6]",
+  "wood0": "areabm_texset 6 t4_h01_a_pl[2]",
+  "gold0": "areabm_texset 7 container_pl[4]",
+  "cream1": "set010 imped[4]",
+  "white": "areabm_texset 6 pcloof_pl[15]"
+ }
+}

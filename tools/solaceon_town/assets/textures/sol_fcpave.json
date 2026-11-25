@@ -1,0 +1,26 @@
+{
+ "format": "pltt16",
+ "repeat": [
+  true,
+  true
+ ],
+ "c0": 0,
+ "color0_transparent": false,
+ "group": "forecourt",
+ "use": "forecourt flagstones, one flag per tile, 2x2 tiles per repeat",
+ "palette_names": [
+  null,
+  "lilac2",
+  "pave2",
+  "pave1",
+  "pave0",
+  "stone0"
+ ],
+ "palette_sources": {
+  "lilac2": "areabm_texset 6 r209s01_a_pl[3]",
+  "pave2": "set010 blueglay[0]",
+  "pave1": "set010 blueglay[2]",
+  "pave0": "set010 blueglay[1]",
+  "stone0": "areabm_texset 6 r209s01_a_pl[9]"
+ }
+}

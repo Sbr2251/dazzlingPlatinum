@@ -1,0 +1,33 @@
+{
+ "format": "pltt16",
+ "repeat": [
+  true,
+  true
+ ],
+ "c0": 0,
+ "color0_transparent": false,
+ "group": "excavation",
+ "use": "fresh-dug pit face / spoil heap: stock criffp cliff texels in raw-earth browns (by luminance)",
+ "palette_names": [
+  "lum(ink/wood5/wood3/dirt2/dirt1)",
+  null,
+  null,
+  "lum(ink/wood5/wood3/dirt2/dirt1)",
+  null,
+  "lum(ink/wood5/wood3/dirt2/dirt1)",
+  "lum(ink/wood5/wood3/dirt2/dirt1)",
+  "lum(ink/wood5/wood3/dirt2/dirt1)",
+  "lum(ink/wood5/wood3/dirt2/dirt1)",
+  "lum(ink/wood5/wood3/dirt2/dirt1)",
+  "lum(ink/wood5/wood3/dirt2/dirt1)",
+  "lum(ink/wood5/wood3/dirt2/dirt1)",
+  "lum(ink/wood5/wood3/dirt2/dirt1)",
+  "lum(ink/wood5/wood3/dirt2/dirt1)",
+  "lum(ink/wood5/wood3/dirt2/dirt1)",
+  null
+ ],
+ "palette_sources": {},
+ "texels_of": "criffp",
+ "stock_palette": "criff",
+ "palette": "sol_spoil"
+}

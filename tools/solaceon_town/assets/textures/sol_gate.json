@@ -1,0 +1,22 @@
+{
+ "format": "pltt4",
+ "repeat": [
+  true,
+  false
+ ],
+ "c0": 1,
+ "color0_transparent": true,
+ "group": "hall",
+ "use": "iron gate leaves / railings, 2x2 tiles, repeat s, see-through",
+ "palette_names": [
+  null,
+  "ink",
+  "ink2",
+  "gold1"
+ ],
+ "palette_sources": {
+  "ink": "areabm_texset 6 t4_h01_a_pl[1]",
+  "ink2": "areabm_texset 6 t4_h01_a_pl[14]",
+  "gold1": "areabm_texset 7 container_pl[2]"
+ }
+}
