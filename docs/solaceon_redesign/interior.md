@@ -9,48 +9,56 @@ lined with filing shelves.
 Workstream: sanctuary-interior (PLAN.md section 6). The tile contract for the town-scripts workstream is
 `tools/solaceon_town/interior/layout.py`.
 
-## IDs (all new, appended)
+## IDs (all new, appended) on `solaceon-mac`
+
+This is the macOS-target registration (branch `sol-mac/interior`, cut from `solaceon-mac` at `49269afc8`). The first
+version of this map was registered on `sol/sanctuary-interior` for the old `main` layout (header 601, matrix 296,
+`map_data_680`, set 076, area 0x4E); the ids below were re-derived from the mac tree and happen to be the same
+numbers, because the mac branch's last used ids were the same.
 
 | What | Value |
 |---|---|
-| Map header | `MAP_HEADER_SOLACEON_SANCTUARY` (enum 601, appended after `MAP_HEADER_DW_LOST_TOWER`) |
-| Map matrix | 296 (`map_matrix_296.json`, name `m_sol_sanct`, one chunk: `[[MAP_680]]`) |
-| Map data | 680 (`map_data_680.bin`, `MAP_680` in `generated/maps.txt`) |
-| Texture set | 076 (`map_texture_set_076.nsbtx`, 19 textures) |
-| Area data | entry 0x4E (78) in `area_data.narc`: props list 21, texture set 76, light 1 |
+| Map header | `MAP_HEADER_SOLACEON_SANCTUARY` = 601 (after `MAP_HEADER_DW_LOST_TOWER`) in `include/constants/fieldmap.h` `enum MapHeaderID`, mirrored in `generated/map_headers.txt` |
+| Map folder | `res/field/maps/solaceon_sanctuary/`: `header.json`, `events.json`, `scripts.s` (no `init.s`, like Verity Castle 1F) |
+| Map group (matrix) | index 296 in `res/field/maps/groups.json`: `"id": "SolaceonSanctuary"`, `"name": "m_sol_sanct"`, maps `[["MAP_680"]]` |
+| Map data | `res/field/mapmodels/data/map_data_680.bin`, `MAP_680` = 680 in `fieldmap.h` `enum MapFileID`, mirrored in `generated/maps.txt` |
+| Texture set | `res/field/mapmodels/texture_sets/map_texture_set_076.nsbtx` (19 textures) |
+| Area data | `res/field/area_data/area_data_078.json` (= 0x4E): `prop_model_set_021`, `map_texture_set_076`, `lighting_set_001` |
 | Text bank | `TEXT_BANK_SOLACEON_SANCTUARY` (`res/text/solaceon_sanctuary.json`, key 40231, one placeholder message) |
-| Scripts | `scripts_solaceon_sanctuary.s` (one placeholder script), `scripts_init_solaceon_sanctuary.s` (empty) |
-| Events | `events_solaceon_sanctuary.json` (only the exit warp) |
+| Scripts | `scripts_solaceon_sanctuary` (appended to `res/field/scripts.order`; one placeholder script) |
+| Events | `res/field/maps/solaceon_sanctuary/events.json` (only the exit warp, id `WARP_SOLACEON_TOWN`) |
 
-The IDs were the next free ones on `solaceon` (7d0005f2c): map_data 679, matrix 295, set 075, area 0x4D and header
-600 were the last ones used. Props list 21 is the minimal stock indoor list `[78 d_mat01, 152]`, which holds the
-indoor exit mat. Verity Castle 1F (area 0x4C) uses it too. Light 1 is the indoor area light, which the Foreign
-Building (area 35) also uses.
+`map_data_680.bin` and set 076 are byte-identical to the `sol/sanctuary-interior` ones. The ids were the next free
+ones on `solaceon-mac`: `map_data_679`, `map_texture_set_075` (Verity Castle 1F), `area_data_077`, map group 295
+(`DW_LostTower`) and header 600 (`MAP_HEADER_DW_LOST_TOWER`) were the last used. `prop_model_set_021` is the minimal
+stock indoor list `[prop_model_078 (d_mat01, the exit mat), prop_model_152]`; Verity Castle 1F's `area_data_076`
+uses it too. `lighting_set_001` is the indoor light (Hearthome's Foreign Building uses it).
 
-Every builder output is registered in the same files Lake Verity's builder writes to. The new header, scripts,
-events and text bank are registered where the DW rift maps registered theirs:
+Shared lists the builder appends to (and nothing else):
 
-- `res/field/maps/data/meson.build`, `map_data.order`, `generated/maps.txt`
-- `res/field/maps/matrices/meson.build`, `map_matrices.order`
-- `res/field/maps/texture_sets/meson.build`, `map_texture_set.order`
-- `generated/map_headers.txt`, `include/data/map_headers.h`
-- `res/field/scripts/meson.build`, `scripts.order`
-- `res/field/events/meson.build`, `zone_event.order`
-- `generated/text_banks.txt` (text banks need nothing else; `res/text/meson.build` reads this list)
+- `include/constants/fieldmap.h` (`enum MapHeaderID`, `enum MapFileID`). On the mac tree these enums are the
+  authority: mapgen/mapproc (which build every map folder, `groups.json` and the events) and the C code read them.
+  `generated/map_headers.txt` and `generated/maps.txt` hold the same lists (the headless name tables read them);
+  the builder writes both and checks they agree.
+- `res/field/mapmodels/data/meson.build` + `map_data.order`, `res/field/mapmodels/texture_sets/meson.build` +
+  `map_texture_sets.order`, `res/field/area_data/meson.build` + `area_data.order`
+- `res/field/maps/groups.json`, `res/field/scripts.order`, `generated/text_banks.txt`
 
-## Header
+## Header (`res/field/maps/solaceon_sanctuary/header.json`)
 
-The fields are modelled on the News Press header (`MAP_HEADER_SOLACEON_TOWN_POKEMON_NEWS_PRESS`), the room whose door
-this one takes over:
+The fields follow the other Solaceon interiors, the News Press (`solaceon_town_pokemon_news_press`) above all, whose
+door this room takes over:
 
-- `CAMERA_TYPE_INTERIOR_ORTHOGRAPHIC`, mapType 0x4, `BACKGROUND_INDOORS_1`, clear weather, `ENCOUNTERS_NONE`
+- `CAMERA_TYPE_INTERIOR_ORTHOGRAPHIC`, `MAP_TYPE_INDOORS`, `BACKGROUND_INDOORS_1`, `OVERWORLD_WEATHER_CLEAR`,
+  `preloaded` 15, no `encounters.json` (no wild encounters)
 - no bike, running, Escape Rope or Fly
-- `mapLabelTextID = LocationNames_Text_SolaceonTown`, window 0x2
-- **Music: `SEQ_CITY06_D` / `SEQ_CITY06_N`.** Solaceon's own theme carries on indoors. The hall is meant to feel like
-  the warm heart of the town, and the town theme says that best. The one stock alternative is `SEQ_SILENCE_FIELD`,
-  which Hearthome's chapel (the Foreign Building) uses. It would make the hall feel uneasy, so it could suit the
-  Arc 3 "shut for the Return" state. That is the story workstream's choice; to switch, change the two fields in
-  `build_interior.py` `HEADER_BLOCK` and in `map_headers.h`.
+- `locationName` `LocationNames_Text_SolaceonTown`, `popupStyle` `MAP_LABEL_WINDOW_TOWN`
+- **Music: `SEQ_CITY06_D_sseq` / `SEQ_CITY06_N_sseq`.** Solaceon's own theme carries on indoors. The hall is meant to
+  feel like the warm heart of the town, and the town theme says that best. The one stock alternative is
+  `SEQ_SILENCE_FIELD_sseq`, which Hearthome's chapel (the Foreign Building) uses. It would make the hall feel uneasy,
+  so it could suit the Arc 3 "shut for the Return" state. That is the story workstream's choice: edit the two fields
+  in `header.json`. The builder creates `header.json` only when it is missing; afterwards it checks only the
+  registration fields (`areaData`, `mapGroup`, `textBank`) and reports any other difference without touching it.
 
 ## Layout
 
@@ -113,10 +121,15 @@ vase, `Dk` desk (TABLE). NPC spots and sign tiles are listed below.
 |---|---|---|---|---|
 | Sanctuary | 0 | (10, 19) | 0x65 | `MAP_HEADER_SOLACEON_TOWN` warp 2 |
 
-The player arrives on (10, 19), which is the exit mat. Its height is checked like every other tile's. **Solaceon Town
-warp 2 still points at the News Press** (`events_solaceon_town.json`, which this workstream may not edit). The
-town-scripts / town-layout workstream must set it to `MAP_HEADER_SOLACEON_SANCTUARY`, `dest_warp_id` 0, and put it on
-the Sanctuary door tile.
+The player arrives on (10, 19), which is the exit mat. Its height is checked like every other tile's.
+In `events.json` the destination warp is named, as everywhere on the mac tree: `"dest_warp_id":
+"WARP_SOLACEON_TOWN_POKEMON_NEWS_PRESS"` is Solaceon Town's warp 2 (the builder resolves names to indices for its
+check).
+
+**Solaceon Town warp 2 now leads here** (`res/field/maps/solaceon_town/events.json`: only its `dest_header_id`
+changed, to `MAP_HEADER_SOLACEON_SANCTUARY`; its `dest_warp_id` `WARP_SOLACEON_TOWN` is the Sanctuary's warp 0). The
+warp has not moved: it is still the News Press door at (571, 656). The town-layout workstream moves it to the
+Sanctuary hall's door tile. The News Press map and its files are untouched; nothing leads into it any more.
 
 ### NPC spots (`layout.NPC_SPOTS`)
 
@@ -156,10 +169,11 @@ Collision in map data is fixed: the field has no script command that changes a t
 office is therefore closed with an **object event on the doorway tile (19, 13)**. The doorway is the only way in and
 is one tile wide, so one object closes it.
 
-- Add an object event at x 19, z 13 (y 0) to `events_solaceon_sanctuary.json`. Give it a `hidden_flag` from the
+- Add an object event at x 19, z 13 (y 0) to `res/field/maps/solaceon_sanctuary/events.json`. Give it a `hidden_flag` from the
   Sanctuary block, e.g. `FLAG_SOL_SANCTUARY_A`.
 - Objects block movement whenever they are shown. The office is open while the flag is set (object hidden) and closed
-  while it is clear. Use `SetFlag` / `ClearFlag` in the init or OnTransition script to follow the story state: open on
+  while it is clear. Use `SetFlag` / `ClearFlag` in an OnTransition script (add `init.s` plus a `scripts_init_solaceon_sanctuary` line in
+  `res/field/scripts.order`) to follow the story state: open on
   the first visit (44-53), locked from 54.
 - Suitable graphics: a robed grunt, `OBJ_EVENT_GFX_ECLIPSE_GRUNT_M/F`, which can also talk ("Records are closed to
   visitors."). Alternatively `OBJ_EVENT_GFX_ECLIPSE_CRATE`, or `OBJ_EVENT_GFX_SIGNBOARD` as a "Closed" board. The
@@ -212,14 +226,19 @@ and the Galactic Eterna building's 1F (333). The renders of those were made with
   including the arrival tile (10, 19), which is the 0x65 exit mat at floor height.
 - The office doorway is walkable, every NPC spot is walkable, every sign tile is blocked and every reading tile is
   walkable.
-- The warps in `events_solaceon_sanctuary.json` equal `layout.WARPS`.
-- Exit mat model 78 is in props list 21.
+- The warps in `events.json` equal `layout.WARPS` (destination warp names resolved to indices through the destination
+  map's `events.json`), and warp 0 is named `WARP_SOLACEON_TOWN`. Where Solaceon Town's warp 2 points is reported.
+- `prop_model_078` (the exit mat) is in `prop_model_set_021`; `lighting_set_001` exists; an existing `header.json`
+  has the registration fields.
 - Budgets pass (`assemble.check_budgets`, plus the whole-room polygon count).
-- **Only appends in the shared registries:** every registry file keeps all of its `50482f890` lines in order.
-  Entries added by other workstreams are reported, not failed. area_data entries 0..77 are byte-identical to stock,
-  and map_data 680, set 076 and matrix 296 did not exist in stock.
-- Idempotent: a second `--write` changed no byte (all written files hashed before and after), and re-running the art
-  script gives identical assets.
+- **Only appends in the shared registries:** every registry file keeps all of its `BASE_REV` (`49269afc8`) lines in
+  order; `groups.json` keeps its `BASE_REV` groups as an unchanged prefix. Entries added by other workstreams are
+  reported, not failed.
+- Every new id sits at its index: `map_data_680` at 680 in `map_data.order` and `MAP_680` at 680 in `maps.txt` and
+  `enum MapFileID`, set 076 at 76, `area_data_078` at 78, group 296, header 601; the `fieldmap.h` enums equal the
+  `generated/*.txt` lists. The new files did not exist at `BASE_REV` and the previous ids (679, 075, 077) did.
+- ASCII only in the header, the stub events, script and text.
+- Idempotent: `--write` writes, then runs the whole write again and fails if any of the 19 touched files changed.
 
 ## How to rerun
 
@@ -229,6 +248,8 @@ python3 tools/solaceon_town/interior/art/sanctuary_interior.py     # textures + 
 python3 tools/solaceon_town/interior/build_interior.py             # dry run: all checks + budgets
 python3 tools/solaceon_town/interior/build_interior.py --write     # write + register (idempotent)
 python3 tools/solaceon_town/interior/build_interior.py --preview /tmp/sanct_prev
+tools/macos/build.sh dev                                           # or: ninja -C build_macos
+python3 tools/solaceon_town/interior/smoke_test.py build_macos "/tmp/Solaceon Update/interior_mac"
 
 # renders (Cycles on the CPU; use tools/lake_verity/blender_preview.py instead where EEVEE works)
 B=/Applications/Blender.app/Contents/MacOS/Blender
@@ -238,6 +259,7 @@ $B -b --factory-startup -P tools/solaceon_town/interior/preview_cycles.py -- \
     --target 10,17 --dscolor --bg 0,0,0 /tmp/sanct_prev/sanctuary.mesh.json /tmp/sanct_prev/exit_mat.mesh.json
 
 # stock references (Foreign Building, News Press, Galactic Eterna 1F): meshes, textures and permission grids
+# (reads the old main layout from git at 50482f890; the stock bytes are the same on solaceon-mac)
 python3 tools/solaceon_town/interior/dump_stock.py OUT/stock
 ```
 
@@ -250,20 +272,55 @@ Renders: `sanctuary_entrance_game.png` (the in-game interior camera at the door)
 and doorway), and the stock references `stock_foreign_game.png`, `stock_foreign_n_game.png` and
 `stock_galactic_game.png`.
 
-## Open issues (need a ROM build)
+## Testing (macOS app, headless)
 
-- **Not built.** The new header block, the scripts and events compiling, the text bank, the NARC orders and the area
-  entry are checked only by these tools, not by `make release`.
-- **Solaceon Town warp 2** must be pointed at `MAP_HEADER_SOLACEON_SANCTUARY` warp 0 (town workstreams). Until then
-  the hall can't be reached in game. The News Press header and its files are untouched.
+`tools/solaceon_town/interior/smoke_test.py <build dir> <output dir>` drives the app with `SIM_CONTROL=stdio`
+(`docs/headless_protocol.md`) from a run dir of symlinks into the build dir:
+
+1. Imports `tools/battle_stage/emu/saves/eterna_forest_grass.sav` (a save tracked in the repo; `--save` takes
+   another), presses through the title and Continue, and presses B until the Journal that Continue opens has closed
+   and the player exists.
+2. Warps to Solaceon Town (571, 657), one tile south of warp 2, and walks north into the door (`--arc2 N` sets
+   `VAR_ARC2_PROGRESS` first; not needed at this save's state).
+3. Asserts `MAP_HEADER_SOLACEON_SANCTUARY` at the arrival tile (10, 19).
+4. Walks the entrance -> hall centre (10, 13) -> in front of the lectern (10, 10) -> under the emblem (10, 7) -> office
+   doorway (19, 13) -> office (21, 11), checking the position after every step and taking a screenshot at each
+   spot; walks back to the exit mat, presses south and asserts Solaceon Town on warp 2's tile.
+
+It writes `log.txt` (every command and reply), `game.stderr.log` and BMP + PNG screenshots, and exits 0 when every
+assertion passed. It takes a few seconds once the app is built.
+
+Result on `sol-mac/interior` (2026-11-24, GPU renderer): **PASS**. Screenshots in `/tmp/Solaceon Update/interior_mac/`:
+`0_town_door`, `1_entrance`, `2_hall_centre`, `3_emblem`, `3b_north_wall`, `4_office_doorway`, `5_office`,
+`6_back_in_town`. What they show:
+
+- The geometry and textures load and match the layout: stone floor, the plum runner with its gold hem, the dais rug,
+  the six pews, the lectern with the emblem on its front, the two candelabra, the guest book, the lily vases, the
+  photo-card boards with their candle ledges, the eclipse emblem (black disc, violet and gold corona) and the violet
+  lancet windows on the north wall, and in the office the shelves, the Sinnoh map, the desk with the ledger and the
+  lamp, the cabinet and the card boxes.
+- The light is the baked warm candlelight; no surface is missing, flipped or untextured.
+- Black edges as designed: south of the hall (z 20), south of and beside the office, and the wall tops.
+- The player is never hidden: at the entrance mat, in the aisle, under the emblem, in the doorway and in the office.
+- The exit mat (stock prop 78) reads as a bright red mat on the stone floor.
+
+`--new-game` replays `core_new_game_distortion_world_prologue.json` instead of importing a save. On `solaceon-mac`
+(`49269afc8`, also the unmodified baseline build) that route does not reach a usable field: after the Distortion
+World flashback, the warp to Lake Verity runs `LakeVerity_OnTransition` and then the map load never finishes (black
+screen, a field task running for good, so `warp` is refused). This is not caused by this map.
+
+## Open issues
+
+- **Solaceon Town warp 2** still sits on the News Press door (571, 656); the town-layout workstream moves it to the
+  Sanctuary hall's door tile. The News Press map is unreachable meanwhile.
 - **Black edges:** like the stock interiors, the open edges depend on the field's black clear colour. No black
-  geometry is drawn there.
-- **Hardware look:** the baked brightness (mean 0.60), the depth of the decal offsets (0.03 tile), and the 1-bit
-  alpha edges of the emblem, flames and lilies are unverified on a DS or emulator. The candle flames are static; no
-  `fldtanime` entry was added.
+  geometry is drawn there. They render black in the app.
+- **DS look:** the app shows the room correctly; the 1-bit alpha edges of the emblem, flames and lilies and the
+  decal offsets (0.03 tile) are unverified on a DS or an emulator (no longer a target). The candle flames are static;
+  no `fldtanime` entry was added.
 - **Talking across the TABLE tiles** (the speaker at the lectern, Indra at the desk) follows `sub_0203C9D4`'s TABLE
-  rule, which is unverified here.
+  rule; untested until the town-scripts workstream adds the NPCs.
 - **ID collision risk:** `tools/lake_verity/build_art.py --new-set` would also write texture set 076. That path is
   optional and unused; if it is ever run, one of the two must move to 077.
-- **Previews location:** `~/Documents` was not writable from this session (macOS denied it, even unsandboxed), so
-  the renders are in `/tmp/Solaceon Update/interior/`. Copy them to `~/Documents/Solaceon Update/interior/`.
+- **Previews location:** the Blender renders of the first version are in `/tmp/Solaceon Update/interior/`
+  (`~/Documents` was not writable from these sessions).
