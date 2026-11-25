@@ -1,6 +1,112 @@
 {
     "bg_events": [],
-    "object_events": [],
+    "object_events": [
+        {
+            "id": "LOCALID_GEN_A_ON",
+            "graphics_id": "OBJ_EVENT_GFX_SHARD_GENERATOR",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_SOL_RAID_A",
+            "script": "SolaceonRuinsRoom2NortheastDeadEnd_Generator",
+            "initial_dir": "DIR_SOUTH",
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 7,
+            "z": 2,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_GEN_A_OFF",
+            "graphics_id": "OBJ_EVENT_GFX_SHARD_GENERATOR_OFF",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_MAP_LOCAL_HIDE_OBSTACLE_16",
+            "script": "SolaceonRuinsRoom2NortheastDeadEnd_Generator",
+            "initial_dir": "DIR_SOUTH",
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 7,
+            "z": 2,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_GEN_A_RACK_ON",
+            "graphics_id": "OBJ_EVENT_GFX_SHARD_FRAME",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_SOL_RAID_A",
+            "script": "SolaceonRuinsRoom2NortheastDeadEnd_Generator",
+            "initial_dir": "DIR_SOUTH",
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 6,
+            "z": 2,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_GEN_A_RACK_OFF",
+            "graphics_id": "OBJ_EVENT_GFX_SHARD_FRAME_DARK",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_MAP_LOCAL_HIDE_OBSTACLE_16",
+            "script": "SolaceonRuinsRoom2NortheastDeadEnd_Generator",
+            "initial_dir": "DIR_SOUTH",
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 6,
+            "z": 2,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_GEN_A_GUARD",
+            "graphics_id": "OBJ_EVENT_GFX_ECLIPSE_GRUNT_F",
+            "movement_type": "MOVEMENT_TYPE_LOOK_SOUTH",
+            "trainer_type": "TRAINER_TYPE_NORMAL",
+            "hidden_flag": "FLAG_SOL_RAID_F",
+            "trainer": {
+                "id": "TRAINER_ECLIPSE_GRUNT_SOL_02",
+                "sight_range": 2
+            },
+            "initial_dir": "DIR_SOUTH",
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 5,
+            "z": 2,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_GEN_A_CRATE_0",
+            "graphics_id": "OBJ_EVENT_GFX_ECLIPSE_CRATE",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_SOL_RAID_F",
+            "initial_dir": "DIR_SOUTH",
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 4,
+            "z": 2,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_GEN_A_CRATE_1",
+            "graphics_id": "OBJ_EVENT_GFX_ECLIPSE_CRATE",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_SOL_RAID_F",
+            "initial_dir": "DIR_SOUTH",
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 4,
+            "z": 4,
+            "y": 0
+        }
+    ],
     "warp_events": [
         {
             "id": "WARP_SOLACEON_RUINS_ROOM_2",

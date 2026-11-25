@@ -11,6 +11,278 @@
         "SOMETHING\f",
         "ANEW AND ALIVE"
       ]
+    },
+    {
+      "id": "SolaceonRuinsRoom7_Text_RaidBarrier",
+      "en_US": [
+        "A wall of violet light. It hums.\n",
+        "It won't let you through."
+      ]
+    },
+    {
+      "id": "SolaceonRuinsRoom7_Text_RaidCyrusNotYet",
+      "en_US": [
+        "Cyrus: Not yet. Something is still\n",
+        "feeding it.\r",
+        "Find the other lines."
+      ]
+    },
+    {
+      "id": "SolaceonRuinsRoom7_Text_RaidCyrusItsDown",
+      "en_US": [
+        "Cyrus: It's down.\r",
+        "Someone is in there. Waiting."
+      ]
+    },
+    {
+      "id": "SolaceonRuinsRoom7_Text_RaidIndraAllThree",
+      "en_US": [
+        "Indra: You turned off all three.\r",
+        "Do you know how long it took to\n",
+        "grow what's on these racks?"
+      ]
+    },
+    {
+      "id": "SolaceonRuinsRoom7_Text_RaidIndraRowansKid",
+      "en_US": [
+        "Indra: Rowan's kid. The one from the\n",
+        "depot.\r",
+        "I told you to go home."
+      ]
+    },
+    {
+      "id": "SolaceonRuinsRoom7_Text_RaidIndraManWhoWalkedOut",
+      "en_US": [
+        "Indra: And the man who walked out.\n",
+        "Garius told us all about you."
+      ]
+    },
+    {
+      "id": "SolaceonRuinsRoom7_Text_RaidCyrusSilent",
+      "en_US": "Cyrus: ..."
+    },
+    {
+      "id": "SolaceonRuinsRoom7_Text_RaidIndraLate",
+      "en_US": [
+        "Indra: You're late, by the way.\r",
+        "Kahn came for his share at dawn.\n",
+        "He took what he needs.\r",
+        "Palkia's as good as his. This is\n",
+        "just what's left."
+      ]
+    },
+    {
+      "id": "SolaceonRuinsRoom7_Text_RaidIndraSaros",
+      "en_US": [
+        "Indra: Saros wanted a morning. He\n",
+        "has his clock now.\r",
+        "Kahn wants a door. He'll have it\n",
+        "soon."
+      ]
+    },
+    {
+      "id": "SolaceonRuinsRoom7_Text_RaidIndraKeepTheDoor",
+      "en_US": [
+        "Indra: And I keep the door. That's\n",
+        "all I've ever done."
+      ]
+    },
+    {
+      "id": "SolaceonRuinsRoom7_Text_RaidIndraHm",
+      "en_US": [
+        "Indra: Hm.\r",
+        "Still fighting like somebody who's\n",
+        "never lost anything."
+      ]
+    },
+    {
+      "id": "SolaceonRuinsRoom7_Text_RaidIndraWhatStoppedYou",
+      "en_US": [
+        "Indra: You. You held Dialga and\n",
+        "Palkia once. In your world.\r",
+        "And something stopped you.\r",
+        "What was it?"
+      ]
+    },
+    {
+      "id": "SolaceonRuinsRoom7_Text_RaidIndraKeepIt",
+      "en_US": [
+        "Indra: Keep it, then.\r",
+        "I'll find it without you."
+      ]
+    },
+    {
+      "id": "SolaceonRuinsRoom7_Text_RaidIndraDontFollow",
+      "en_US": [
+        "Indra: Don't follow me. The roof\n",
+        "in here doesn't like visitors."
+      ]
+    },
+    {
+      "id": "SolaceonRuinsRoom7_Text_RaidCyrusLetHerGo",
+      "en_US": [
+        "Cyrus: Let her go. She isn't the\n",
+        "one who has Palkia."
+      ]
+    },
+    {
+      "id": "SolaceonRuinsRoom7_Text_RaidLookerGone",
+      "en_US": [
+        "Looker: She is gone? ...Of course\n",
+        "she is gone.\r",
+        "Never mind. I have this."
+      ]
+    },
+    {
+      "id": "SolaceonRuinsRoom7_Text_RaidLookerRegistry",
+      "en_US": [
+        "Looker: The registry. Every card\n",
+        "on that wall, copied into a book.\r",
+        "Name. Date. Place. And one more\n",
+        "column."
+      ]
+    },
+    {
+      "id": "SolaceonRuinsRoom7_Text_RaidLookerLeftBehind",
+      "en_US": [
+        "Looker: The Pokemon they left\n",
+        "behind. And where each one went.\r",
+        "Kennel, then truck. Every one."
+      ]
+    },
+    {
+      "id": "SolaceonRuinsRoom7_Text_RaidLookerFamilies",
+      "en_US": [
+        "Looker: The families came here to\n",
+        "remember.\r",
+        "Eclipse wrote it all down, and sent\n",
+        "their Pokemon to the frames."
+      ]
+    },
+    {
+      "id": "SolaceonRuinsRoom7_Text_RaidLookerDestroyed",
+      "en_US": [
+        "Looker: And these? Can they be\n",
+        "destroyed?"
+      ]
+    },
+    {
+      "id": "SolaceonRuinsRoom7_Text_RaidCyrusRacks",
+      "en_US": [
+        "Cyrus: These racks pull pain out of\n",
+        "something and hold it.\r",
+        "Run one backward, and it pushes.\n",
+        "Every rack would empty at once.\r",
+        "I built machines like these once.\n",
+        "I know how they break."
+      ]
+    },
+    {
+      "id": "SolaceonRuinsRoom7_Text_RaidCyrusSwitchYours",
+      "en_US": [
+        "Cyrus: {STRVAR_1 3, 0, 0}. The switch is\n",
+        "yours."
+      ]
+    },
+    {
+      "id": "SolaceonRuinsRoom7_Text_RaidSwitch",
+      "en_US": [
+        "The main rack's switch. A dial with\n",
+        "an arrow on it.\r",
+        "Turn it backward?"
+      ]
+    },
+    {
+      "id": "SolaceonRuinsRoom7_Text_RaidSwitchTurned",
+      "en_US": [
+        "The main rack's switch. A dial with\n",
+        "an arrow on it."
+      ]
+    },
+    {
+      "id": "SolaceonRuinsRoom7_Text_RaidCyrusTakeYourTime",
+      "en_US": [
+        "Cyrus: Take your time. They're not\n",
+        "going anywhere."
+      ]
+    },
+    {
+      "id": "SolaceonRuinsRoom7_Text_RaidDrained",
+      "en_US": [
+        "The light runs out of every shard\n",
+        "on the racks.\r",
+        "They're grey now. Just stones."
+      ]
+    },
+    {
+      "id": "SolaceonRuinsRoom7_Text_RaidPoketchBuzzes",
+      "en_US": "The Poketch buzzes."
+    },
+    {
+      "id": "SolaceonRuinsRoom7_Text_RaidRuthGone",
+      "en_US": [
+        "Ruth: The big reading's gone!\n",
+        "It's gone!\r",
+        "...But Lake Verity hasn't changed.\n",
+        "It's still climbing."
+      ]
+    },
+    {
+      "id": "SolaceonRuinsRoom7_Text_RaidLookerKahnHasEnough",
+      "en_US": [
+        "Looker: Then Kahn has enough.\r",
+        "We came to buy time. We bought a\n",
+        "little. Not enough."
+      ]
+    },
+    {
+      "id": "SolaceonRuinsRoom7_Text_RaidLedgerElias",
+      "en_US": [
+        "A page in the ledger:\n",
+        "ELIAS. VALOR BASIN.\r",
+        "In the margin, one letter: I."
+      ]
+    },
+    {
+      "id": "SolaceonRuinsRoom7_Text_RaidLedgerTeo",
+      "en_US": [
+        "A page near the back:\n",
+        "TEO.\r",
+        "The place is left blank."
+      ]
+    },
+    {
+      "id": "SolaceonRuinsRoom7_Text_RaidLookerPolice",
+      "en_US": [
+        "Looker: Enough. The International\n",
+        "Police are on their way.\r",
+        "By tonight, the Sanctuary is ours."
+      ]
+    },
+    {
+      "id": "SolaceonRuinsRoom7_Text_RaidRackLit",
+      "en_US": [
+        "A rack of violet shards. It hums,\n",
+        "and the air around it is warm."
+      ]
+    },
+    {
+      "id": "SolaceonRuinsRoom7_Text_RaidRackDark",
+      "en_US": "They're grey now. Just stones."
+    },
+    {
+      "id": "SolaceonRuinsRoom7_Text_RaidRubble",
+      "en_US": [
+        "Rubble fills the hole. The tunnel\n",
+        "behind it is gone."
+      ]
+    },
+    {
+      "id": "SolaceonRuinsRoom7_Text_RaidLookerSwitch",
+      "en_US": [
+        "Looker: The switch is at the main\n",
+        "rack, my friend. Cyrus says so."
+      ]
     }
   ]
 }

@@ -11,6 +11,52 @@
         "TOP LEFT\r",
         "LOWER LEFT"
       ]
+    },
+    {
+      "id": "SolaceonRuinsRoom1_Text_RaidRopeSign",
+      "en_US": [
+        "DIG SITE. STAFF ONLY.\r",
+        "The rope has a little bell on it."
+      ]
+    },
+    {
+      "id": "SolaceonRuinsRoom1_Text_RaidCyrusHum",
+      "en_US": [
+        "Cyrus: That hum. I know it.\r",
+        "I heard it in my own machines,\n",
+        "a long time ago."
+      ]
+    },
+    {
+      "id": "SolaceonRuinsRoom1_Text_RaidCyrusThreeLines",
+      "en_US": [
+        "Cyrus: The door below is fed from\n",
+        "three places. Three lines.\r",
+        "I can feel them, like seams.\r",
+        "Cut all three, and it falls."
+      ]
+    },
+    {
+      "id": "SolaceonRuinsRoom1_Text_RaidCyrusGoAhead",
+      "en_US": [
+        "Cyrus: I'll go ahead to the door\n",
+        "and read it. You find the lines."
+      ]
+    },
+    {
+      "id": "SolaceonRuinsRoom1_Text_RaidPoketchBuzzes",
+      "en_US": "The Poketch buzzes."
+    },
+    {
+      "id": "SolaceonRuinsRoom1_Text_RaidRuthReadings",
+      "en_US": [
+        "Ruth: Can you hear me? I've got the\n",
+        "shard readings up!\r",
+        "Three strong sources, deeper in.\n",
+        "And one huge one at the bottom.\r",
+        "That has to be the vault.\r",
+        "...Be careful. Please."
+      ]
     }
   ]
 }

@@ -2,7 +2,7 @@
   "areaData": "area_data_056",
   "mapGroup": "SolaceonRuins_DeadEnd_DownEast",
   "locationName": "LocationNames_Text_SolaceonRuins",
-  "textBank": "TEXT_BANK_JUBILIFE_CITY",
+  "textBank": "TEXT_BANK_SOLACEON_RUINS_ROOM_4_SOUTHEAST_DEAD_END",
   "popupStyle": "MAP_LABEL_WINDOW_CAVE",
   "weather": "OVERWORLD_WEATHER_29",
   "cameraType": "CAMERA_TYPE_CAVE",

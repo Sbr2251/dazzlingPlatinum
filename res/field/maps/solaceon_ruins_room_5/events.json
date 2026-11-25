@@ -1,6 +1,80 @@
 {
     "bg_events": [],
-    "object_events": [],
+    "object_events": [
+        {
+            "id": "LOCALID_R5_GRUNT_05",
+            "graphics_id": "OBJ_EVENT_GFX_ECLIPSE_GRUNT_M",
+            "movement_type": "MOVEMENT_TYPE_LOOK_NORTH",
+            "trainer_type": "TRAINER_TYPE_NORMAL",
+            "hidden_flag": "FLAG_SOL_RAID_F",
+            "trainer": {
+                "id": "TRAINER_ECLIPSE_GRUNT_SOL_05",
+                "sight_range": 1
+            },
+            "initial_dir": "DIR_NORTH",
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 2,
+            "z": 4,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_R5_FRAME_0",
+            "graphics_id": "OBJ_EVENT_GFX_SHARD_FRAME",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_SOL_RAID_F",
+            "initial_dir": "DIR_SOUTH",
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 3,
+            "z": 7,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_R5_FRAME_1",
+            "graphics_id": "OBJ_EVENT_GFX_SHARD_FRAME",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_SOL_RAID_F",
+            "initial_dir": "DIR_SOUTH",
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 5,
+            "z": 7,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_R5_CRATE_0",
+            "graphics_id": "OBJ_EVENT_GFX_ECLIPSE_CRATE",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_SOL_RAID_F",
+            "initial_dir": "DIR_SOUTH",
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 4,
+            "z": 9,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_R5_CRATE_1",
+            "graphics_id": "OBJ_EVENT_GFX_ECLIPSE_CRATE",
+            "movement_type": "MOVEMENT_TYPE_NONE",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "FLAG_SOL_RAID_F",
+            "initial_dir": "DIR_SOUTH",
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 3,
+            "z": 5,
+            "y": 0
+        }
+    ],
     "warp_events": [
         {
             "id": "WARP_SOLACEON_RUINS_ROOM_6",

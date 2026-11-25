@@ -2,61 +2,61 @@
   "key": 17426,
   "messages": [
     {
-      "id": "SolaceonRuinsRoom2_Text_HMDefogInRuins",
+      "id": "SolaceonRuinsRoom2_Text_TMInRuins",
       "en_US": [
-        "I’d heard the Hidden Machine Defog was\n",
-        "somewhere in these ruins.\r",
-        "It’s just that I seem to be lost, what\n",
+        "I'd heard there was a TM somewhere\n",
+        "in these ruins. Way down deep.\r",
+        "It's just that I seem to be lost,\n",
         "with everything looking the same.\r",
         "Now what?\n",
         "I could use help here."
       ]
     },
     {
-      "id": "SolaceonRuinsRoom2_Text_HMDefogInRuins2",
+      "id": "SolaceonRuinsRoom2_Text_TMInRuins2",
       "en_US": [
-        "I’d heard the Hidden Machine Defog was\n",
-        "somewhere in these ruins.\r",
-        "It’s just that I seem to be lost, what\n",
+        "I'd heard there was a TM somewhere\n",
+        "in these ruins. Way down deep.\r",
+        "It's just that I seem to be lost,\n",
         "with everything looking the same.\r",
         "Now what?\n",
         "I could use help here.\r"
       ]
     },
     {
-      "id": "SolaceonRuinsRoom2_Text_CanYouLoanHMDefog",
+      "id": "SolaceonRuinsRoom2_Text_CanYouShowTheWay",
       "en_US": [
         "Hey!\n",
         "Now looky here!\r",
         "What you have there!\n",
-        "That is the Hidden Machine Defog!\r",
-        "Can you loan it to me real quick?\n",
-        "I’ll make it worth your while."
+        "That's TM30, Shadow Ball!\r",
+        "Can you tell me the way down?\n",
+        "I'll make it worth your while."
       ]
     },
     {
       "id": "SolaceonRuinsRoom2_Text_ThanksYoureMyRescuer",
       "en_US": [
-        "OK, so I teach my STARAVIA the hidden\n",
-        "move Defog like so... And done!\r",
-        "Thanks! You’re my rescuer! Hahaha!\n",
+        "Down the stairs, and down again...\n",
+        "Got it! Every last turn!\r",
+        "Thanks! You're my rescuer! Hahaha!\n",
         "Here you go, my thanks as promised.\r"
       ]
     },
     {
       "id": "SolaceonRuinsRoom2_Text_ItsNotLikeItWearsOut",
       "en_US": [
-        "It’s not like it’s going to wear out!\n",
-        "It’s just for a minute! Cheapskate!"
+        "It's not like the way down will\n",
+        "wear out! Cheapskate!"
       ]
     },
     {
-      "id": "SolaceonRuinsRoom2_Text_IveFinallyGotDefog",
+      "id": "SolaceonRuinsRoom2_Text_IKnowTheWayDown",
       "en_US": [
-        "I’ve finally got Defog, and it’s all\n",
+        "I know the way down now, and it's all\n",
         "thanks to you.\r",
-        "I’ll get to climbing the Lost Tower\n",
-        "now that I’ve got it."
+        "I'll find a TM of my own down there\n",
+        "one of these days."
       ]
     }
   ]

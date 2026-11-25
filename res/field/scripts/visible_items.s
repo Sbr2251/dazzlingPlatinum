@@ -100,7 +100,7 @@
     ScriptEntry VisibleItems_SolaceonRuinsRoom7_MindPlate
     ScriptEntry VisibleItems_SolaceonRuinsRoom7_OddIncense
     ScriptEntry VisibleItems_SolaceonRuinsRoom7_Nugget
-    ScriptEntry VisibleItems_SolaceonRuinsRoom7_HM05
+    ScriptEntry VisibleItems_SolaceonRuinsRoom7_TM30
     ScriptEntry VisibleItems_Route210South_SuperRepel
     ScriptEntry VisibleItems_Route210South_MaxRepel
     ScriptEntry VisibleItems_Route221_PureIncense
@@ -922,8 +922,8 @@ VisibleItems_SolaceonRuinsRoom7_Nugget:
     GoTo VisibleItems_TryGiveItem
     End
 
-VisibleItems_SolaceonRuinsRoom7_HM05:
-    SetVar VAR_0x8008, ITEM_HM05
+VisibleItems_SolaceonRuinsRoom7_TM30:
+    SetVar VAR_0x8008, ITEM_TM30
     SetVar VAR_0x8009, 1
     GoTo VisibleItems_TryGiveItem
     End

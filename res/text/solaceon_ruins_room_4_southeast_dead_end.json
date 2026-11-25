@@ -1,0 +1,55 @@
+{
+  "key": 40971,
+  "messages": [
+    {
+      "id": "SolaceonRuinsRoom4SoutheastDeadEnd_Text_GeneratorOn",
+      "en_US": [
+        "A machine wired to a rack of violet\n",
+        "shards. It hums. The air is warm.\r",
+        "Switch it off?"
+      ]
+    },
+    {
+      "id": "SolaceonRuinsRoom4SoutheastDeadEnd_Text_GeneratorSwitchedOff",
+      "en_US": [
+        "{STRVAR_1 3, 0, 0} switched the machine off.\r",
+        "The shards on the rack go dim."
+      ]
+    },
+    {
+      "id": "SolaceonRuinsRoom4SoutheastDeadEnd_Text_GeneratorOff",
+      "en_US": [
+        "The machine is off. The shards on\n",
+        "the rack are dim."
+      ]
+    },
+    {
+      "id": "SolaceonRuinsRoom4SoutheastDeadEnd_Text_PoketchBuzzes",
+      "en_US": "The Poketch buzzes."
+    },
+    {
+      "id": "SolaceonRuinsRoom4SoutheastDeadEnd_Text_Ruth31",
+      "en_US": [
+        "Ruth: One of the sources just\n",
+        "dropped! Two to go."
+      ]
+    },
+    {
+      "id": "SolaceonRuinsRoom4SoutheastDeadEnd_Text_Ruth32",
+      "en_US": [
+        "Ruth: That's two! The big one at the\n",
+        "bottom is flickering now."
+      ]
+    },
+    {
+      "id": "SolaceonRuinsRoom4SoutheastDeadEnd_Text_Ruth33",
+      "en_US": [
+        "Ruth: All three are down! The\n",
+        "reading on the vault door\r",
+        "just went flat!\r",
+        "Go. Before somebody switches them\n",
+        "back on."
+      ]
+    }
+  ]
+}
