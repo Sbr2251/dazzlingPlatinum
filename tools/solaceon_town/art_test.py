@@ -12,7 +12,9 @@ tools/battle_stage/emu/saves/eterna_forest_grass.sav, press through the title an
   3. walks north from (580,653) into the Sanctuary hall door, asserts MAP_HEADER_SOLACEON_SANCTUARY, walks back out
      and asserts the player is in front of the door again (screenshots in and out);
   4. walks both seams: from (560,642) north into Route 210 South and back, from (560,669) south into Route 209 and
-     back, one tile at a time (every step must move the player; screenshots across each seam).
+     back, one tile at a time (every step must move the player; screenshots across each seam), and the seam columns
+     x 557 / 563. --skip-route-209 stops on the seam row z 671 instead (Route 209 currently hangs on entry: its
+     OnTransition script jumps to itself).
 Exit status 0 when every assertion passed. <out>/log.txt has every command and reply.
 """
 import argparse
@@ -93,7 +95,7 @@ def walk_until_map(game, key, want, frames=400):
     return st
 
 
-def tour(game, out, run, results, shots):
+def tour(game, out, run, results, shots, cross_209=True):
     for name, x, z, facing in SPOTS:
         warp(game, x, z, facing, results)
         S.shoot(game, out, f"{run}_{name}", shots)
@@ -128,6 +130,22 @@ def tour(game, out, run, results, shots):
     S.expect(m == TOWN and pos == (560, 642), f"north seam: walked back into {m} {pos}", results)
     S.shoot(game, out, f"{run}_17_north_seam_back", shots)
     warp(game, 560, 669, "DIR_SOUTH", results)
+    if not cross_209:
+        # Route 209's OnTransition loops forever on this branch (see --skip-route-209): walk to the seam row only
+        for i in range(2):
+            st = S.walk(game, "DOWN")
+        m, pos = S.where(st)
+        S.expect(m == TOWN and pos == (560, 671), f"south seam row reached: {m} {pos}", results)
+        S.shoot(game, out, f"{run}_18_south_seam_edge", shots)
+        for x in (557, 563):
+            warp(game, x, 641, "DIR_NORTH", results)
+            S.walk(game, "UP")
+            st = S.walk(game, "UP")
+            S.expect(S.where(st)[0] == NORTH, f"north seam column x {x} crosses into {NORTH}", results)
+            warp(game, x, 670, "DIR_SOUTH", results)
+            st = S.walk(game, "DOWN")
+            S.expect(S.where(st)[1] == (x, 671), f"south seam column x {x}: walked onto the seam row", results)
+        return
     for i in range(4):
         st = S.walk(game, "DOWN")
     m, pos = S.where(st)
@@ -150,14 +168,14 @@ def tour(game, out, run, results, shots):
         S.expect(S.where(st)[0] == SOUTH, f"south seam column x {x} crosses into {SOUTH}", results)
 
 
-def run_one(build_dir, out, run, save, results, shots):
+def run_one(build_dir, out, run, save, results, shots, cross_209=True):
     run_dir = tempfile.mkdtemp(prefix=f"dz-solart-{run}-")
     ok = True
     with open(os.path.join(out, f"log_{run}.txt"), "w") as log:
         game = S.Game(build_dir, run_dir, log, extra_env={"SIM_FIXED_RTC": RTC[run]})
         try:
             boot(game, save, results)
-            tour(game, out, run, results, shots)
+            tour(game, out, run, results, shots, cross_209)
         except S.Failure as e:
             ok = False
             if not results or not results[-1].startswith("FAIL"):
@@ -182,6 +200,10 @@ def main():
     ap.add_argument("--save", default=S.DEFAULT_SAVE)
     ap.add_argument("--night", action="store_true", help="also run at 22:00")
     ap.add_argument("--only", choices=list(RTC))
+    ap.add_argument("--skip-route-209", action="store_true",
+                    help="do not cross into Route 209: on solaceon-mac its OnTransition script jumps to itself "
+                         "(res/field/maps/route_209/scripts.s 'GoTo Route209_OnTransition'), so every entry to Route "
+                         "209 hangs; walk onto the seam row z 671 instead")
     a = ap.parse_args()
     os.makedirs(a.out_dir, exist_ok=True)
     runs = [a.only] if a.only else (["day", "night"] if a.night else ["day"])
@@ -191,7 +213,7 @@ def main():
     for run in runs:
         results = []
         print(f"--- {run} ({RTC[run]})")
-        ok &= run_one(os.path.abspath(a.build_dir), a.out_dir, run, a.save, results, shots)
+        ok &= run_one(os.path.abspath(a.build_dir), a.out_dir, run, a.save, results, shots, not a.skip_route_209)
     print(f"{'PASS' if ok else 'FAIL'} in {time.time() - t0:.0f}s; {len(shots)} screenshots in {a.out_dir}")
     return 0 if ok else 1
 

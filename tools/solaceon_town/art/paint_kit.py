@@ -1032,16 +1032,17 @@ def ruts():
         for x in range(32):
             if (x + y) % 2 == 0 and rng.random() < 0.35:
                 g.set(x, y, "sand3")
+    # soft ruts (town-art): a pressed band of yard dirt with a 2-tone checker edge, sparse tread marks; no hard rim
     for x0 in (5, 21):
         for y in range(32):
-            g.set(x0, y, "dirt1")
-            g.set(x0 + 1, y, "dirt2")
-            g.set(x0 + 2, y, "dirt2")
-            g.set(x0 + 3, y, "dirt1")
+            for dx in range(4):
+                edge = dx in (0, 3)
+                if edge:
+                    g.set(x0 + dx, y, "dirt1" if (x0 + dx + y) % 2 == 0 and rng.random() < 0.5 else "sand3")
+                else:
+                    g.set(x0 + dx, y, "sand3" if (x0 + dx + y) % 2 == 0 and rng.random() < 0.3 else "dirt1")
             if y % 4 == 0:
-                g.set(x0 + 1, y, "dirt4")
-                g.set(x0 + 2, y, "dirt4")
-            g.set(x0 - 1, y, "sand2" if y % 3 else "sand4")
+                g.set(x0 + 1 + (y // 4) % 2, y, "dirt2")
     for _ in range(9):
         x, y = rng.randrange(32), rng.randrange(32)
         if g.get(x, y) in ("sand4", "sand3"):

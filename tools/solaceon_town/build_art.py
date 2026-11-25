@@ -503,7 +503,7 @@ def crate(F, x0, z0, s, h0=G):
 
 
 def lantern(F, x, z):
-    F.card("sol_furn2", x + 0.25, x + 0.75, z + 0.62, G, G + 2.0, FURN["lantern"], lean=22)
+    F.card("sol_furn2", x + 0.25, x + 0.75, z + 0.7, G, G + 2.0, FURN["lantern"], lean=14)
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -566,11 +566,11 @@ def build_posts(F):
         F.card("sol_furn2", s0, s1 + 0.2, zz, G, sh + 0.45, px(0, 0, 4, 12, 32, 32))
     # offerings at both ends of the wall: wreath on its easel, lilies, photo with candles, the animated candle dish
     (ox1, oz1), (ox2, oz2) = layout.OFFERINGS
-    F.card("sol_offer2", ox1 + 0.12, ox1 + 0.92, oz1 + 0.45, G, G + 0.85, OFFER["wreath"], lean=20)
-    F.card("sol_offer2", ox1 + 0.02, ox1 + 0.62, oz1 + 0.8, G, G + 0.55, OFFER["lilies"], lean=25)
+    F.card("sol_offer2", ox1 + 0.05, ox1 + 0.95, oz1 + 0.5, G, G + 1.0, OFFER["wreath"], lean=22)
+    F.card("sol_offer2", ox1 + 0.0, ox1 + 0.65, oz1 + 0.84, G, G + 0.65, OFFER["lilies"], lean=25)
     F.card("sol_candle2", ox1 + 0.5, ox1 + 0.98, oz1 + 0.88, G, G + 0.48, (0, 0, 1, 1), lean=25)
-    F.card("sol_offer2", ox2 + 0.1, ox2 + 0.9, oz2 + 0.45, G, G + 0.85, OFFER["photo"], lean=20)
-    F.card("sol_offer2", ox2 + 0.4, ox2 + 0.98, oz2 + 0.8, G, G + 0.55, OFFER["posy"], lean=25)
+    F.card("sol_offer2", ox2 + 0.05, ox2 + 0.95, oz2 + 0.5, G, G + 1.0, OFFER["photo"], lean=22)
+    F.card("sol_offer2", ox2 + 0.35, ox2 + 1.0, oz2 + 0.84, G, G + 0.65, OFFER["posy"], lean=25)
     F.card("sol_candle2", ox2 + 0.02, ox2 + 0.5, oz2 + 0.88, G, G + 0.48, (0, 0, 1, 1), lean=25)
     # the memorial plaque post (band F text): a stone lectern facing the reading tile east of it
     mx, mz = layout.MEMORIAL_PLAQUE
