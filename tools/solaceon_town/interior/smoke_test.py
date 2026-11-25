@@ -43,7 +43,7 @@ TITLE_STEPS = [{"step": 900}] + [{"press": "A", "frames": 10}, {"step": 290}] * 
 
 SANCTUARY = "MAP_HEADER_SOLACEON_SANCTUARY"
 TOWN = "MAP_HEADER_SOLACEON_TOWN"
-TOWN_DOOR = (571, 656)          # Solaceon Town warp 2 (res/field/maps/solaceon_town/events.json)
+TOWN_DOOR = (580, 652)          # Solaceon Town warp 2 (res/field/maps/solaceon_town/events.json)
 ARRIVAL = (10, 19)              # the Sanctuary's warp 0, the exit mat (tools/solaceon_town/interior/layout.py)
 DELTA = {"UP": (0, -1), "DOWN": (0, 1), "LEFT": (-1, 0), "RIGHT": (1, 0)}
 # (name, path of moves from the previous spot); tiles in layout.py
