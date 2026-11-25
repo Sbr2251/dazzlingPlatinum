@@ -13,12 +13,12 @@ tools/lake_verity/blender_preview.py --views game --dscolor (CAMERA_TYPE_ZOOMED_
     gabled front bay to h 5), its walled compound with gate posts, open gate and forecourt emblem; the memorial plaza
     (benches, lanterns, card board, offerings, candles, garden of names); the registration tent; the excavation
     (scaffold, warning fence, work lights, KEEP OUT board, tarp pile, crates, cable, sandbags); the ranch (kennel
-    block, yard, truck).
+    block, yard).
 Every kit texture appears at least once (checked). Outputs to <preview dir>/render/:
   street_top.png            whole mock, straight down, 8 px per tile
   <view>_game.png           field camera on each zone (see VIEWS)
-The emblem uses a pre-mirrored preview copy (blender_preview.py has no mirrored repeat); the game material mirrors
-the 32x32 quadrant with repeat + flip.
+The emblem uses a pre-mirrored 48x48 preview copy of the 24x24 quadrant; the game draws the 3x3 inlay as four quads
+with mirrored UVs (tools/solaceon_town/build_art.py build_emblem).
 """
 import json
 import os
@@ -40,7 +40,7 @@ VIEWS = {
     "plaza": (8.0, 18.5),       # benches, lanterns, offerings, garden of names
     "tent": (18.0, 17.0),       # registration tent
     "dig": (41.0, 6.5),         # excavation
-    "ranch": (35.0, 19.0),      # kennel block, yard, truck
+    "ranch": (35.0, 19.0),      # kennel block, yard
 }
 
 
@@ -237,7 +237,7 @@ def compound(s):
     # forecourt: flags on the emblem's grid (u offset by half a tile), emblem decal on top
     s.tiled_floor("sol_fcpave", 17.0, 8.0, 34.0, 12.0, 0.01, 2.0, ox=23.5, oz=8.0)
     s.tiled_floor("sol_fcpave", 24.5, 12.0, 26.5, 13.0, 0.01, 2.0, ox=23.5, oz=8.0)
-    s.floor("sol_emblem_full", 23.5, 8.0, 27.5, 12.0, 0.02, (0, 0, 1, 1))
+    s.floor("sol_emblem_full", 24.0, 8.5, 27.0, 11.5, 0.02, (0, 0, 1, 1))     # 3x3 tiles (town-art)
     # lanterns in the forecourt corners, banners outside the gate
     s.mat("sol_furn")
     s.mat("sol_banner")
@@ -341,8 +341,8 @@ def dig(s):
 
 
 def ranch(s):
-    """Kennel block (x 24..32, z 19..21), loading yard (x 33..47, z 16..24), parked truck."""
-    for m in ("sol_kwall", "sol_kroof", "sol_yard", "sol_ruts", "sol_truck"):
+    """Kennel block (x 24..32, z 19..21), loading yard (x 33..47, z 16..24). (sol_truck was cut by town-art.)"""
+    for m in ("sol_kwall", "sol_kroof", "sol_yard", "sol_ruts"):
         s.mat(m)
     s.tiled_floor("sol_yard", 33, 16.0, 47.5, 24.0, 0.01, 2.0)
     s.floor("sol_ruts", 43.0, 16.0, 45.0, 24.0, 0.015, (0, 0, 1, 4))
@@ -357,16 +357,6 @@ def ranch(s):
            [(0, kl), (4.2, kl), (4.2, 0), (0, 0)])
     s.quad("sol_kroof", [(32.2, 2.0, 18.8), (23.8, 2.0, 18.8), (23.8, 2.8, 20), (32.2, 2.8, 20)],
            [(0, kl), (4.2, kl), (4.2, 0), (0, 0)])
-    # truck: side quads (cab + box in one image), cab front, rear doors, roofs
-    T = (64, 64)
-    x0, x1, z0, z1 = 38.0, 42.25, 19.0, 20.75
-    s.wall("sol_truck", x0, z1, x1, z1, 0, 2.0, px(0, 0, 64, 32, 64, 64))
-    s.wall("sol_truck", x1, z0, x0, z0, 0, 2.0, px(0, 0, 64, 32, 64, 64))
-    s.wall("sol_truck", x0, z0, x0, z1, 0.15, 1.65, px(0, 32, 24, 56, 64, 64))
-    s.wall("sol_truck", x1, z1, x1, z0, 0.15, 1.65, px(24, 32, 48, 56, 64, 64))
-    s.quad("sol_truck", [(39.4, 1.94, z1), (x1, 1.94, z1), (x1, 1.94, z0), (39.4, 1.94, z0)],
-           [(48 / 64, 32 / 64), (48 / 64, 1.0), (1.0, 1.0), (1.0, 32 / 64)])
-    s.floor("sol_truck", x0, z0, 39.4, z1, 1.62, px(0, 56, 24, 64, 64, 64))
 
 
 def ground(s):
@@ -387,14 +377,15 @@ def stock_prop(model_id, x, z, name, h=0.0):
 
 
 def full_emblem(src, dst):
-    """Mirror the 32x32 quadrant into the 64x64 the game shows (repeat + flip on s and t)."""
+    """Mirror the 24x24 quadrant (texels 0..23) into the 48x48 3x3-tile inlay the game draws with four mirrored-UV
+    quads (build_art.build_emblem)."""
     im = png.read(src)
     q = im.pixels
     rows = []
-    for y in range(64):
-        yy = y if y < 32 else 63 - y
-        rows.append([q[yy][x if x < 32 else 63 - x] for x in range(64)])
-    png.write_rgba(dst, 64, 64, rows)
+    for y in range(48):
+        yy = y if y < 24 else 47 - y
+        rows.append([q[yy][x if x < 24 else 47 - x] for x in range(48)])
+    png.write_rgba(dst, 48, 48, rows)
     open(dst[:-4] + ".json", "w").write('{"format": "pltt16"}')
 
 

@@ -25,7 +25,30 @@ python3 tools/solaceon_town/build_graybox.py --write
 python3 tools/solaceon_town/warps.py --write
 ```
 
-The town-art workstream applies the art over this graybox later (set 010 is not touched here). `textures.py` and
+## The art pass (town-art workstream)
+
+`build_art.py` replaces the graybox with the final art (docs/solaceon_redesign/art.md section 6): the same tile
+contract, props, permissions and BDHC, with the hall, compound, tent, plaza furniture, excavation and kennel built from
+the set-010 kit, plus the kit append to set 010 and the sol_candle fldtanime entry. It supersedes build_graybox.py's
+output (rerunning build_graybox.py --write would put the graybox back).
+
+| file | what |
+|---|---|
+| `build_art.py` | Writes map_data_072/073 (to `res/field/mapmodels/data/`), set 010 (`textures_kit.SET_REL`) and fldtanime.narc. Dry run by default, `--preview DIR` (DIR/art/), `--write` (refuses if a check fails; idempotent). |
+| `art_test.py` | Headless in-game test on the macOS app: screenshots of 12 spots by day and night, the candle animation, the hall door in and out, both seams. `--skip-route-209` while Route 209's OnTransition loops. |
+| `render.py --art` | Field-camera renders of the art preview (views north, tent, wall, garden, gate, forecourt, door, gap, yard, southexit, ...). |
+| `textures_kit.py` | The kit append (now driven by build_art.py; still runs alone as a dry run). |
+| `art/paint_kit.py` | Paints the kit (town-art changed sol_emblem to the 3x3 toned-down inlay, sol_hroof to the ridge-to-eave gradient, softened sol_ruts and cut sol_truck). |
+
+```
+python3 tools/solaceon_town/build_art.py --preview "/tmp/Solaceon Update/art_mac"
+python3 tools/solaceon_town/render.py "/tmp/Solaceon Update/art_mac" --art --cycles
+python3 tools/solaceon_town/build_art.py --write
+tools/macos/build.sh dev
+python3 tools/solaceon_town/art_test.py build_macos "/tmp/Solaceon Update/art_mac/game" --night --skip-route-209
+```
+
+The graybox notes below describe the layout pass, which the art keeps. `textures.py` and
 `build_wall.py` below are the earlier Arc 2 wall edit; their output is part of BASE_REV and is kept by the graybox
 (do not rerun build_wall.py over the graybox: it rebuilds 072 from the older stock).
 
