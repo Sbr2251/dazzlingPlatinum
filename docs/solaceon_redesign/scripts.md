@@ -173,3 +173,22 @@ garden), `B` (+ the blocked office), `C`, `D` (+ the blocked gate, the locked do
 letting a player out), `briefing` (10 -> 20, the fence walk-in with both battles, the reload, Room 1, R townspeople,
 Looker in the office), `fence_talk`, `fence_loss` (the reset and the whiteout), `E` (the seizure and the Dusk Stone,
 once), `seizure_shots`, `F` (+ Indra at the wall).
+
+`tools/solaceon_ruins/raid_test.py` still passes on this branch: its run ends on the new landing tile (580,660) and
+its driver plays the seizure through; its `post_raid` scenario (which warps into town at 50) now sets
+`FLAG_SOL_TOWN_A` first, so the seizure doesn't play there.
+
+Result (2026-11-25, `sol-mac/town-scripts` with the town art merged): every scenario PASS, 550 checks, 676
+screenshots in `/tmp/Solaceon Update/scripts_mac/<scenario>/`.
+
+## Open issues
+
+- The tent clerk (566,643) stands behind the tent table; the final tent art (the REGISTRY front) hides her sprite from the
+  field camera (she is talked to fine across the table). Town-art or the lead: lower the tent front, or move her.
+- `talk` in the headless protocol teleports the player; a long jump across chunks leaves the map loader on the old
+  chunks (black terrain in screenshots; the test warps next to each object first). Scripts must not do that either
+  (see "No SetPosition").
+- In band D the hall door is unreachable (the gate grunt), so its locked message is only seen by a player who left
+  the hall in D (a save inside); the gate grunt then lets them out.
+- The Pokemon History app giver now uses the `EXPERT_M` sprite (the Day Care Man's); layout.md's `EXPERT_M_3` note was
+  the Day Care Man, who stays.
