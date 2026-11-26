@@ -1,7 +1,15 @@
 {
     "bg_events": [
         {
-            "script": "Route218_RiftShrine",
+            "script": "Route218_GardevoirFountain",
+            "type": "BG_EVENT_TYPE_FACING",
+            "x": 94,
+            "z": 752,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_NORTH"
+        },
+        {
+            "script": "Route218_GardevoirFountain",
             "type": "BG_EVENT_TYPE_FACING",
             "x": 95,
             "z": 752,
@@ -11,8 +19,16 @@
         {
             "script": "Route218_RiftShrine",
             "type": "BG_EVENT_TYPE_FACING",
-            "x": 96,
-            "z": 752,
+            "x": 98,
+            "z": 747,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_NORTH"
+        },
+        {
+            "script": "Route218_RiftShrine",
+            "type": "BG_EVENT_TYPE_FACING",
+            "x": 99,
+            "z": 747,
             "y": 0,
             "player_facing_dir": "BG_EVENT_DIR_NORTH"
         }
@@ -27,7 +43,7 @@
             "initial_dir": "DIR_SOUTH",
             "movement_range_x": 0,
             "movement_range_z": 0,
-            "x": 97,
+            "x": 95,
             "z": 755,
             "y": 0,
             "script": "Route218_RivalTalk",
@@ -42,8 +58,8 @@
             "initial_dir": "DIR_SOUTH",
             "movement_range_x": 0,
             "movement_range_z": 0,
-            "x": 89,
-            "z": 749,
+            "x": 90,
+            "z": 748,
             "y": 0,
             "script": "Route218_Researcher",
             "data": []
@@ -57,9 +73,9 @@
             "initial_dir": "DIR_NORTH",
             "movement_range_x": 0,
             "movement_range_z": 0,
-            "x": 84,
-            "z": 761,
-            "y": 1,
+            "x": 81,
+            "z": 760,
+            "y": 0,
             "script": "Route218_ClefairyWest",
             "data": []
         },
@@ -72,8 +88,8 @@
             "initial_dir": "DIR_WEST",
             "movement_range_x": 0,
             "movement_range_z": 0,
-            "x": 108,
-            "z": 749,
+            "x": 110,
+            "z": 748,
             "y": 0,
             "script": "Route218_ClefairyEast",
             "data": []
@@ -88,9 +104,9 @@
             "initial_dir": "DIR_NORTH",
             "movement_range_x": 0,
             "movement_range_z": 0,
-            "x": 78,
+            "x": 77,
             "z": 745,
-            "y": 1,
+            "y": 0,
             "data": []
         },
         {
@@ -103,9 +119,9 @@
             "initial_dir": "DIR_NORTH",
             "movement_range_x": 0,
             "movement_range_z": 0,
-            "x": 112,
-            "z": 744,
-            "y": 1,
+            "x": 114,
+            "z": 745,
+            "y": 0,
             "data": []
         },
         {
@@ -119,7 +135,7 @@
             "data": [],
             "movement_range_x": 0,
             "movement_range_z": 0,
-            "x": 72,
+            "x": 73,
             "z": 753,
             "y": 0
         },
@@ -172,10 +188,10 @@
     "coord_events": [
         {
             "script": "Route218_RivalScene",
-            "x": 91,
-            "z": 757,
+            "x": 89,
+            "z": 756,
             "y": 0,
-            "width": 10,
+            "width": 11,
             "length": 2,
             "var": "VAR_EVERSPRING_RIVAL_SCENE_STATE",
             "value": 0
