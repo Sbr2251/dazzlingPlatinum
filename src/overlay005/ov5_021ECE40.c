@@ -3,6 +3,9 @@
 #include <nitro.h>
 #include <string.h>
 
+#include "constants/scrcmd.h"
+#include "generated/object_events_gfx.h"
+
 #include "struct_decls/map_object.h"
 #include "struct_decls/map_object_manager.h"
 
@@ -33,6 +36,7 @@
 #include "resource_collection.h"
 #include "sys_task.h"
 #include "sys_task_manager.h"
+#include "vram_stats.h"
 
 typedef enum {
     UnkEnum_ov5_021ED334_00 = 0,
@@ -163,7 +167,7 @@ void ov5_021ECE40(UnkStruct_ov5_021ED0A4 *param0, const MapObjectManager *param1
 
     ov5_021EDDAC(param0, param2);
     ov5_021EE320(param0, param2, param7);
-    ov5_021ED224(param0, 8, 4, 8, 4, param4, param5);
+    ov5_021ED224(param0, 64, 4, 64, 4, param4, param5);
     ov5_021ED0A4(param0, param2);
     ov5_021ED4E4(param0, param6, gPreloadedBillboardModels, gPreloadedBillboardFrameSeqs);
 }
@@ -383,6 +387,7 @@ static BillboardResources *ov5_021ED110(UnkStruct_ov5_021ED0A4 *param0, u32 para
         v0--;
     } while (v0);
 
+    VramStats_NotePoolOom("ov5_billboard_resources", (int)param1, param0->unk_04);
     return NULL;
 }
 
@@ -472,8 +477,13 @@ static int ov5_021ED1C8(const MapObjectManager *param0, const MapObject *param1,
 
 static void ov5_021ED224(UnkStruct_ov5_021ED0A4 *param0, int param1, int param2, int param3, int param4, int param5, int param6)
 {
+    // HEAP_ID_64 (models) and HEAP_ID_65 (frame seqs) are sub-heaps of
+    // HEAP_ID_FIELD1 (0xC4000*2 / 0xA0000*2, scaled 4x on port to 5.0-6.1 MB).
+    // With 64 slots, 0x800 * 64 = 128 KB (512 KB scaled) and 0x80 * 64 = 8 KB
+    // (32 KB scaled) hold every billboard model/frame-seq in the game many
+    // times over without crowding HEAP_ID_FIELD1.
     {
-        param0->unk_F8 = ResourceHeap_New(HEAP_ID_FIELD1, HEAP_ID_64, 0x1000 * param1, param1);
+        param0->unk_F8 = ResourceHeap_New(HEAP_ID_FIELD1, HEAP_ID_64, 0x800 * param1, param1);
         ov5_021ED558(param0);
         ov5_021EDCC4(param0, param2);
         ov5_021EDCCC(param0, param1 - param2);
@@ -691,10 +701,34 @@ static int ov5_021ED53C(int *param0, int param1, int param2, int param3)
     return 0;
 }
 
+static const MapObject *ov5_FindPlayerObject(const MapObjectManager *mapObjMan)
+{
+    int idx = 0;
+    MapObject *obj = NULL;
+
+    while (MapObjectMan_FindObjectWithStatus(mapObjMan, &obj, &idx, MAP_OBJ_STATUS_0) == 1) {
+        if (MapObject_GetLocalID(obj) == LOCALID_PLAYER) {
+            return obj;
+        }
+    }
+
+    return NULL;
+}
+
+static int ov5_GetPlayerGraphicsID(const MapObjectManager *mapObjMan)
+{
+    const MapObject *player = ov5_FindPlayerObject(mapObjMan);
+    if (player == NULL) {
+        return 0xffff;
+    }
+
+    return (int)MapObject_GetGraphicsID(player);
+}
+
 static void ov5_021ED558(UnkStruct_ov5_021ED0A4 *param0)
 {
     int *v0 = ov5_021EDCBC(param0);
-    ov5_021ED504(v0, 0xffff, 8);
+    ov5_021ED504(v0, 0xffff, 64);
 }
 
 static void ov5_021ED56C(UnkStruct_ov5_021ED0A4 *param0, int param1)
@@ -706,6 +740,9 @@ static void ov5_021ED56C(UnkStruct_ov5_021ED0A4 *param0, int param1)
     v2 = ov5_021EDCBC(param0);
 
     v1 = ov5_021ED50C(v2, param1, 0xffff, v0);
+    if (v1 == 0) {
+        VramStats_NotePoolOom("ov5_model_preloaded", param1, v0);
+    }
     GF_ASSERT(v1 != 0);
 }
 
@@ -728,6 +765,9 @@ static void ov5_021ED5B4(UnkStruct_ov5_021ED0A4 *param0, int param1)
     v1 = ov5_021EDCD0(param0);
     v0 = ov5_021ED50C(v2, param1, 0xffff, v1);
 
+    if (v0 == 0) {
+        VramStats_NotePoolOom("ov5_model_dynamic", param1, v1);
+    }
     GF_ASSERT(v0 != 0);
 }
 
@@ -754,14 +794,42 @@ static void ov5_021ED610(UnkStruct_ov5_021ED0A4 *param0, int param1)
 static void ov5_021ED63C(MapObjectManager *param0, UnkStruct_ov5_021ED0A4 *param1)
 {
     int v0;
-    ResourceCollection *v2 = ov5_021EDC98(param1);
     int *v1 = ov5_021EDCBC(param1);
     v1 = &v1[ov5_021EDCC8(param1)];
     v0 = ov5_021EDCD0(param1);
 
+    if (v0 <= 0) {
+        return;
+    }
+
+    int used = 0;
+    for (int i = 0; i < v0; i++) {
+        if (v1[i] != 0xffff) {
+            used++;
+        }
+    }
+
+    // Keep billboard models resident during the field session while slots
+    // remain available to avoid zone-crossing use-after-free on live sprites.
+    if (used <= 48) {
+        return;
+    }
+
+    int playerModelM = ov5_021EDD2C(OBJ_EVENT_GFX_PLAYER_M);
+    int playerModelF = ov5_021EDD2C(OBJ_EVENT_GFX_PLAYER_F);
+    int playerModelCur = 0xffff;
+    const MapObject *playerObj = ov5_FindPlayerObject(param0);
+    if (playerObj != NULL) {
+        int playerGfx = (int)MapObject_GetGraphicsID(playerObj);
+        if (playerGfx != 0xffff && ov5_021ECD04(playerObj)->modelType == 1) {
+            playerModelCur = ov5_021EDD2C(playerGfx);
+        }
+    }
+
     do {
         if ((*v1) != 0xffff) {
-            if (ov5_021EDAB4(param0, *v1, NULL) == 0) {
+            if (*v1 != playerModelM && *v1 != playerModelF && *v1 != playerModelCur
+                && ov5_021EDAB4(param0, *v1, NULL) == 0) {
                 ResourceHeap_FreeItem(param1->unk_F8, *v1);
                 *v1 = 0xffff;
             }
@@ -775,7 +843,7 @@ static void ov5_021ED63C(MapObjectManager *param0, UnkStruct_ov5_021ED0A4 *param
 static void ov5_021ED694(UnkStruct_ov5_021ED0A4 *param0)
 {
     int *v0 = ov5_021EDCC0(param0);
-    ov5_021ED504(v0, 0xffff, 8);
+    ov5_021ED504(v0, 0xffff, 64);
 }
 
 static void ov5_021ED6A8(UnkStruct_ov5_021ED0A4 *param0, int param1)
@@ -787,6 +855,9 @@ static void ov5_021ED6A8(UnkStruct_ov5_021ED0A4 *param0, int param1)
     v2 = ov5_021EDCC0(param0);
     v1 = ov5_021ED50C(v2, param1, 0xffff, v0);
 
+    if (v1 == 0) {
+        VramStats_NotePoolOom("ov5_frameseq_preloaded", param1, v0);
+    }
     GF_ASSERT(v1 != 0);
 }
 
@@ -809,6 +880,9 @@ static void ov5_021ED6F0(UnkStruct_ov5_021ED0A4 *param0, int param1)
     v1 = ov5_021EDCE0(param0);
     v0 = ov5_021ED50C(v2, param1, 0xffff, v1);
 
+    if (v0 == 0) {
+        VramStats_NotePoolOom("ov5_frameseq_dynamic", param1, v1);
+    }
     GF_ASSERT(v0 != 0);
 }
 
@@ -835,14 +909,42 @@ static void ov5_021ED74C(UnkStruct_ov5_021ED0A4 *param0, int param1)
 static void ov5_021ED778(MapObjectManager *param0, UnkStruct_ov5_021ED0A4 *param1)
 {
     int v0;
-    ResourceCollection *v2 = ov5_021EDCA0(param1);
     int *v1 = ov5_021EDCC0(param1);
     v1 = &v1[ov5_021EDCD8(param1)];
     v0 = ov5_021EDCE0(param1);
 
+    if (v0 <= 0) {
+        return;
+    }
+
+    int used = 0;
+    for (int i = 0; i < v0; i++) {
+        if (v1[i] != 0xffff) {
+            used++;
+        }
+    }
+
+    // Keep billboard frame sequences resident during the field session while
+    // slots remain available to avoid zone-crossing use-after-free on sprites.
+    if (used <= 48) {
+        return;
+    }
+
+    int playerSeqM = ov5_021EDD38(OBJ_EVENT_GFX_PLAYER_M);
+    int playerSeqF = ov5_021EDD38(OBJ_EVENT_GFX_PLAYER_F);
+    int playerSeqCur = 0xffff;
+    const MapObject *playerObj = ov5_FindPlayerObject(param0);
+    if (playerObj != NULL) {
+        int playerGfx = (int)MapObject_GetGraphicsID(playerObj);
+        if (playerGfx != 0xffff && ov5_021ECD04(playerObj)->modelType == 1) {
+            playerSeqCur = ov5_021EDD38(playerGfx);
+        }
+    }
+
     do {
         if ((*v1) != 0xffff) {
-            if (ov5_021EDB3C(param0, *v1, NULL) == 0) {
+            if (*v1 != playerSeqM && *v1 != playerSeqF && *v1 != playerSeqCur
+                && ov5_021EDB3C(param0, *v1, NULL) == 0) {
                 ResourceHeap_FreeItem(param1->unk_FC, *v1);
                 *v1 = 0xffff;
             }
@@ -867,6 +969,9 @@ static void ov5_021ED7E4(UnkStruct_ov5_021ED0A4 *param0, int param1)
     v0 = ov5_021EDCE8(param0);
     v2 = ov5_021EDCB8(param0);
     v1 = ov5_021ED50C(v2, param1, 0xffff, v0);
+    if (v1 == 0) {
+        VramStats_NotePoolOom("ov5_tex_preloaded", param1, v0);
+    }
     GF_ASSERT(v1 != 0);
 }
 
@@ -901,6 +1006,9 @@ static void ov5_021ED858(UnkStruct_ov5_021ED0A4 *param0, int param1)
     v1 = ov5_021EDCF0(param0);
     v0 = ov5_021ED50C(v2, param1, 0xffff, v1);
 
+    if (v0 == 0) {
+        VramStats_NotePoolOom("ov5_tex_dynamic", param1, v1);
+    }
     GF_ASSERT(v0 != 0);
 }
 
@@ -917,6 +1025,7 @@ static void ov5_021ED88C(UnkStruct_ov5_021ED0A4 *param0, int param1)
 static void ov5_021ED8B8(MapObjectManager *param0, UnkStruct_ov5_021ED0A4 *param1)
 {
     int v0, v1;
+    int playerGfx = ov5_GetPlayerGraphicsID(param0);
     TextureResourceManager *v3 = ov5_021EDCB0(param1);
     int *v2 = ov5_021EDCB8(param1);
     v2 = &v2[ov5_021EDCE8(param1)];
@@ -926,7 +1035,8 @@ static void ov5_021ED8B8(MapObjectManager *param0, UnkStruct_ov5_021ED0A4 *param
         v1 = *v2;
 
         if (v1 != 0xffff) {
-            if (ov5_021EDA54(param0, v1, NULL) == 0) {
+            if (v1 != OBJ_EVENT_GFX_PLAYER_M && v1 != OBJ_EVENT_GFX_PLAYER_F && v1 != playerGfx
+                && ov5_021EDA54(param0, v1, NULL) == 0) {
                 TextureResourceManager_RemoveTextureWithID(v3, v1);
                 ov5_021EDFBC(param1, v1);
                 ov5_021EE170(param1, v1);
@@ -1503,6 +1613,7 @@ static int ov5_021EDF3C(UnkStruct_ov5_021ED0A4 *param0, int param1, u32 param2, 
             v2++;
         }
 
+        VramStats_NotePoolOom("ov5_tex_load_queue", param1, v0->unk_00);
         GF_ASSERT(FALSE);
         return 0;
     }
@@ -1606,7 +1717,12 @@ static void ov5_021EE0E8(UnkStruct_ov5_021ED0A4 *param0, int param1, void *param
 {
     TextureResource *v0 = TextureResourceManager_AddTextureAndAllocVRam(param0->unk_F0, param2, param1, 1, HEAP_ID_FIELD1);
 
-    GF_ASSERT(v0 != NULL);
+    if (v0 == NULL) {
+        VramStats_NotePoolOom("ov5_tex_res_mgr", param1, 0);
+        GF_ASSERT(v0 != NULL);
+        return;
+    }
+
     ov5_021EE134(param0, param1);
 
     if (param3 == 0) {
@@ -1638,6 +1754,8 @@ static void ov5_021EE134(UnkStruct_ov5_021ED0A4 *param0, int param1)
         v0++;
     }
 
+    v1->unk_06 = 0;
+    VramStats_NotePoolOom("ov5_vram_upload_queue", param1, v1->unk_00);
     GF_ASSERT(FALSE);
 }
 
@@ -1732,6 +1850,7 @@ static void ov5_021EE228(UnkStruct_ov5_021ED0A4 *param0, MapObject *param1, Bill
         v0++;
     }
 
+    VramStats_NotePoolOom("ov5_pending_billboard_queue", param3, v1->unk_00);
     GF_ASSERT(FALSE);
 }
 

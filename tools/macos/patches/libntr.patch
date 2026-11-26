@@ -2625,22 +2625,33 @@ index ecf46ab..2a0030b 100644
 +#endif
 diff --git a/include/simulator/sim_g3_texnotify.h b/include/simulator/sim_g3_texnotify.h
 new file mode 100644
-index 0000000..0589e5f
+index 0000000..75e3351
 --- /dev/null
 +++ b/include/simulator/sim_g3_texnotify.h
-@@ -0,0 +1,19 @@
+@@ -0,0 +1,30 @@
 +#ifndef LIBNTR_SIM_G3_TEXNOTIFY_H
 +#define LIBNTR_SIM_G3_TEXNOTIFY_H
 +
 +#include <stddef.h>
++#include <stdint.h>
 +
 +#ifdef __cplusplus
 +extern "C" {
 +#endif
 +
++// Dedicated 3D texture VRAM (512 KB, full 16-bit GX_TEXIMAGE_PARAM << 3 range)
++// and 3D texture palette VRAM (96 KB, full DS palette VRAM ceiling), decoupled
++// from the shared 656 KB s_HW_LCDC_VRAM bank array so BG/OBJ/capture banks
++// never collide with 3D textures or palettes.
++#define SIM_TEX_VRAM_SIZE 0x80000u
++#define SIM_TEX_PLTT_SIZE 0x18000u
++
++extern uint8_t s_SIM_TEX_VRAM[SIM_TEX_VRAM_SIZE];
++extern uint8_t s_SIM_TEX_PLTT[SIM_TEX_PLTT_SIZE];
++
 +// Called (SDK_PORT only) after any DMA/CpuCopy/fill that may have written
-+// texture or palette VRAM. The implementation ignores writes outside the
-+// LCDC VRAM banks A-G, so callers may pass any destination.
++// texture or palette VRAM. The implementation ignores writes outside
++// s_SIM_TEX_VRAM / s_SIM_TEX_PLTT, so callers may pass any destination.
 +void SIM_G3_NotifyTexVramWrite(const void * dest, size_t size);
 +
 +#ifdef __cplusplus
@@ -4425,66 +4436,258 @@ index ff250dd..59336f9 100644
  		MI_CpuFill32((void *)REG_DB_DISPCNT_ADDR, 0,
  		             REG_DB_MASTER_BRIGHT_ADDR - REG_DB_DISPCNT_ADDR + 4);
 diff --git a/libraries/gx/src/gx_load3d.c b/libraries/gx/src/gx_load3d.c
-index c866e53..23f783c 100644
+index c866e53..e25ca15 100644
 --- a/libraries/gx/src/gx_load3d.c
 +++ b/libraries/gx/src/gx_load3d.c
-@@ -28,6 +28,9 @@
+@@ -28,6 +28,10 @@
  #error Unsupported SDK version
  #endif /* SDK_VERSION_MAJOR */
  #include <nitro/mi/dma.h>
 +#ifdef SDK_PORT
++#include <stdint.h>
 +#include <simulator/sim_g3_texnotify.h>
 +#endif
  
  #include "../include/gxstate.h"
  #include "../include/gxdma.h"
-@@ -214,12 +217,14 @@ void GX_LoadTexEx (GXVRamTex tex, const void *pSrc, u32 destSlotAddr, u32 szByte
- 			pLCDC = (void *)(base1 + destSlotAddr);
+@@ -58,65 +62,11 @@ void WIN_Init_sTexStartAddrTable() {
+     sTexStartAddrTable[0].blk2 = 0;
+     sTexStartAddrTable[0].szBlk1 = 0;
  
- 			GXi_DmaCopy32(GXi_DmaId, pSrc, pLCDC, sz);
-+			SIM_G3_NotifyTexVramWrite(pLCDC, sz);
- 			GXi_DmaCopy32Async(GXi_DmaId, (void *)((u8 *)pSrc + sz), pLCDC2, szByte - sz, NULL, NULL);
- 			return;
- 		}
+-    sTexStartAddrTable[1].blk1 = (u64)(HW_LCDC_VRAM_A);
+-    sTexStartAddrTable[1].blk2 = 0;
+-    sTexStartAddrTable[1].szBlk1 = 0;
+-
+-    sTexStartAddrTable[2].blk1 = (u64)(HW_LCDC_VRAM_B);
+-    sTexStartAddrTable[2].blk2 = 0;
+-    sTexStartAddrTable[2].szBlk1 = 0;
+-
+-    sTexStartAddrTable[3].blk1 = (u64)(HW_LCDC_VRAM_A);
+-    sTexStartAddrTable[3].blk2 = 0;
+-    sTexStartAddrTable[3].szBlk1 = 0;    
+-
+-    sTexStartAddrTable[4].blk1 = (u64)(HW_LCDC_VRAM_C);
+-    sTexStartAddrTable[4].blk2 = 0;
+-    sTexStartAddrTable[4].szBlk1 = 0;
+-
+-    sTexStartAddrTable[5].blk1 = (u64)(HW_LCDC_VRAM_A);
+-    sTexStartAddrTable[5].blk2 = (u64)(HW_LCDC_VRAM_C);
+-    sTexStartAddrTable[5].szBlk1 = (u16)(HW_VRAM_A_SIZE >> 12);
+-
+-    sTexStartAddrTable[6].blk1 = (u64)(HW_LCDC_VRAM_B);
+-    sTexStartAddrTable[6].blk2 = 0;
+-    sTexStartAddrTable[6].szBlk1 = 0;
+-
+-    sTexStartAddrTable[7].blk1 = (u64)(HW_LCDC_VRAM_A);
+-    sTexStartAddrTable[7].blk2 = 0;
+-    sTexStartAddrTable[7].szBlk1 = 0;
+-
+-    sTexStartAddrTable[8].blk1 = (u64)(HW_LCDC_VRAM_D);
+-    sTexStartAddrTable[8].blk2 = 0;
+-    sTexStartAddrTable[8].szBlk1 = 0;
+-
+-    sTexStartAddrTable[9].blk1 = (u64)(HW_LCDC_VRAM_A);
+-    sTexStartAddrTable[9].blk2 = (u64)(HW_LCDC_VRAM_D);
+-    sTexStartAddrTable[9].szBlk1 = (u16)(HW_VRAM_A_SIZE >> 12);
+-
+-    sTexStartAddrTable[10].blk1 = (u64)(HW_LCDC_VRAM_B);
+-    sTexStartAddrTable[10].blk2 = (u64)(HW_LCDC_VRAM_D);
+-    sTexStartAddrTable[10].szBlk1 = (u16)(HW_VRAM_B_SIZE >> 12);
+-
+-    sTexStartAddrTable[11].blk1 = (u64)(HW_LCDC_VRAM_A);
+-    sTexStartAddrTable[11].blk2 = (u64)(HW_LCDC_VRAM_D);
+-    sTexStartAddrTable[11].szBlk1 = (u16)((HW_VRAM_A_SIZE + HW_VRAM_B_SIZE) >> 12);
+-
+-    sTexStartAddrTable[12].blk1 = (u64)(HW_LCDC_VRAM_C);
+-    sTexStartAddrTable[12].blk2 = 0;
+-    sTexStartAddrTable[12].szBlk1 = 0;
+-
+-    sTexStartAddrTable[13].blk1 = (u64)(HW_LCDC_VRAM_A);
+-    sTexStartAddrTable[13].blk2 = (u64)(HW_LCDC_VRAM_C);
+-    sTexStartAddrTable[13].szBlk1 = (u16)(HW_VRAM_A_SIZE >> 12);
+-
+-    sTexStartAddrTable[14].blk1 = (u64)(HW_LCDC_VRAM_B);
+-    sTexStartAddrTable[14].blk2 = 0;
+-    sTexStartAddrTable[14].szBlk1 = 0;
+-
+-    sTexStartAddrTable[15].blk1 = (u64)(HW_LCDC_VRAM_A);
+-    sTexStartAddrTable[15].blk2 = 0;
+-    sTexStartAddrTable[15].szBlk1 = 0;
++    for (int i = 1; i < 16; i++) {
++        sTexStartAddrTable[i].blk1 = (u64)(uintptr_t)s_SIM_TEX_VRAM;
++        sTexStartAddrTable[i].blk2 = 0;
++        sTexStartAddrTable[i].szBlk1 = 0;
++    }
+     return;
+ }
+ #else
+@@ -182,6 +132,25 @@ sTexStartAddrTable[16] = {
+ 
+ void GX_LoadTexEx (GXVRamTex tex, const void *pSrc, u32 destSlotAddr, u32 szByte)
+ {
++#ifdef SDK_PORT
++	void *pLCDC;
++
++	SDK_ALIGN4_ASSERT(szByte);
++	SDK_ALIGN4_ASSERT(destSlotAddr);
++	SDK_ALIGN4_ASSERT(pSrc);
++	SDK_ASSERTMSG((GX_GetBankForLCDC() & tex) == tex,
++	              "Banks specified by tex must be on LCDC space.");
++
++	GX_VRAM_TEX_ASSERT(tex);
++	SDK_ASSERT(GX_VRAM_TEX_NONE != tex);
++
++	GX_RegionCheck_Tex(tex, destSlotAddr, destSlotAddr + szByte);
++	SDK_ASSERT(destSlotAddr <= SIM_TEX_VRAM_SIZE && szByte <= SIM_TEX_VRAM_SIZE - destSlotAddr);
++
++	pLCDC = (void *)(s_SIM_TEX_VRAM + destSlotAddr);
++	GXi_DmaCopy32Async(GXi_DmaId, pSrc, pLCDC, szByte, NULL, NULL);
++	SIM_G3_NotifyTexVramWrite(pLCDC, szByte);
++#else
+ 	u32 base1, base2, szBlk1;
+ 	void *pLCDC;
+ 
+@@ -220,6 +189,7 @@ void GX_LoadTexEx (GXVRamTex tex, const void *pSrc, u32 destSlotAddr, u32 szByte
  	}
  
  	GXi_DmaCopy32Async(GXi_DmaId, pSrc, pLCDC, szByte, NULL, NULL);
-+	SIM_G3_NotifyTexVramWrite(pLCDC, szByte);
++#endif
  }
  
  void GX_BeginLoadTex (void)
-@@ -266,12 +271,14 @@ void GX_LoadTex (const void *pSrc, u32 destSlotAddr, u32 szByte)
- 			pLCDC = (void *)(sTexLCDCBlk1 + destSlotAddr);
+@@ -231,13 +201,14 @@ void GX_BeginLoadTex (void)
+ 	GX_VRAM_TEX_ASSERT(sTex);
  
- 			GXi_DmaCopy32(GXi_DmaId, pSrc, pLCDC, sz);
-+			SIM_G3_NotifyTexVramWrite(pLCDC, sz);
- 			GXi_DmaCopy32Async(GXi_DmaId, (void *)((u8 *)pSrc + sz), pLCDC2, szByte - sz, NULL, NULL);
- 			return;
- 		}
+ 	#ifdef SDK_PORT
+-    sTexLCDCBlk1 = (u64)(sTexStartAddrTable[sTex].blk1);
+-    sTexLCDCBlk2 = (u64)(sTexStartAddrTable[sTex].blk2);
++	sTexLCDCBlk1 = (sTex != GX_VRAM_TEX_NONE) ? (u64)(uintptr_t)s_SIM_TEX_VRAM : 0;
++	sTexLCDCBlk2 = 0;
++	sSzTexBlk1 = 0;
+ 	#else
+ 	sTexLCDCBlk1 = (u32)(sTexStartAddrTable[sTex].blk1 << 12);
+ 	sTexLCDCBlk2 = (u32)(sTexStartAddrTable[sTex].blk2 << 12);
+-	#endif
+ 	sSzTexBlk1 = (u32)(sTexStartAddrTable[sTex].szBlk1 << 12);
++	#endif
+ }
+ 
+ void GX_LoadTex (const void *pSrc, u32 destSlotAddr, u32 szByte)
+@@ -253,6 +224,12 @@ void GX_LoadTex (const void *pSrc, u32 destSlotAddr, u32 szByte)
+ 
+ 	GX_RegionCheck_Tex(sTex, destSlotAddr, destSlotAddr + szByte);
+ 
++#ifdef SDK_PORT
++	SDK_ASSERT(destSlotAddr <= SIM_TEX_VRAM_SIZE && szByte <= SIM_TEX_VRAM_SIZE - destSlotAddr);
++	pLCDC = (void *)(sTexLCDCBlk1 + destSlotAddr);
++	GXi_DmaCopy32Async(GXi_DmaId, pSrc, pLCDC, szByte, NULL, NULL);
++	SIM_G3_NotifyTexVramWrite(pLCDC, szByte);
++#else
+ 	if (0 == sTexLCDCBlk2) {
+ 		pLCDC = (void *)(sTexLCDCBlk1 + destSlotAddr);
+ 	} else {
+@@ -272,6 +249,7 @@ void GX_LoadTex (const void *pSrc, u32 destSlotAddr, u32 szByte)
  	}
  
  	GXi_DmaCopy32Async(GXi_DmaId, pSrc, pLCDC, szByte, NULL, NULL);
-+	SIM_G3_NotifyTexVramWrite(pLCDC, szByte);
++#endif
  }
  
  void GX_EndLoadTex (void)
-@@ -341,6 +348,7 @@ void GX_LoadTexPlttEx (GXVRamTexPltt texPltt, const void *pSrc, u32 destSlotAddr
+@@ -294,14 +272,14 @@ static u32 sTexPlttLCDCBlk = 0;
+ static u64 sTexPlttStartAddrTable[8] = {0};
+ 
+ void WIN_Init_sTexPlttStartAddrTable() {
+-    sTexPlttStartAddrTable[0] = 0,
+-    sTexPlttStartAddrTable[1] = (u64)(HW_LCDC_VRAM_E);
+-    sTexPlttStartAddrTable[2] = (u64)(HW_LCDC_VRAM_F);
+-    sTexPlttStartAddrTable[3] = (u64)(HW_LCDC_VRAM_E);
+-    sTexPlttStartAddrTable[4] = (u64)(HW_LCDC_VRAM_G);
++    sTexPlttStartAddrTable[0] = 0;
++    sTexPlttStartAddrTable[1] = (u64)(uintptr_t)s_SIM_TEX_PLTT;
++    sTexPlttStartAddrTable[2] = (u64)(uintptr_t)s_SIM_TEX_PLTT;
++    sTexPlttStartAddrTable[3] = (u64)(uintptr_t)s_SIM_TEX_PLTT;
++    sTexPlttStartAddrTable[4] = (u64)(uintptr_t)s_SIM_TEX_PLTT;
+     sTexPlttStartAddrTable[5] = 0;
+-    sTexPlttStartAddrTable[6] = (u64)(HW_LCDC_VRAM_F);
+-    sTexPlttStartAddrTable[7] = (u64)(HW_LCDC_VRAM_E);
++    sTexPlttStartAddrTable[6] = (u64)(uintptr_t)s_SIM_TEX_PLTT;
++    sTexPlttStartAddrTable[7] = (u64)(uintptr_t)s_SIM_TEX_PLTT;
+ }
+ #else
+ static const u16 sTexPlttStartAddrTable[8] = {
+@@ -318,20 +296,31 @@ static const u16 sTexPlttStartAddrTable[8] = {
+ 
+ void GX_LoadTexPlttEx (GXVRamTexPltt texPltt, const void *pSrc, u32 destSlotAddr, u32 szByte)
+ {
+-	#ifdef SDK_PORT
+-	u64 base;
+-	#else
++#ifdef SDK_PORT
++	void *pDest;
++	SDK_ASSERTMSG((GX_GetBankForLCDC() & texPltt) == texPltt,
++	              "Banks specified by texPltt must be on LCDC space.");
++
++	GX_VRAM_TEXPLTT_ASSERT(texPltt);
++	SDK_NULL_ASSERT(pSrc);
++	SDK_ASSERT(GX_VRAM_TEXPLTT_NONE != texPltt);
++	SDK_ALIGN4_ASSERT(destSlotAddr);
++	SDK_ALIGN4_ASSERT(szByte);
++	SDK_ALIGN4_ASSERT(pSrc);
++
++	GX_RegionCheck_TexPltt(texPltt, destSlotAddr, destSlotAddr + szByte);
++	SDK_ASSERT(destSlotAddr <= SIM_TEX_PLTT_SIZE && szByte <= SIM_TEX_PLTT_SIZE - destSlotAddr);
++
++	pDest = (void *)(s_SIM_TEX_PLTT + destSlotAddr);
++	GXi_DmaCopy32Async(GXi_DmaId, pSrc, pDest, szByte, NULL, NULL);
++	SIM_G3_NotifyTexVramWrite(pDest, szByte);
++#else
+ 	u32 base;
+-	#endif
+ 	SDK_ASSERTMSG((GX_GetBankForLCDC() & texPltt) == texPltt,
+ 	              "Banks specified by texPltt must be on LCDC space.");
+ 
+ 	GX_VRAM_TEXPLTT_ASSERT(texPltt);
+-	#ifdef SDK_PORT
+-	base = (u64)(sTexPlttStartAddrTable[texPltt >> 4] << 12);
+-	#else
+ 	base = (u32)(sTexPlttStartAddrTable[texPltt >> 4] << 12);
+-	#endif
+ 
+ 	SDK_NULL_ASSERT(pSrc);
+ 	SDK_ASSERT(0 != base);
+@@ -341,6 +330,7 @@ void GX_LoadTexPlttEx (GXVRamTexPltt texPltt, const void *pSrc, u32 destSlotAddr
  
  	GX_RegionCheck_TexPltt(texPltt, destSlotAddr, destSlotAddr + szByte);
  	GXi_DmaCopy32Async(GXi_DmaId, pSrc, (void *)(base + destSlotAddr), szByte, NULL, NULL);
-+	SIM_G3_NotifyTexVramWrite((void *)(base + destSlotAddr), szByte);
++#endif
  }
  
  void GX_BeginLoadTexPltt (void)
-@@ -368,6 +376,7 @@ void GX_LoadTexPltt (const void *pSrc, u32 destSlotAddr, u32 szByte)
+@@ -351,7 +341,7 @@ void GX_BeginLoadTexPltt (void)
+ 
+ 	GX_VRAM_TEXPLTT_ASSERT(sTexPltt);
+ 	#ifdef SDK_PORT
+-	sTexPlttLCDCBlk = (u64)(sTexPlttStartAddrTable[sTexPltt >> 4]);
++	sTexPlttLCDCBlk = (sTexPltt != GX_VRAM_TEXPLTT_NONE) ? (u64)(uintptr_t)s_SIM_TEX_PLTT : 0;
+ 	#else
+ 	sTexPlttLCDCBlk = (u32)(sTexPlttStartAddrTable[sTexPltt >> 4] << 12);
+ 	#endif
+@@ -367,7 +357,13 @@ void GX_LoadTexPltt (const void *pSrc, u32 destSlotAddr, u32 szByte)
+ 	SDK_ALIGN4_ASSERT(pSrc);
  
  	GX_RegionCheck_TexPltt(sTexPltt, destSlotAddr, destSlotAddr + szByte);
++#ifdef SDK_PORT
++	SDK_ASSERT(destSlotAddr <= SIM_TEX_PLTT_SIZE && szByte <= SIM_TEX_PLTT_SIZE - destSlotAddr);
++#endif
  	GXi_DmaCopy32Async(GXi_DmaId, pSrc, (void *)(sTexPlttLCDCBlk + destSlotAddr), szByte, NULL, NULL);
++#ifdef SDK_PORT
 +	SIM_G3_NotifyTexVramWrite((void *)(sTexPlttLCDCBlk + destSlotAddr), szByte);
++#endif
  }
  
  void GX_EndLoadTexPltt (void)
-@@ -445,4 +454,4 @@ void GX_EndLoadClearImage (void)
+@@ -445,4 +441,4 @@ void GX_EndLoadClearImage (void)
  
  	sClrImg = (GXVRamClearImage)0;
  	sClrImgLCDCBlk = 0;
@@ -4517,6 +4720,79 @@ index 7449e2b..dc1e978 100644
  	gGXState.vramCnt.lcdc = (u16)(~sub_objExtPltt & (gGXState.vramCnt.lcdc | gGXState.vramCnt.sub_objExtPltt));
  	gGXState.vramCnt.sub_objExtPltt = sub_objExtPltt;
  
+diff --git a/libraries/gx/src/gxstate.c b/libraries/gx/src/gxstate.c
+index 478631e..b0ee48c 100644
+--- a/libraries/gx/src/gxstate.c
++++ b/libraries/gx/src/gxstate.c
+@@ -4,6 +4,9 @@
+ #else
+ #include <nitro/gx/gx_vramcnt.h>
+ #endif
++#ifdef SDK_PORT
++#include <simulator/sim_g3_texnotify.h>
++#endif
+ 
+ GX_State gGXState;
+ 
+@@ -334,6 +337,16 @@ void GX_RegionCheck_TexPltt_ (GXVRamTexPltt texPltt, u32 first, u32 last)
+ #pragma unused(first)
+ #endif
+ 	switch (texPltt) {
++#ifdef SDK_PORT
++	case GX_VRAM_TEXPLTT_0_F:
++	case GX_VRAM_TEXPLTT_0_G:
++	case GX_VRAM_TEXPLTT_01_FG:
++	case GX_VRAM_TEXPLTT_0123_E:
++	case GX_VRAM_TEXPLTT_01234_EF:
++	case GX_VRAM_TEXPLTT_012345_EFG:
++		SDK_ASSERTMSG(last <= SIM_TEX_PLTT_SIZE, "Illegal Address/size specified(0x%5x->0x%5x)", first, last);
++		break;
++#else
+ 	case GX_VRAM_TEXPLTT_0_F:
+ 	case GX_VRAM_TEXPLTT_0_G:
+ 		SDK_ASSERTMSG(last <= 0x04000,
+@@ -354,6 +367,7 @@ void GX_RegionCheck_TexPltt_ (GXVRamTexPltt texPltt, u32 first, u32 last)
+ 	case GX_VRAM_TEXPLTT_012345_EFG:
+ 		SDK_ASSERTMSG(last <= 0x18000, "Illegal Address/size specified(0x%5x->0x%5x)", first, last);
+ 		break;
++#endif
+ 
+ 	default:
+ 		SDK_INTERNAL_ERROR("unknown case 0x%x", texPltt);
+@@ -367,6 +381,25 @@ void GX_RegionCheck_Tex_ (GXVRamTex tex, u32 first, u32 last)
+ #pragma unused(first)
+ #endif
+ 	switch (tex) {
++#ifdef SDK_PORT
++	case GX_VRAM_TEX_0_A:
++	case GX_VRAM_TEX_0_B:
++	case GX_VRAM_TEX_0_C:
++	case GX_VRAM_TEX_0_D:
++	case GX_VRAM_TEX_01_AB:
++	case GX_VRAM_TEX_01_BC:
++	case GX_VRAM_TEX_01_CD:
++	case GX_VRAM_TEX_01_AC:
++	case GX_VRAM_TEX_01_AD:
++	case GX_VRAM_TEX_01_BD:
++	case GX_VRAM_TEX_012_ABC:
++	case GX_VRAM_TEX_012_BCD:
++	case GX_VRAM_TEX_012_ABD:
++	case GX_VRAM_TEX_012_ACD:
++	case GX_VRAM_TEX_0123_ABCD:
++		SDK_ASSERTMSG(last <= SIM_TEX_VRAM_SIZE, "Illegal Address/size specified(0x%5x->0x%5x)", first, last);
++		break;
++#else
+ 	case GX_VRAM_TEX_0_A:
+ 	case GX_VRAM_TEX_0_B:
+ 	case GX_VRAM_TEX_0_C:
+@@ -393,6 +426,7 @@ void GX_RegionCheck_Tex_ (GXVRamTex tex, u32 first, u32 last)
+ 	case GX_VRAM_TEX_0123_ABCD:
+ 		SDK_ASSERTMSG(last <= 0x80000, "Illegal Address/size specified(0x%5x->0x%5x)", first, last);
+ 		break;
++#endif
+ 	default:
+ 		SDK_INTERNAL_ERROR("unknown case 0x%x", tex);
+ 		break;
 diff --git a/libraries/mi/include/mi_dma.h b/libraries/mi/include/mi_dma.h
 index cb374f8..0375d40 100644
 --- a/libraries/mi/include/mi_dma.h
@@ -30516,20 +30792,30 @@ index 0000000..1d911fb
 +}
 +)""
 diff --git a/libraries/sim/src/sim_NitroMainThread.cpp b/libraries/sim/src/sim_NitroMainThread.cpp
-index 0766447..2261dcc 100644
+index 0766447..87c3183 100644
 --- a/libraries/sim/src/sim_NitroMainThread.cpp
 +++ b/libraries/sim/src/sim_NitroMainThread.cpp
-@@ -54,6 +54,10 @@ int RunNitroMain(void * arg) {
+@@ -11,6 +11,7 @@
+ 
+ #include "simulator/sim.h"
+ #include "simulator/sim_RenderContextManager.hpp"
++#include <simulator/sim_g3_texnotify.h>
+ 
+ extern "C" void NitroMain();
+ 
+@@ -53,6 +54,12 @@ int RunNitroMain(void * arg) {
+   memset(s_HW_DB_BG_VRAM, 0, sizeof(s_HW_DB_BG_VRAM));
    memset(s_HW_OBJ_VRAM, 0, sizeof(s_HW_OBJ_VRAM));
    memset(s_HW_DB_OBJ_VRAM, 0, sizeof(s_HW_DB_OBJ_VRAM));
- 
++  memset(s_SIM_TEX_VRAM, 0, sizeof(s_SIM_TEX_VRAM));
++  memset(s_SIM_TEX_PLTT, 0, sizeof(s_SIM_TEX_PLTT));
++
 +  // X, Y, debug and hinge state live in HW_MAIN_MEM_SYSTEM, which was just cleared: set them released (active low) again. Set only before
 +  // the clear, they read as held from the start, so the first press of X or Y did nothing (its release set the bit)
 +  *(vu16 *)HW_BUTTON_XY_BUF = 0b0111110000000000;
-+
+ 
    // Zero out some registers
    s_reg_G2_BG0CNT = 0;
-   s_reg_G2_BG1CNT = 0;
 diff --git a/libraries/sim/src/sim_RenderContextManager.cpp b/libraries/sim/src/sim_RenderContextManager.cpp
 index 1a95dce..ec5ac0e 100644
 --- a/libraries/sim/src/sim_RenderContextManager.cpp
@@ -32432,10 +32718,10 @@ index 77300c2..0000000
 -}
 \ No newline at end of file
 diff --git a/libraries/sim/src/sim_g3_GlobalState.cpp b/libraries/sim/src/sim_g3_GlobalState.cpp
-index c6d82f5..37f1032 100644
+index c6d82f5..05d99ee 100644
 --- a/libraries/sim/src/sim_g3_GlobalState.cpp
 +++ b/libraries/sim/src/sim_g3_GlobalState.cpp
-@@ -1,9 +1,17 @@
+@@ -1,19 +1,50 @@
  #include "simulator/sim_g3_GlobalState.hpp"
 +#include <simulator/sim_render_backend.hpp>
 +#include <simulator/sim_headless.h> // dbg-perf-sim hook
@@ -32447,13 +32733,22 @@ index c6d82f5..37f1032 100644
 +#include <simulator/fx_texpack.hpp> // fx_texpack hook
  #include "simulator/sim_crc32.h"
 +#include "simulator/sim_regblock.h"
++#include <simulator/sim_g3_texnotify.h>
 +#include <chrono>
 +#include <cstdio>
 +#include <cstdlib>
  
  #include <nitro/fx/fx.h>
  #include <nitro/fx/fx_const.h>
-@@ -14,6 +22,23 @@ static SIM::G3::GlobalState sG3GlobalState;
+ 
+ #define getbit(x,n) ( ( (x) >> (n) ) & 1 )
+ 
++extern "C" {
++alignas(8) uint8_t s_SIM_TEX_VRAM[SIM_TEX_VRAM_SIZE];
++alignas(8) uint8_t s_SIM_TEX_PLTT[SIM_TEX_PLTT_SIZE];
++}
++
+ static SIM::G3::GlobalState sG3GlobalState;
  
  namespace SIM::G3 {
  
@@ -32477,7 +32772,7 @@ index c6d82f5..37f1032 100644
  static constexpr MtxFx44 Identity44 = {
  {
      FX32_ONE, 0, 0, 0,
-@@ -34,7 +59,6 @@ GlobalState::~GlobalState() {
+@@ -34,7 +65,6 @@ GlobalState::~GlobalState() {
  
  void GlobalState::Init() {
      mCurrentDrawCall = std::make_shared<DrawCall>();
@@ -32485,7 +32780,7 @@ index c6d82f5..37f1032 100644
  
      // Initialize Matrix Stacks
      for(auto& matrix : mPositionStack) {
-@@ -59,12 +83,60 @@ void GlobalState::Init() {
+@@ -59,12 +89,60 @@ void GlobalState::Init() {
      mCurrentClipMatrix = Identity44;
  }
  
@@ -32549,7 +32844,7 @@ index c6d82f5..37f1032 100644
      u8 addPolygon = TRUE;
      int numFinalVerts = numVerts;
  
-@@ -92,14 +164,14 @@ void GlobalState::SubmitPolygon(int numVerts) {
+@@ -92,14 +170,14 @@ void GlobalState::SubmitPolygon(int numVerts) {
          screenX = (screenX / 128.0f) - 1.0f;
          screenY = (screenY / 96.0f) - 1.0f;
      
@@ -32572,7 +32867,7 @@ index c6d82f5..37f1032 100644
      }
  
      // Get the W size and remove the polygon if W is 0
-@@ -147,18 +219,18 @@ void GlobalState::SubmitPolygon(int numVerts) {
+@@ -147,18 +225,18 @@ void GlobalState::SubmitPolygon(int numVerts) {
          	z = 0xFFFFFF;
          }
          
@@ -32595,7 +32890,7 @@ index c6d82f5..37f1032 100644
          CopyVertex(0, 0);
          CopyVertex(1, 1);
          CopyVertex(2, 2);
-@@ -173,22 +245,29 @@ void GlobalState::SubmitPolygon(int numVerts) {
+@@ -173,49 +251,121 @@ void GlobalState::SubmitPolygon(int numVerts) {
      // Check if any of the verts are horribly out of bounds
      // TODO: This is a HACK and we should eventually remove it
      for(int i=0; i < numFinalVerts; i++) {
@@ -32628,25 +32923,49 @@ index c6d82f5..37f1032 100644
      // Handle texture info from current drawCall
      u8 * texBuf = nullptr;
  	std::shared_ptr<Texture> texture = nullptr;
-@@ -198,24 +277,78 @@ void GlobalState::FlushDrawCall() {
- 	u8 * vramPltt = (u8*)((u64)GetTexturePalettePointer() + mCurrentDrawCall->GetTexPaletteBase());
+     auto texImageParam = mCurrentDrawCall->GetTexImageParam();
  
-     if(texImageParam.textureFormat != GX_TEXFMT_NONE && vramTex != nullptr && GetTexturePointer() != nullptr) {
+-	u8 * vramTex = (u8*)((u64)GetTexturePointer() + texImageParam.textureOffset);
+-	u8 * vramPltt = (u8*)((u64)GetTexturePalettePointer() + mCurrentDrawCall->GetTexPaletteBase());
+-
+-    if(texImageParam.textureFormat != GX_TEXFMT_NONE && vramTex != nullptr && GetTexturePointer() != nullptr) {
 -		GLuint g3TextureId;
- 		u16 * colorAddr = (u16*)vramPltt;
+-		u16 * colorAddr = (u16*)vramPltt;
++	u8 * texBasePtr = (u8 *)GetTexturePointer();
++	u8 * plttBasePtr = (u8 *)GetTexturePalettePointer();
++	const u32 texOff = texImageParam.textureOffset;
++	const u32 plttOff = mCurrentDrawCall->GetTexPaletteBase();
++	u8 * vramTex = texBasePtr ? (texBasePtr + texOff) : nullptr;
++	u8 * vramPltt = plttBasePtr ? (plttBasePtr + plttOff) : nullptr;
++
++	u32 vramTexBufSize = 0;
++	if(texImageParam.textureFormat == GX_TEXFMT_PLTT4) {
++		vramTexBufSize = (texImageParam.textureSSize * texImageParam.textureTSize) >> 2;
++	} else if(texImageParam.textureFormat == GX_TEXFMT_PLTT16) {
++		vramTexBufSize = (texImageParam.textureSSize * texImageParam.textureTSize) >> 1;
++	} else {
++		vramTexBufSize = (texImageParam.textureSSize * texImageParam.textureTSize);
++		if(texImageParam.textureFormat == GX_TEXFMT_DIRECT) vramTexBufSize *= 2;
++	}
  
 -		//Calculate the texture + palette CRC
 -		u32 paletteCRC = SIM_crc32buf(vramPltt, 512);
- 		u32 vramTexBufSize = 0;
--
- 		if(texImageParam.textureFormat == GX_TEXFMT_PLTT4) {
- 			vramTexBufSize = (texImageParam.textureSSize * texImageParam.textureTSize) >> 2;
- 		} else if(texImageParam.textureFormat == GX_TEXFMT_PLTT16) {
- 			vramTexBufSize = (texImageParam.textureSSize * texImageParam.textureTSize) >> 1;
- 		} else {
- 			vramTexBufSize = (texImageParam.textureSSize * texImageParam.textureTSize);
-+			if(texImageParam.textureFormat == GX_TEXFMT_DIRECT) vramTexBufSize *= 2;
-+		}
+-		u32 vramTexBufSize = 0;
++	const bool usePalette = texImageParam.textureFormat != GX_TEXFMT_DIRECT;
++	const bool texInBounds = (texBasePtr != nullptr && texOff < SIM_TEX_VRAM_SIZE && vramTexBufSize <= SIM_TEX_VRAM_SIZE - texOff);
++	const bool plttInBounds = (!usePalette || (plttBasePtr != nullptr && plttOff < SIM_TEX_PLTT_SIZE));
+ 
+-		if(texImageParam.textureFormat == GX_TEXFMT_PLTT4) {
+-			vramTexBufSize = (texImageParam.textureSSize * texImageParam.textureTSize) >> 2;
+-		} else if(texImageParam.textureFormat == GX_TEXFMT_PLTT16) {
+-			vramTexBufSize = (texImageParam.textureSSize * texImageParam.textureTSize) >> 1;
+-		} else {
+-			vramTexBufSize = (texImageParam.textureSSize * texImageParam.textureTSize);
++    if(texImageParam.textureFormat != GX_TEXFMT_NONE && texInBounds && plttInBounds) {
++		u16 * colorAddr = (u16*)vramPltt;
++		const u32 plttHashLen = (plttBasePtr != nullptr && plttOff < SIM_TEX_PLTT_SIZE)
++			? ((SIM_TEX_PLTT_SIZE - plttOff < 512u) ? (SIM_TEX_PLTT_SIZE - plttOff) : 512u)
++			: 0u;
 +
 +		// Cache key: VRAM ranges + decode parameters. The texture is reused
 +		// until a recorded VRAM write touches its range (SIM_G3_NotifyTexVramWrite,
@@ -32662,15 +32981,15 @@ index c6d82f5..37f1032 100644
 +		texKey.sizeS = texImageParam.textureSSize;
 +		texKey.sizeT = texImageParam.textureTSize;
 +		texKey.color0 = texImageParam.color0;
-+		texKey.usePalette = texImageParam.textureFormat != GX_TEXFMT_DIRECT;
++		texKey.usePalette = usePalette;
 +
 +		u32 textureCRC = 0, paletteCRC = 0;
 +		if(checkCRC) {
 +			auto crcT0 = std::chrono::steady_clock::now();
-+			paletteCRC = SIM_crc32buf(vramPltt, 512);
++			paletteCRC = plttHashLen ? SIM_crc32buf(vramPltt, plttHashLen) : 0;
 +			textureCRC = SIM_crc32buf(vramTex, vramTexBufSize);
 +			if(gG3Stats.enabled) {
-+				gG3Stats.crcTexBytes += vramTexBufSize; gG3Stats.crcPlttBytes += 512;
++				gG3Stats.crcTexBytes += vramTexBufSize; gG3Stats.crcPlttBytes += plttHashLen;
 +				gG3Stats.crcNs += (unsigned long long)std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - crcT0).count();
 +			}
  		}
@@ -32686,7 +33005,7 @@ index c6d82f5..37f1032 100644
 +			// same bytes (palette animation does this constantly). One CRC
 +			// here - only after a write, never per flush - keeps the texture.
 +			u32 nowTexCRC = SIM_crc32buf(vramTex, vramTexBufSize);
-+			u32 nowPlttCRC = texKey.usePalette ? SIM_crc32buf(vramPltt, 512) : stalePlttCRC;
++			u32 nowPlttCRC = texKey.usePalette ? (plttHashLen ? SIM_crc32buf(vramPltt, plttHashLen) : 0) : stalePlttCRC;
 +			if(nowTexCRC == staleTexCRC && nowPlttCRC == stalePlttCRC) {
 +				mTextureCache.AddTexture(texKey, staleTexCRC, stalePlttCRC, staleTexture);
 +				texture = staleTexture;
@@ -32708,12 +33027,12 @@ index c6d82f5..37f1032 100644
 +			if(gG3Stats.enabled) gG3Stats.decodes++;
 +			if(!checkCRC) { // CRCs are only stored for the debug cross-check
 +				textureCRC = SIM_crc32buf(vramTex, vramTexBufSize);
-+				paletteCRC = SIM_crc32buf(vramPltt, 512);
++				paletteCRC = plttHashLen ? SIM_crc32buf(vramPltt, plttHashLen) : 0;
 +			}
  			// decode texture and create it in the cache
  			//Convert the DS texture data into a format opengl can understand
  			u8 * outTexBuf = new u8[4*texImageParam.textureSSize * texImageParam.textureTSize];
-@@ -247,10 +380,16 @@ void GlobalState::FlushDrawCall() {
+@@ -247,10 +397,16 @@ void GlobalState::FlushDrawCall() {
  					break;
  			}
  
@@ -32721,7 +33040,7 @@ index c6d82f5..37f1032 100644
 +			// separately) so the GPU backend can name this texture.
 +			SIM::Render::TexPack::SetPendingSource(
 +			    vramTex, vramTexBufSize, (const u8 *)vramPltt,
-+			    texKey.usePalette ? 512 : 0, (int)texImageParam.textureFormat,
++			    texKey.usePalette ? plttHashLen : 0, (int)texImageParam.textureFormat,
 +			    (int)texImageParam.textureSSize, (int)texImageParam.textureTSize);
  			// This creates a GL texture and uploads it to the GPU with glTexImage2D
  			texture = std::make_shared<SIM::G3::Texture>(texImageParam.textureTSize, texImageParam.textureSSize, outTexBuf);
@@ -32731,7 +33050,7 @@ index c6d82f5..37f1032 100644
  
  			// Texture buffer can be freed now, it has been sent to the GPU
  			delete[] outTexBuf;
-@@ -284,10 +423,11 @@ void GlobalState::FlushDrawCall() {
+@@ -284,10 +440,11 @@ void GlobalState::FlushDrawCall() {
  
  		float fogDepthBoundary[32];
  		float fogDensity[32];
@@ -32745,7 +33064,7 @@ index c6d82f5..37f1032 100644
  		}
  
          mCurrentDrawCall->SetFogDepthTable(fogDepthBoundary);
-@@ -302,13 +442,13 @@ void GlobalState::FlushDrawCall() {
+@@ -302,13 +459,13 @@ void GlobalState::FlushDrawCall() {
          return;
      }
  
@@ -32761,6 +33080,68 @@ index c6d82f5..37f1032 100644
      }
  
      mTransparentDrawCalls.clear();
+@@ -454,7 +611,6 @@ MtxFx44 GlobalState::GetCurrentMatrix() {
+ }
+ 
+ void * GlobalState::GetTexturePointer() {
+-	void * vramBank = NULL;
+ 	switch( mVramTex ){
+ 		case GX_VRAM_TEX_0_A:
+ 		case GX_VRAM_TEX_01_AB:
+@@ -464,48 +620,32 @@ void * GlobalState::GetTexturePointer() {
+ 		case GX_VRAM_TEX_01_AD:
+ 		case GX_VRAM_TEX_012_ABD:
+ 		case GX_VRAM_TEX_012_ACD:
+-			vramBank = (void *)HW_LCDC_VRAM_A;
+-			break;
+ 		case GX_VRAM_TEX_0_B:
+ 		case GX_VRAM_TEX_01_BC:
+ 		case GX_VRAM_TEX_012_BCD:
+ 		case GX_VRAM_TEX_01_BD:
+-			vramBank = (void *)HW_LCDC_VRAM_B;
+-			break;
+ 		case GX_VRAM_TEX_0_C:
+ 		case GX_VRAM_TEX_01_CD:
+-			vramBank = (void *)HW_LCDC_VRAM_C;
+-			break;
+ 		case GX_VRAM_TEX_0_D:
+-			vramBank = (void *)HW_LCDC_VRAM_A;
+-			break;
++			return (void *)s_SIM_TEX_VRAM;
+ 		default:
+-			//?
+-			break;
++			return NULL;
+ 	}
+-	
+-	return vramBank;
+ }
+ 
+ void * GlobalState::GetTexturePalettePointer() {
+-	void * vramBank = NULL;
+ 	switch( mVramTexPalette ) {
+ 		case GX_VRAM_TEXPLTT_NONE:
+ 		case GX_VRAM_TEXPLTT_0123_E:
+ 		case GX_VRAM_TEXPLTT_01234_EF:
+ 		case GX_VRAM_TEXPLTT_012345_EFG:
+-			vramBank = (void *)HW_LCDC_VRAM_E;
+-			break;
+ 		case GX_VRAM_TEXPLTT_0_F:
+ 		case GX_VRAM_TEXPLTT_01_FG:
+-			vramBank = (void *)HW_LCDC_VRAM_F;
+-			break;
+ 		case GX_VRAM_TEXPLTT_0_G:
+-			vramBank = (void *)HW_LCDC_VRAM_G;
+-			break;
++			return (void *)s_SIM_TEX_PLTT;
++		default:
++			return NULL;
+ 	}
+-	
+-	return vramBank;
+ }
+ 
+ void GlobalState::SetCurrentMatrix(const MtxFx44& matrix) {
 @@ -546,7 +686,23 @@ void GlobalState::SetPositionMatrix(const MtxFx44& matrix) {
  void GlobalState::UpdateClipMatrix() {
      mCurrentClipMatrix = Util::MultiplyMtxFx44(mCurrentPositionMatrix, mCurrentProjectionMatrix);
@@ -32827,16 +33208,16 @@ index dc39791..3eafd4e 100644
 \ No newline at end of file
 +} // namespace SIM::G3
 diff --git a/libraries/sim/src/sim_g3_TextureCache.cpp b/libraries/sim/src/sim_g3_TextureCache.cpp
-index de145a7..786b014 100644
+index de145a7..3f38599 100644
 --- a/libraries/sim/src/sim_g3_TextureCache.cpp
 +++ b/libraries/sim/src/sim_g3_TextureCache.cpp
-@@ -1,31 +1,103 @@
+@@ -1,31 +1,109 @@
  #include "simulator/sim_g3_TextureCache.hpp"
 +#include "simulator/sim_g3_GlobalState.hpp"
 +
 +#ifdef SDK_PORT
-+#include <nitro/hw/X86/mmap_global.h>
-+#include <nitro/hw/X86/mmap_vram.h>
++#include <cstdint>
++#include <simulator/sim_g3_texnotify.h>
 +#endif
 +
 +#include <unordered_map>
@@ -32883,11 +33264,17 @@ index de145a7..786b014 100644
 +void TextureCache::NotifyWrite(const void * dest, std::size_t size) {
 +    if(dest == nullptr || size == 0) return;
 +#ifdef SDK_PORT
-+    // Only LCDC banks A-G can hold 3D textures (A-D) or texture palettes (E-G).
++    // 3D textures and texture palettes live in dedicated decoupled buffers
++    // (s_SIM_TEX_VRAM / s_SIM_TEX_PLTT), independent of LCDC banks A-G.
 +    const std::uintptr_t lo = (std::uintptr_t)dest;
-+    const std::uintptr_t vramLo = (std::uintptr_t)HW_LCDC_VRAM_A;
-+    const std::uintptr_t vramHi = (std::uintptr_t)HW_LCDC_VRAM_G + HW_VRAM_G_SIZE;
-+    if(lo + size <= vramLo || lo >= vramHi) return;
++    const std::uintptr_t hi = (size > UINTPTR_MAX - lo) ? UINTPTR_MAX : lo + size;
++    const std::uintptr_t texLo = (std::uintptr_t)s_SIM_TEX_VRAM;
++    const std::uintptr_t texHi = texLo + sizeof(s_SIM_TEX_VRAM);
++    const std::uintptr_t plttLo = (std::uintptr_t)s_SIM_TEX_PLTT;
++    const std::uintptr_t plttHi = plttLo + sizeof(s_SIM_TEX_PLTT);
++    const bool inTex = (hi > texLo && lo < texHi);
++    const bool inPltt = (hi > plttLo && lo < plttHi);
++    if(!inTex && !inPltt) return;
 +#else
 +    (void)dest;
 +#endif

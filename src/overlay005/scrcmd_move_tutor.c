@@ -185,6 +185,7 @@ BOOL ScrCmd_PayShardCost(ScriptContext *ctx)
 
     if (teachableMovesIndex == NELEMS(sTeachableMoves)) {
         GF_ASSERT(FALSE);
+        return FALSE;
     }
 
     Bag_TryRemoveItem(bag, ITEM_RED_SHARD, redCost, HEAP_ID_FIELD3);

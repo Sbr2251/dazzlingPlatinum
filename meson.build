@@ -63,6 +63,11 @@ pokeplatinum_args = [
     '-DGAME_VERSION=VERSION_PLATINUM',
     '-DGAME_LANGUAGE=LANGUAGE_ENGLISH',
     '-std=c99',
+    # Deterministically zero-init uninitialized stack locals in dev and release builds
+    # to prevent clang -O3 UB, and surface uninitialized-read diagnostics.
+    '-ftrivial-auto-var-init=zero',
+    '-Wuninitialized',
+    '-Wsometimes-uninitialized',
 ]
 
 # Build variant: see meson.options. PM_KEEP_ASSERTS is the assert switch:

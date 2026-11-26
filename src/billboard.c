@@ -3,6 +3,7 @@
 #include "billboard_vram_transfer.h"
 #include "easy3d.h"
 #include "heap.h"
+#include "vram_stats.h"
 
 #ifdef SDK_PORT
 #include "port/sim_config_prj.h"
@@ -155,6 +156,7 @@ BillboardList *BillboardList_New(const BillboardListParams *params)
     BillboardList *list = FindFirstFreeBillboardList();
 
     if (list == NULL) {
+        VramStats_NotePoolOom("BillboardList_New", 0, sBillboardListCount);
         GF_ASSERT(FALSE);
         return NULL;
     }
@@ -340,6 +342,9 @@ static void AllocTextureVRAM(const NNSG3dResTex *texture, NNSG3dTexKey *texKey, 
 
     if (texSize > 0) {
         *texKey = NNS_GfdAllocTexVram(texSize, FALSE, 0);
+        if (*texKey == NNS_GFD_ALLOC_ERROR_TEXKEY) {
+            VramStats_NoteTexOom("Billboard_AllocTextureVRAM", texSize, FALSE);
+        }
         GF_ASSERT(*texKey != NNS_GFD_ALLOC_ERROR_TEXKEY);
     } else {
         *texKey = 0;
@@ -347,13 +352,20 @@ static void AllocTextureVRAM(const NNSG3dResTex *texture, NNSG3dTexKey *texKey, 
 
     if (tex4x4Size > 0) {
         *tex4x4Key = NNS_GfdAllocTexVram(tex4x4Size, TRUE, 0);
+        if (*tex4x4Key == NNS_GFD_ALLOC_ERROR_TEXKEY) {
+            VramStats_NoteTexOom("Billboard_AllocTextureVRAM:4x4", tex4x4Size, TRUE);
+        }
         GF_ASSERT(*tex4x4Key != NNS_GFD_ALLOC_ERROR_TEXKEY);
     } else {
         *tex4x4Key = 0;
     }
 
     if (plttSize > 0) {
-        *plttKey = NNS_GfdAllocPlttVram(plttSize, texture->tex4x4Info.flag & NNS_G3D_RESPLTT_USEPLTT4, 0);
+        BOOL usePltt4 = (texture->tex4x4Info.flag & NNS_G3D_RESPLTT_USEPLTT4) != 0;
+        *plttKey = NNS_GfdAllocPlttVram(plttSize, usePltt4, 0);
+        if (*plttKey == NNS_GFD_ALLOC_ERROR_PLTTKEY) {
+            VramStats_NotePlttOom("Billboard_AllocTextureVRAM", plttSize, usePltt4);
+        }
         GF_ASSERT(*plttKey != NNS_GFD_ALLOC_ERROR_PLTTKEY);
     } else {
         *plttKey = 0;
@@ -447,6 +459,13 @@ static void Billboard_InitAnimAndRequestTransfer(const BillboardList *list, Bill
 {
     billboard->animTexture = BillboardResources_GetTexture(resources);
     billboard->gfxSequence = resources->gfxSequence;
+    if (billboard->texture != NULL
+        && ((NNS_G3dTexGetRequiredSize(billboard->texture) > 0 && billboard->texKey == NNS_GFD_ALLOC_ERROR_TEXKEY)
+            || (NNS_G3dTex4x4GetRequiredSize(billboard->texture) > 0 && billboard->tex4x4Key == NNS_GFD_ALLOC_ERROR_TEXKEY)
+            || (NNS_G3dPlttGetRequiredSize(billboard->texture) > 0 && billboard->plttKey == NNS_GFD_ALLOC_ERROR_PLTTKEY))) {
+        billboard->vramTransfer = NULL;
+        return;
+    }
     billboard->vramTransfer = BillboardListVRAMTransfer_NewBillboardTransfer(list->vramTransfer, &billboard->gfxSequence, billboard->animTexture, billboard->texKey, billboard->plttKey, billboard->frameNum);
 }
 
@@ -642,7 +661,7 @@ int Billboard_GetState(const Billboard *billboard)
 
 void Billboard_TryRequestVRAMTransfer(Billboard *billboard)
 {
-    if (billboard->state == BILLBOARD_STATE_VRAM_TRANSFER) {
+    if (billboard->state == BILLBOARD_STATE_VRAM_TRANSFER && billboard->vramTransfer != NULL) {
         BillboardVRAMTransfer_Request(billboard->vramTransfer, billboard->frameNum);
     }
 }
@@ -747,6 +766,7 @@ static void BillboardList_InitBillboards(BillboardList *list)
 static Billboard *BillboardList_AllocBillboard(BillboardList *list)
 {
     if (list->freeBillboardHead >= list->capacity) {
+        VramStats_NotePoolOom("BillboardList_AllocBillboard", list->freeBillboardHead, list->capacity);
         return NULL;
     }
 

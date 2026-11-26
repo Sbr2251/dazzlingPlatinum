@@ -165,13 +165,17 @@ static void OutMemory(Out *o) {
         first = 0;
     }
     OutFmt(o, "],\"vram\":{\"tex_kind\":\"%s\",\"tex_total\":%ld,\"tex_free\":%ld,"
-              "\"pltt_kind\":\"%s\",\"pltt_total\":%ld,\"pltt_free\":%ld}}",
+              "\"pltt_kind\":\"%s\",\"pltt_total\":%ld,\"pltt_free\":%ld,"
+              "\"tex_oom\":%u,\"pltt_oom\":%u,\"pool_oom\":%u}}",
         vram.texKind,
         (long)(vram.texTotal == 0xFFFFFFFFu ? -1 : (long)vram.texTotal),
         (long)(vram.texFree == 0xFFFFFFFFu ? -1 : (long)vram.texFree),
         vram.plttKind,
         (long)(vram.plttTotal == 0xFFFFFFFFu ? -1 : (long)vram.plttTotal),
-        (long)(vram.plttFree == 0xFFFFFFFFu ? -1 : (long)vram.plttFree));
+        (long)(vram.plttFree == 0xFFFFFFFFu ? -1 : (long)vram.plttFree),
+        vram.texOomCount,
+        vram.plttOomCount,
+        vram.poolOomCount);
 }
 
 // ---------------------------------------------------------------- helpers

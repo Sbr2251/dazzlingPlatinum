@@ -2,12 +2,14 @@
 
 #include <nnsys/gfd/VramManager/gfd_LinkedListPlttVramMan.h>
 #include <nnsys/gfd/VramManager/gfd_LinkedListTexVramMan.h>
+#include <stdio.h>
 
 // Tracks which NNS VRAM manager is active and its total size, so usage can
 // be reported. Free space for the linked-list managers comes from the
 // managers' own dump callbacks, which visit every free block.
 
-#define VRAM_UNKNOWN 0xFFFFFFFFu
+#define VRAM_UNKNOWN       0xFFFFFFFFu
+#define VRAM_OOM_LOG_LIMIT 16u
 
 typedef enum VramManagerKind {
     VRAM_KIND_UNKNOWN = 0,
@@ -19,6 +21,9 @@ static VramManagerKind sTexKind = VRAM_KIND_UNKNOWN;
 static VramManagerKind sPlttKind = VRAM_KIND_UNKNOWN;
 static u32 sTexTotal = VRAM_UNKNOWN;
 static u32 sPlttTotal = VRAM_UNKNOWN;
+static u32 sTexOomCount = 0;
+static u32 sPlttOomCount = 0;
+static u32 sPoolOomCount = 0;
 
 void VramStats_NoteTexLnk(u32 totalBytes)
 {
@@ -56,7 +61,68 @@ static void SumFreeBlock(u32 addr, u32 szByte, void *userData)
     *(u32 *)userData += szByte;
 }
 
-void VramStats_Get(VramStats *out)
+void VramStats_NoteTexOom(const char *site, u32 requestedBytes, BOOL is4x4)
+{
+    sTexOomCount++;
+    if (sTexOomCount <= VRAM_OOM_LOG_LIMIT) {
+        long freeBytes = -1;
+        if (sTexKind == VRAM_KIND_LNK) {
+            u32 freeAcc = 0;
+            NNS_GfdDumpLnkTexVramManagerEx(SumFreeBlock, SumFreeBlock, &freeAcc);
+            freeBytes = (long)freeAcc;
+        }
+        fprintf(stderr,
+            "[VRAM-OOM] tex alloc failed at %s: req=%u bytes (4x4=%d) free=%ld total=%ld count=%u%s\n",
+            site != NULL ? site : "?",
+            (unsigned)requestedBytes,
+            is4x4 ? 1 : 0,
+            freeBytes,
+            sTexTotal == VRAM_UNKNOWN ? -1L : (long)sTexTotal,
+            (unsigned)sTexOomCount,
+            sTexOomCount == VRAM_OOM_LOG_LIMIT ? " (further tex OOM logs suppressed)" : "");
+        fflush(stderr);
+    }
+}
+
+void VramStats_NotePlttOom(const char *site, u32 requestedBytes, BOOL is4Pltt)
+{
+    sPlttOomCount++;
+    if (sPlttOomCount <= VRAM_OOM_LOG_LIMIT) {
+        long freeBytes = -1;
+        if (sPlttKind == VRAM_KIND_LNK) {
+            u32 freeAcc = 0;
+            NNS_GfdDumpLnkPlttVramManagerEx(SumFreeBlock, &freeAcc);
+            freeBytes = (long)freeAcc;
+        }
+        fprintf(stderr,
+            "[VRAM-OOM] pltt alloc failed at %s: req=%u bytes (4pltt=%d) free=%ld total=%ld count=%u%s\n",
+            site != NULL ? site : "?",
+            (unsigned)requestedBytes,
+            is4Pltt ? 1 : 0,
+            freeBytes,
+            sPlttTotal == VRAM_UNKNOWN ? -1L : (long)sPlttTotal,
+            (unsigned)sPlttOomCount,
+            sPlttOomCount == VRAM_OOM_LOG_LIMIT ? " (further pltt OOM logs suppressed)" : "");
+        fflush(stderr);
+    }
+}
+
+void VramStats_NotePoolOom(const char *site, int id, int capacity)
+{
+    sPoolOomCount++;
+    if (sPoolOomCount <= VRAM_OOM_LOG_LIMIT) {
+        fprintf(stderr,
+            "[POOL-OOM] pool alloc failed at %s: id=%d cap=%d count=%u%s\n",
+            site != NULL ? site : "?",
+            id,
+            capacity,
+            (unsigned)sPoolOomCount,
+            sPoolOomCount == VRAM_OOM_LOG_LIMIT ? " (further pool OOM logs suppressed)" : "");
+        fflush(stderr);
+    }
+}
+
+static void FillBaseVramStats(VramStats *out)
 {
     if (out == NULL) {
         return;
@@ -77,4 +143,21 @@ void VramStats_Get(VramStats *out)
         NNS_GfdDumpLnkPlttVramManagerEx(SumFreeBlock, &freeBytes);
         out->plttFree = freeBytes;
     }
+}
+
+#undef VramStats_Get
+void VramStats_Get(VramStats *out)
+{
+    FillBaseVramStats(out);
+}
+
+void VramStats_GetFull(VramStats *out)
+{
+    if (out == NULL) {
+        return;
+    }
+    FillBaseVramStats(out);
+    out->texOomCount = sTexOomCount;
+    out->plttOomCount = sPlttOomCount;
+    out->poolOomCount = sPoolOomCount;
 }

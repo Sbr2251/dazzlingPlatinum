@@ -225,7 +225,7 @@ static BOOL FieldMap_Init(ApplicationManager *appMan, int *state)
 
         VramTransfer_New(128, HEAP_ID_FIELD1);
         BillboardLists_Create(4, HEAP_ID_FIELD1);
-        Easy3D_InitWithTexSize(HEAP_ID_FIELD1, TEXTURE_VRAM_SIZE_384K);
+        Easy3D_InitWithTexSize(HEAP_ID_FIELD1, TEXTURE_VRAM_SIZE_512K);
 
         ov5_021D15B4();
         ov5_021D154C();

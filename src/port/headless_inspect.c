@@ -193,6 +193,7 @@ static void InspectBillboards(InspectOut *out)
 {
     const BillboardList *lists;
     int listCount = 0, activeLists = 0, total = 0, visible = 0, drawn = 0, emitted = 0;
+    int oobCount = 0, zeroTexCount = 0;
     lists = BillboardLists_Inspect(&listCount);
     Put(out, "{\"list_count\":%d,\"billboards\":[", listCount);
     for (int i = 0; lists != NULL && i < listCount; i++) {
@@ -203,20 +204,54 @@ static void InspectBillboards(InspectOut *out)
         billboard = list->sentinelData.next;
         while (billboard != NULL && billboard != &list->sentinelData) {
             BOOL isVisible = billboard->state != BILLBOARD_STATE_INACTIVE;
+            int frame = (int)(billboard->frameNum >> 12);
+            int texIdx = -1;
+            int plttIdx = -1;
+            BOOL hasSeq = billboard->gfxSequence.seqCount > 0
+                && billboard->gfxSequence.startFrame != NULL
+                && billboard->gfxSequence.textureIdx != NULL
+                && billboard->gfxSequence.plttIdx != NULL;
+            if (hasSeq) {
+                u16 frameU16 = frame < 0 ? 0 : (frame > 0xFFFF ? 0xFFFF : (u16)frame);
+                BillboardTexPlttIndex idx = BillboardGfxSequence_GetTexPlttIndexAt(&billboard->gfxSequence, frameU16);
+                texIdx = (int)idx.textureIdx;
+                plttIdx = (int)idx.plttIdx;
+            }
+            int texCount = billboard->animTexture != NULL ? (int)billboard->animTexture->dict.numEntry : 0;
+            BOOL texOob = billboard->draw && billboard->animTexture != NULL
+                && hasSeq && (texIdx < 0 || texIdx >= texCount);
+            u32 texAddr = NNS_GfdGetTexKeyAddr(billboard->texKey);
+            u32 plttAddr = NNS_GfdGetPlttKeyAddr(billboard->plttKey);
+            BOOL hasVt = billboard->vramTransfer != NULL;
+
             total++;
             if (isVisible) visible++;
-            if (billboard->draw) drawn++;
-            if (emitted < 32) {
-                Put(out, "%s{\"list\":%d,\"pos_fx\":[%d,%d,%d],\"visible\":%s,\"draw\":%s,\"anim\":%u}",
+            if (billboard->draw) {
+                drawn++;
+                if (billboard->texKey == NNS_GFD_ALLOC_ERROR_TEXKEY) {
+                    zeroTexCount++;
+                }
+            }
+            if (texOob) oobCount++;
+            if (emitted < 64 && out->cap > out->len + 400) {
+                Put(out,
+                    "%s{\"list\":%d,\"pos_fx\":[%d,%d,%d],\"visible\":%s,\"draw\":%s,\"anim\":%u,"
+                    "\"state\":%d,\"frame\":%d,\"tex_idx\":%d,\"pltt_idx\":%d,\"tex_count\":%d,"
+                    "\"tex_oob\":%s,\"tex_addr\":%u,\"pltt_addr\":%u,\"vt\":%s}",
                     emitted ? "," : "", i, billboard->pos.x, billboard->pos.y, billboard->pos.z,
-                    isVisible ? "true" : "false", billboard->draw ? "true" : "false", billboard->animNum);
+                    isVisible ? "true" : "false", billboard->draw ? "true" : "false", billboard->animNum,
+                    (int)billboard->state, frame, texIdx, plttIdx, texCount,
+                    texOob ? "true" : "false", texAddr, plttAddr, hasVt ? "true" : "false");
                 emitted++;
             }
             billboard = billboard->next;
         }
     }
-    Put(out, "],\"active_lists\":%d,\"count\":%d,\"active\":%d,\"visible\":%d,\"drawn\":%d,\"truncated\":%s}",
-        activeLists, total, visible, visible, drawn, total > emitted ? "true" : "false");
+    Put(out,
+        "],\"active_lists\":%d,\"count\":%d,\"active\":%d,\"visible\":%d,\"drawn\":%d,"
+        "\"oob_count\":%d,\"zero_tex_count\":%d,\"truncated\":%s}",
+        activeLists, total, visible, visible, drawn,
+        oobCount, zeroTexCount, total > emitted ? "true" : "false");
 }
 
 static void InspectText(InspectOut *out, FieldSystem *field)

@@ -3432,7 +3432,7 @@ static void ov5_021D8D08(SysTask *param0, void *param1)
             if (v0->unk_BA4 != 0) {
                 v7 = ov5_021D74B8(&v5->unk_1C);
             } else {
-                v7;
+                v7 = 1;
             }
 
             if ((v7 == 1) && (v6 == 3)) {

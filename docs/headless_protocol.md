@@ -160,7 +160,7 @@ for example `Renderer` returns `{"ok":false,"error":"Renderer requires restart",
 The command changes the running configuration only and does not rewrite
 `sim_config.ini`.
 
-Example client: `tools/dazzling/headless_client.py`.
+Example client: `tools/dazzling/headless_client.py`. For reusable headless repros and assertions (boot, warp, walk, screenshots, billboard/VRAM health checks), see `tools/dazzling/repro_lib.py` (`ReproSession`) and the overworld seam-crossing check in `tools/dazzling/test/check_seams.py`.
 
 State (basic, step 2): without the game-side handler (step 3) `state` replies
 `{"ok":true,"frame":N,"app":"unknown"}`. Step 3 replaces this with the full state.
@@ -178,6 +178,7 @@ Implemented (step 3) in `src/port/headless_game.c`. All return
 | `{"cmd":"give_item","item":"ITEM_X","qty":N}` | Add items to the bag (`qty` defaults to 1). |
 | `{"cmd":"objects"}` | Read-only list of the map objects that exist now: `{"ok":true,"objects":[{"localid":N,"name":"LOCALID_X","gfx":N,"x":X,"z":Z}]}`. Objects hidden by their `hidden_flag` (or removed by a script) are not created, so they are absent; the player is included (local id 255, no name). For visibility asserts in story tests. |
 | `{"cmd":"talk","localid":"LOCALID_X"}` or `{"cmd":"talk","object":N}` | Move the player to a free adjacent tile facing the object (matching its elevation), then start the object's script exactly as the A-button interaction does (`ScriptManager_Set`). Starting it directly, rather than pressing A, makes talk deterministic: a wandering NPC can step off the faced tile before a pressed A lands. Errors when no adjacent tile is free or a script is already running. The reply includes the object's and player's positions. |
+| `{"cmd":"inspect","what":"objects\|billboards\|text\|ui\|weather\|camera"}` | Read-only subsystem diagnostics (`src/port/headless_inspect.c`). Returns `{"ok":true,"frame":N,"what":"...","data":{...}}` (see "Inspect diagnostics" below). |
 
 Names (`MAP_HEADER_*`, `VAR_*`, `FLAG_*`, `ITEM_*`, `SPECIES_*`, `DIR_*`,
 `LOCALID_*`) are resolved from the build's generated data
@@ -225,6 +226,48 @@ hand-maintained. `LOCALID_*` ids are scoped to the current map.
   string names in the binary); `app` is the semantic classification.
 - `talk`'s A press and `warp`'s map change take effect over the following
   frames; step and re-read `state` to observe the result.
+
+### Inspect diagnostics (`inspect`)
+
+`{"cmd":"inspect","what":"..."}` (`src/port/headless_inspect.c`) exposes read-only
+subsystem snapshots for `objects`, `billboards`, `text`, `ui`, `weather`, and `camera`.
+
+`{"cmd":"inspect","what":"billboards"}` returns up to 64 active billboards across
+all active `BillboardList` registries (subject to the 16 KB reply buffer, setting
+`truncated: true` if any billboards were omitted), plus aggregate counters across
+every active billboard:
+
+```json
+{"ok":true,"frame":N,"what":"billboards","data":{
+  "list_count":4,
+  "billboards":[
+    {"list":0,"pos_fx":[36700160,0,43909120],"visible":true,"draw":true,"anim":0,
+     "state":3,"frame":0,"tex_idx":0,"pltt_idx":0,"tex_count":8,"tex_oob":false,
+     "tex_addr":32768,"pltt_addr":4096,"vt":false}
+  ],
+  "active_lists":1,"count":12,"active":12,"visible":12,"drawn":12,
+  "oob_count":0,"zero_tex_count":0,"truncated":false}}
+```
+
+Per-billboard fields:
+- `list`: registry index of the owning `BillboardList`.
+- `pos_fx`: `[x, y, z]` fixed-point world position.
+- `visible`: `state != BILLBOARD_STATE_INACTIVE`; `draw`: billboard draw flag; `anim`: `animNum`.
+- `state`: integer `BillboardState` (`0`=inactive, `1`=initialized, `2`=VRAM transfer, `3`=active).
+- `frame`: integer frame index (`frameNum >> 12`).
+- `tex_idx`, `pltt_idx`: texture and palette indices resolved via `BillboardGfxSequence_GetTexPlttIndexAt` at `frame` (`-1` when `gfxSequence` is empty/NULL).
+- `tex_count`: `animTexture->dict.numEntry` (`0` when `animTexture` is NULL).
+- `tex_oob`: `true` when `draw` is true, `animTexture` is non-NULL, `gfxSequence` is valid, and `tex_idx` is outside `[0, tex_count)`.
+- `tex_addr`, `pltt_addr`: unsigned integer VRAM byte addresses from `NNS_GfdGetTexKeyAddr(texKey)` and `NNS_GfdGetPlttKeyAddr(plttKey)`.
+- `vt`: `true` when `vramTransfer != NULL`.
+
+Top-level health counters (counted over all active billboards, even when `truncated` is true):
+- `oob_count`: number of billboards with `tex_oob == true`.
+- `zero_tex_count`: number of drawn billboards whose `texKey == NNS_GFD_ALLOC_ERROR_TEXKEY` (0).
+
+Helper library and regression check:
+- `tools/dazzling/repro_lib.py` (`ReproSession`): stdlib-only context manager for headless boot, warp, walk, screenshots, `assert_billboards_healthy()`, and `assert_vram_healthy()`.
+- `tools/dazzling/test/check_seams.py`: walks key overworld town/route seams (Route 209 <-> Solaceon Town Band B with city-entry cinematic, Solaceon Town <-> Route 210 South Band A, Route 201 <-> Sandgem Town, Route 202 <-> Jubilife City) and asserts billboard and VRAM health at every crossing.
 
 ## Script hot-reload (debug)
 

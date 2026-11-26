@@ -7,6 +7,7 @@
 
 #include "heap.h"
 #include "system.h"
+#include "vram_stats.h"
 
 #define RESOURCE_ID_INVALID (-1)
 
@@ -212,6 +213,11 @@ TextureResource *TextureResourceManager_AddTexture(const TextureResourceManager 
     GF_ASSERT(texMgr);
 
     texResource = TextureResourceManager_AllocTexture(texMgr);
+    if (texResource == NULL) {
+        VramStats_NotePoolOom("TextureResourceManager_AddTexture", id, texMgr->resources->capacity);
+        GF_ASSERT(FALSE);
+        return NULL;
+    }
     texResource->mode = mode;
 
     if (texResource->mode == TEX_RESOURCE_MODE_SEPARATED) {
@@ -230,6 +236,9 @@ TextureResource *TextureResourceManager_AddTexture(const TextureResourceManager 
 TextureResource *TextureResourceManager_AddTextureAndAllocVRam(TextureResourceManager *texMgr, void *data, int id, enum TextureResourceMode mode, enum HeapID heapID)
 {
     TextureResource *texResource = TextureResourceManager_AddTexture(texMgr, data, id, mode, heapID);
+    if (texResource == NULL) {
+        return NULL;
+    }
     TextureResource_AllocVRam(texResource);
 
     return texResource;
@@ -447,14 +456,24 @@ static void TexRes_AllocVRam(const NNSG3dResTex *texRes, NNSGfdTexKey *texKey, N
 
     if (texSize != 0) {
         *texKey = NNS_GfdAllocTexVram(texSize, FALSE, 0);
+        if (*texKey == NNS_GFD_ALLOC_ERROR_TEXKEY) {
+            VramStats_NoteTexOom("TexRes_AllocVRam", texSize, FALSE);
+        }
     }
 
     if (tex4x4Size != 0) {
         *tex4x4Key = NNS_GfdAllocTexVram(tex4x4Size, TRUE, 0);
+        if (*tex4x4Key == NNS_GFD_ALLOC_ERROR_TEXKEY) {
+            VramStats_NoteTexOom("TexRes_AllocVRam:4x4", tex4x4Size, TRUE);
+        }
     }
 
     if (paletteSize != 0) {
-        *paletteKey = NNS_GfdAllocPlttVram(paletteSize, texRes->tex4x4Info.flag & NNS_G3D_RESPLTT_USEPLTT4, 0);
+        BOOL usePltt4 = (texRes->tex4x4Info.flag & NNS_G3D_RESPLTT_USEPLTT4) != 0;
+        *paletteKey = NNS_GfdAllocPlttVram(paletteSize, usePltt4, 0);
+        if (*paletteKey == NNS_GFD_ALLOC_ERROR_PLTTKEY) {
+            VramStats_NotePlttOom("TexRes_AllocVRam", paletteSize, usePltt4);
+        }
     }
 }
 
