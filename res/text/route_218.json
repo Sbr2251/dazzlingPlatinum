@@ -49,14 +49,15 @@
       "en_US": [
         "The flowers react whenever the\n",
         "rift pulses. Their glow forms the\r",
-        "same spiral every time.\n",
+        "same spiral every time, just like\n",
+        "the old Gardevoir ward legend.\r",
         "This is no ordinary meadow."
       ]
     },
     {
       "id": "Route218_Text_SignJubilifeCity",
       "en_US": [
-        "EVERSRING SANCTUARY\n",
+        "EVERSPRING SANCTUARY\n",
         "West: Canalave  East: Jubilife"
       ]
     },
@@ -70,6 +71,41 @@
         "The shrine's crystal is warm.\n",
         "A faint vibration answers from\r",
         "deep below."
+      ]
+    },
+    {
+      "id": "Route218_Text_GardevoirFountainPlaque",
+      "en_US": [
+        "THE GUARDIAN OF EVERSPRING\n",
+        "Here stands the Hero of the Glade."
+      ]
+    },
+    {
+      "id": "Route218_Text_GardevoirFountainLegend1",
+      "en_US": [
+        "Long ago, before the gatehouses\n",
+        "stood, a spatial rift tore open\r",
+        "above this coastal marsh and\n",
+        "threatened to swallow the road\r",
+        "between Canalave and Jubilife."
+      ]
+    },
+    {
+      "id": "Route218_Text_GardevoirFountainLegend2",
+      "en_US": [
+        "A lone Gardevoir stepped into the\n",
+        "breach and wove her aura around\r",
+        "the tear, turning wild distortion\n",
+        "into a spring of luminous blooms.\r",
+        "Travelers carved this fountain in\n",
+        "her likeness, arms raised in ward."
+      ]
+    },
+    {
+      "id": "Route218_Text_GardevoirFountainWarmth",
+      "en_US": [
+        "The marble waters still shimmer\n",
+        "with a gentle, protective warmth."
       ]
     }
   ]

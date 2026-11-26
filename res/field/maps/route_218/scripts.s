@@ -10,6 +10,7 @@
     ScriptEntry Route218_RivalScene
     ScriptEntry Route218_RivalTalk
     ScriptEntry Route218_SanctuarySign
+    ScriptEntry Route218_GardevoirFountain
     ScriptEntryEnd
 
 Route218_Researcher:
@@ -93,6 +94,22 @@ Route218_RivalTalk:
 
 Route218_SanctuarySign:
     ShowScrollingSign 6
+    End
+
+Route218_GardevoirFountain:
+    PlaySE SE_CONFIRM_sseq_3
+    LockAll
+    Message Route218_Text_GardevoirFountainPlaque
+    WaitABPadPress
+    Message Route218_Text_GardevoirFountainLegend1
+    WaitABPadPress
+    Message Route218_Text_GardevoirFountainLegend2
+    WaitABPadPress
+    PlaySE SEQ_SE_DP_KIRAKIRA_sseq
+    Message Route218_Text_GardevoirFountainWarmth
+    WaitABPadPress
+    CloseMessage
+    ReleaseAll
     End
 
     .balign 4, 0
