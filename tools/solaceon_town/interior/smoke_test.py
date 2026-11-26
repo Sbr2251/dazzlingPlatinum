@@ -10,7 +10,7 @@ SIM_CONTROL=stdio (docs/headless_protocol.md) from a run dir of symlinks into th
 
 What it does:
   1. Boot to the field. Default: import a save (--save; default the repo's own
-     tools/battle_stage/emu/saves/eterna_forest_grass.sav, an Arc 2 save in Eterna Forest) and press through the
+     tools/dazzling/test/fixtures/eterna_forest_grass.sav, an Arc 2 save in Eterna Forest) and press through the
      title and Continue, as the save_load_* scenarios do. --new-game instead replays
      tools/dazzling/test/scenarios/core_new_game_distortion_world_prologue.json; on solaceon-mac (49269afc8) that
      route hangs after the Distortion World flashback: the warp to Lake Verity runs LakeVerity_OnTransition and the
@@ -38,7 +38,7 @@ import time
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.normpath(os.path.join(HERE, "..", "..", ".."))
 PROLOGUE = os.path.join(ROOT, "tools", "dazzling", "test", "scenarios", "core_new_game_distortion_world_prologue.json")
-DEFAULT_SAVE = os.path.join(ROOT, "tools", "battle_stage", "emu", "saves", "eterna_forest_grass.sav")
+DEFAULT_SAVE = os.path.join(ROOT, "tools", "dazzling", "test", "fixtures", "eterna_forest_grass.sav")
 TITLE_STEPS = [{"step": 900}] + [{"press": "A", "frames": 10}, {"step": 290}] * 8 + [{"step": 600}]
 
 SANCTUARY = "MAP_HEADER_SOLACEON_SANCTUARY"

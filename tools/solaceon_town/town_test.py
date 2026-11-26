@@ -5,7 +5,7 @@ Usage: python3 tools/solaceon_town/town_test.py <build dir> <out dir> [--only NA
        e.g. python3 tools/solaceon_town/town_test.py build_macos "/tmp/Solaceon Update/scripts_mac"
 
 Each scenario boots a fresh game (SIM_CONTROL=stdio, docs/headless_protocol.md) from the repo's Arc 2 save
-(tools/battle_stage/emu/saves/eterna_forest_grass.sav) raised to level 100 by `tools/dazzling/save_tool.py edit
+(tools/dazzling/test/fixtures/eterna_forest_grass.sav) raised to level 100 by `tools/dazzling/save_tool.py edit
 --level 100 --max-ivs --max-pp` (the fence grunts are level 38), sets the story state with set_var / set_flag and
 warps into Solaceon Town. It uses the driver of tools/solaceon_ruins/raid_test.py (text boxes, battles, walking).
 

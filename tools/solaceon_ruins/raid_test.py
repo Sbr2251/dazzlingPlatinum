@@ -7,7 +7,7 @@ Usage: python3 tools/solaceon_ruins/raid_test.py <build dir> <out dir> [--only N
 
 <build dir> is a built tree with `main` (tools/macos/build.sh dev -> build_macos). Each scenario boots a fresh game
 (SIM_CONTROL=stdio, docs/headless_protocol.md) from a test-only save: the repo's Arc 2 save
-tools/battle_stage/emu/saves/eterna_forest_grass.sav with its party raised to level 100 (IVs 31) by
+tools/dazzling/test/fixtures/eterna_forest_grass.sav with its party raised to level 100 (IVs 31) by
 `tools/dazzling/save_tool.py edit --level 100 --max-ivs` and Luxio (Bite, the fangs) in the lead, because the
 save's level 29-30 party can't beat the level 38-43 raid trainers. Battles are fought with the headless
 `battle_decide` queue (the lead's moves in turn, the next move when one does no damage, a switch if none do).
@@ -45,7 +45,7 @@ ROOT = os.path.normpath(os.path.join(HERE, "..", ".."))
 sys.path.insert(0, os.path.join(ROOT, "tools", "solaceon_town", "interior"))
 from smoke_test import Game, Failure, TITLE_STEPS  # noqa: E402
 
-BASE_SAVE = os.path.join(ROOT, "tools", "battle_stage", "emu", "saves", "eterna_forest_grass.sav")
+BASE_SAVE = os.path.join(ROOT, "tools", "dazzling", "test", "fixtures", "eterna_forest_grass.sav")
 SAVE_TOOL = os.path.join(ROOT, "tools", "dazzling", "save_tool.py")
 
 TOWN = "MAP_HEADER_SOLACEON_TOWN"

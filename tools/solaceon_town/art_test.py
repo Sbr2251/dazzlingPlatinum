@@ -5,7 +5,7 @@ Usage: python3 tools/solaceon_town/art_test.py <build dir> <output dir> [--night
        e.g. python3 tools/solaceon_town/art_test.py build_macos "/tmp/Solaceon Update/art_mac/game" --night
 
 Built on tools/solaceon_town/interior/smoke_test.py (its Game client, walk/settle/shoot helpers and the boot: import
-tools/battle_stage/emu/saves/eterna_forest_grass.sav, press through the title and Continue). Per run (day at
+tools/dazzling/test/fixtures/eterna_forest_grass.sav, press through the title and Continue). Per run (day at
 12:00; with --night a second process at 22:00 through SIM_FIXED_RTC):
   1. warps to each SPOTS tile in Solaceon Town and screenshots it (<out>/<run>_<spot>.bmp/.png);
   2. the offering candle twice, 10 frames apart (the fldtanime flicker: the two shots must differ there);
