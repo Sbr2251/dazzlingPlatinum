@@ -5,9 +5,9 @@
             {
                 "enabled": true,
                 "color": {
-                    "red": 11,
-                    "green": 11,
-                    "blue": 16
+                    "red": 12,
+                    "green": 12,
+                    "blue": 21
                 },
                 "direction": {
                     "x": 0.463134765625,
@@ -57,23 +57,23 @@
         ],
         "diffuseColor": {
             "red": 14,
-            "green": 14,
-            "blue": 16
+            "green": 13,
+            "blue": 18
         },
         "ambientColor": {
             "red": 10,
-            "green": 10,
-            "blue": 10
+            "green": 9,
+            "blue": 14
         },
         "specularColor": {
             "red": 14,
-            "green": 14,
-            "blue": 16
+            "green": 13,
+            "blue": 18
         },
         "emissionColor": {
-            "red": 8,
+            "red": 9,
             "green": 8,
-            "blue": 11
+            "blue": 14
         }
     },
     {
@@ -82,9 +82,9 @@
             {
                 "enabled": true,
                 "color": {
-                    "red": 11,
-                    "green": 11,
-                    "blue": 16
+                    "red": 12,
+                    "green": 12,
+                    "blue": 21
                 },
                 "direction": {
                     "x": 0.463134765625,
@@ -134,23 +134,23 @@
         ],
         "diffuseColor": {
             "red": 14,
-            "green": 14,
-            "blue": 16
+            "green": 13,
+            "blue": 18
         },
         "ambientColor": {
             "red": 10,
-            "green": 10,
-            "blue": 10
+            "green": 9,
+            "blue": 14
         },
         "specularColor": {
             "red": 14,
-            "green": 14,
-            "blue": 16
+            "green": 13,
+            "blue": 18
         },
         "emissionColor": {
-            "red": 8,
+            "red": 9,
             "green": 8,
-            "blue": 11
+            "blue": 14
         }
     },
     {
@@ -159,9 +159,9 @@
             {
                 "enabled": true,
                 "color": {
-                    "red": 12,
+                    "red": 13,
                     "green": 12,
-                    "blue": 18
+                    "blue": 21
                 },
                 "direction": {
                     "x": 0.1689453125,
@@ -210,24 +210,24 @@
             }
         ],
         "diffuseColor": {
-            "red": 10,
-            "green": 10,
-            "blue": 14
+            "red": 12,
+            "green": 11,
+            "blue": 16
         },
         "ambientColor": {
-            "red": 13,
-            "green": 13,
-            "blue": 13
+            "red": 12,
+            "green": 11,
+            "blue": 15
         },
         "specularColor": {
-            "red": 8,
-            "green": 8,
-            "blue": 14
+            "red": 10,
+            "green": 9,
+            "blue": 15
         },
         "emissionColor": {
             "red": 10,
-            "green": 10,
-            "blue": 12
+            "green": 9,
+            "blue": 14
         }
     },
     {
@@ -236,9 +236,9 @@
             {
                 "enabled": true,
                 "color": {
-                    "red": 12,
-                    "green": 12,
-                    "blue": 22
+                    "red": 16,
+                    "green": 13,
+                    "blue": 21
                 },
                 "direction": {
                     "x": -0.125244140625,
@@ -287,24 +287,24 @@
             }
         ],
         "diffuseColor": {
-            "red": 11,
+            "red": 12,
             "green": 11,
-            "blue": 13
+            "blue": 14
         },
         "ambientColor": {
-            "red": 10,
+            "red": 11,
             "green": 10,
-            "blue": 10
+            "blue": 13
         },
         "specularColor": {
-            "red": 10,
-            "green": 10,
-            "blue": 14
+            "red": 12,
+            "green": 11,
+            "blue": 15
         },
         "emissionColor": {
             "red": 13,
-            "green": 13,
-            "blue": 14
+            "green": 11,
+            "blue": 15
         }
     },
     {
@@ -313,9 +313,9 @@
             {
                 "enabled": true,
                 "color": {
-                    "red": 15,
-                    "green": 15,
-                    "blue": 22
+                    "red": 19,
+                    "green": 18,
+                    "blue": 24
                 },
                 "direction": {
                     "x": -0.41943359375,
@@ -364,24 +364,24 @@
             }
         ],
         "diffuseColor": {
-            "red": 12,
-            "green": 12,
-            "blue": 12
+            "red": 13,
+            "green": 13,
+            "blue": 14
         },
         "ambientColor": {
-            "red": 8,
-            "green": 8,
-            "blue": 8
+            "red": 9,
+            "green": 9,
+            "blue": 10
         },
         "specularColor": {
-            "red": 12,
-            "green": 12,
-            "blue": 14
+            "red": 13,
+            "green": 13,
+            "blue": 15
         },
         "emissionColor": {
             "red": 14,
             "green": 14,
-            "blue": 18
+            "blue": 17
         }
     },
     {
@@ -390,9 +390,9 @@
             {
                 "enabled": true,
                 "color": {
-                    "red": 18,
-                    "green": 18,
-                    "blue": 21
+                    "red": 22,
+                    "green": 22,
+                    "blue": 25
                 },
                 "direction": {
                     "x": -0.44580078125,
@@ -441,19 +441,19 @@
             }
         ],
         "diffuseColor": {
-            "red": 13,
-            "green": 13,
-            "blue": 13
+            "red": 14,
+            "green": 14,
+            "blue": 15
         },
         "ambientColor": {
             "red": 9,
             "green": 9,
-            "blue": 9
+            "blue": 11
         },
         "specularColor": {
             "red": 14,
             "green": 14,
-            "blue": 15
+            "blue": 16
         },
         "emissionColor": {
             "red": 14,
@@ -467,9 +467,9 @@
             {
                 "enabled": true,
                 "color": {
-                    "red": 22,
-                    "green": 22,
-                    "blue": 20
+                    "red": 24,
+                    "green": 24,
+                    "blue": 26
                 },
                 "direction": {
                     "x": -0.47216796875,
@@ -520,22 +520,22 @@
         "diffuseColor": {
             "red": 15,
             "green": 15,
-            "blue": 15
+            "blue": 16
         },
         "ambientColor": {
-            "red": 9,
-            "green": 11,
+            "red": 10,
+            "green": 10,
             "blue": 11
         },
         "specularColor": {
             "red": 16,
             "green": 16,
-            "blue": 16
+            "blue": 17
         },
         "emissionColor": {
             "red": 14,
             "green": 14,
-            "blue": 14
+            "blue": 15
         }
     },
     {
@@ -544,9 +544,9 @@
             {
                 "enabled": true,
                 "color": {
-                    "red": 24,
+                    "red": 25,
                     "green": 24,
-                    "blue": 20
+                    "blue": 27
                 },
                 "direction": {
                     "x": -0.498779296875,
@@ -601,18 +601,18 @@
         },
         "ambientColor": {
             "red": 10,
-            "green": 12,
+            "green": 11,
             "blue": 12
         },
         "specularColor": {
             "red": 18,
             "green": 18,
-            "blue": 18
+            "blue": 19
         },
         "emissionColor": {
             "red": 14,
             "green": 14,
-            "blue": 14
+            "blue": 15
         }
     },
     {
@@ -621,9 +621,9 @@
             {
                 "enabled": true,
                 "color": {
-                    "red": 22,
+                    "red": 24,
                     "green": 22,
-                    "blue": 18
+                    "blue": 25
                 },
                 "direction": {
                     "x": -0.17822265625,
@@ -674,22 +674,22 @@
         "diffuseColor": {
             "red": 15,
             "green": 15,
-            "blue": 15
+            "blue": 16
         },
         "ambientColor": {
             "red": 11,
-            "green": 12,
+            "green": 11,
             "blue": 12
         },
         "specularColor": {
             "red": 17,
             "green": 17,
-            "blue": 17
+            "blue": 18
         },
         "emissionColor": {
             "red": 13,
             "green": 13,
-            "blue": 13
+            "blue": 14
         }
     },
     {
@@ -698,9 +698,9 @@
             {
                 "enabled": true,
                 "color": {
-                    "red": 20,
-                    "green": 18,
-                    "blue": 16
+                    "red": 23,
+                    "green": 20,
+                    "blue": 23
                 },
                 "direction": {
                     "x": -0.17822265625,
@@ -755,18 +755,18 @@
         },
         "ambientColor": {
             "red": 11,
-            "green": 12,
+            "green": 11,
             "blue": 12
         },
         "specularColor": {
             "red": 17,
-            "green": 17,
+            "green": 16,
             "blue": 17
         },
         "emissionColor": {
-            "red": 12,
-            "green": 11,
-            "blue": 11
+            "red": 13,
+            "green": 12,
+            "blue": 13
         }
     },
     {
@@ -775,9 +775,9 @@
             {
                 "enabled": true,
                 "color": {
-                    "red": 19,
-                    "green": 16,
-                    "blue": 12
+                    "red": 22,
+                    "green": 17,
+                    "blue": 21
                 },
                 "direction": {
                     "x": 0.142333984375,
@@ -827,23 +827,23 @@
         ],
         "diffuseColor": {
             "red": 15,
-            "green": 15,
+            "green": 14,
             "blue": 15
         },
         "ambientColor": {
             "red": 11,
-            "green": 12,
-            "blue": 12
+            "green": 11,
+            "blue": 13
         },
         "specularColor": {
-            "red": 17,
-            "green": 17,
+            "red": 16,
+            "green": 15,
             "blue": 17
         },
         "emissionColor": {
-            "red": 8,
-            "green": 8,
-            "blue": 7
+            "red": 12,
+            "green": 10,
+            "blue": 12
         }
     },
     {
@@ -852,9 +852,9 @@
             {
                 "enabled": true,
                 "color": {
-                    "red": 17,
-                    "green": 13,
-                    "blue": 10
+                    "red": 20,
+                    "green": 14,
+                    "blue": 20
                 },
                 "direction": {
                     "x": 0.463134765625,
@@ -904,23 +904,23 @@
         ],
         "diffuseColor": {
             "red": 14,
-            "green": 14,
-            "blue": 14
+            "green": 13,
+            "blue": 15
         },
         "ambientColor": {
             "red": 12,
-            "green": 12,
-            "blue": 12
+            "green": 11,
+            "blue": 13
         },
         "specularColor": {
-            "red": 16,
-            "green": 16,
+            "red": 15,
+            "green": 14,
             "blue": 16
         },
         "emissionColor": {
-            "red": 9,
-            "green": 7,
-            "blue": 7
+            "red": 11,
+            "green": 9,
+            "blue": 12
         }
     },
     {
@@ -929,9 +929,9 @@
             {
                 "enabled": true,
                 "color": {
-                    "red": 16,
+                    "red": 17,
                     "green": 13,
-                    "blue": 10
+                    "blue": 21
                 },
                 "direction": {
                     "x": 0.463134765625,
@@ -981,23 +981,23 @@
         ],
         "diffuseColor": {
             "red": 14,
-            "green": 14,
-            "blue": 14
+            "green": 13,
+            "blue": 15
         },
         "ambientColor": {
             "red": 12,
-            "green": 12,
-            "blue": 12
+            "green": 11,
+            "blue": 14
         },
         "specularColor": {
             "red": 14,
-            "green": 14,
+            "green": 13,
             "blue": 16
         },
         "emissionColor": {
-            "red": 9,
-            "green": 8,
-            "blue": 7
+            "red": 10,
+            "green": 9,
+            "blue": 13
         }
     },
     {
@@ -1006,9 +1006,9 @@
             {
                 "enabled": true,
                 "color": {
-                    "red": 11,
+                    "red": 13,
                     "green": 12,
-                    "blue": 15
+                    "blue": 21
                 },
                 "direction": {
                     "x": 0.463134765625,
@@ -1058,23 +1058,23 @@
         ],
         "diffuseColor": {
             "red": 14,
-            "green": 14,
-            "blue": 14
+            "green": 13,
+            "blue": 16
         },
         "ambientColor": {
-            "red": 12,
-            "green": 12,
-            "blue": 12
+            "red": 11,
+            "green": 10,
+            "blue": 14
         },
         "specularColor": {
             "red": 14,
-            "green": 14,
-            "blue": 16
+            "green": 13,
+            "blue": 17
         },
         "emissionColor": {
-            "red": 8,
+            "red": 9,
             "green": 8,
-            "blue": 9
+            "blue": 13
         }
     },
     {
@@ -1083,9 +1083,9 @@
             {
                 "enabled": true,
                 "color": {
-                    "red": 11,
-                    "green": 11,
-                    "blue": 16
+                    "red": 12,
+                    "green": 12,
+                    "blue": 21
                 },
                 "direction": {
                     "x": 0.463134765625,
@@ -1135,23 +1135,23 @@
         ],
         "diffuseColor": {
             "red": 14,
-            "green": 14,
-            "blue": 16
+            "green": 13,
+            "blue": 18
         },
         "ambientColor": {
             "red": 10,
-            "green": 10,
-            "blue": 10
+            "green": 9,
+            "blue": 14
         },
         "specularColor": {
             "red": 14,
-            "green": 14,
-            "blue": 16
+            "green": 13,
+            "blue": 18
         },
         "emissionColor": {
-            "red": 8,
+            "red": 9,
             "green": 8,
-            "blue": 11
+            "blue": 14
         }
     }
 ]
