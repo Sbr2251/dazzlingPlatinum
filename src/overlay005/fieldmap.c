@@ -225,7 +225,7 @@ static BOOL FieldMap_Init(ApplicationManager *appMan, int *state)
 
         VramTransfer_New(128, HEAP_ID_FIELD1);
         BillboardLists_Create(4, HEAP_ID_FIELD1);
-        Easy3D_Init(HEAP_ID_FIELD1);
+        Easy3D_InitWithTexSize(HEAP_ID_FIELD1, TEXTURE_VRAM_SIZE_384K);
 
         ov5_021D15B4();
         ov5_021D154C();
@@ -570,7 +570,7 @@ static void ov5_021D13B4(FieldSystem *fieldSystem)
 static void ov5_021D1414(void)
 {
     GXBanks v0 = {
-        GX_VRAM_BG_128_C,
+        GX_VRAM_BG_128_D,
         GX_VRAM_BGEXTPLTT_NONE,
         GX_VRAM_SUB_BG_32_H,
         GX_VRAM_SUB_BGEXTPLTT_NONE,
@@ -578,7 +578,7 @@ static void ov5_021D1414(void)
         GX_VRAM_OBJEXTPLTT_NONE,
         GX_VRAM_SUB_OBJ_16_I,
         GX_VRAM_SUB_OBJEXTPLTT_NONE,
-        GX_VRAM_TEX_01_AB,
+        GX_VRAM_TEX_012_ABC,
         GX_VRAM_TEXPLTT_0123_E
     };
 
@@ -918,7 +918,7 @@ static void ov5_021D1878(FieldSystem *fieldSystem)
             v2 = 5;
         }
 
-        ov5_021ECC20(fieldSystem->mapObjMan, 32, MapObjectsToPreload_GetCount(fieldSystem->mapObjectsToPreload) + 3, MapObjectsToPreload_GetIDs(fieldSystem->mapObjectsToPreload), v2);
+        ov5_021ECC20(fieldSystem->mapObjMan, 64, MapObjectsToPreload_GetCount(fieldSystem->mapObjectsToPreload) + 3, MapObjectsToPreload_GetIDs(fieldSystem->mapObjectsToPreload), v2);
     }
 
     FieldEffect_InitRenderObject(fieldSystem->fieldEffMan);

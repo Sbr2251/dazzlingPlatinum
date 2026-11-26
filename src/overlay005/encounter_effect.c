@@ -1371,8 +1371,8 @@ void ov5_021DEFA0(FieldSystem *fieldSystem)
     GXLayers_EngineAToggleLayers(GX_PLANEMASK_BG3, 0);
 
     GX_ResetBankForBG();
-    MI_CpuClearFast((void *)HW_LCDC_VRAM_C, HW_VRAM_C_SIZE);
-    GX_SetCapture(GX_CAPTURE_SIZE_256x192, GX_CAPTURE_MODE_AB, GX_CAPTURE_SRCA_2D3D, GX_CAPTURE_SRCB_VRAM_0x00000, GX_CAPTURE_DEST_VRAM_C_0x00000, 4, 12);
+    MI_CpuClearFast((void *)HW_LCDC_VRAM_D, HW_VRAM_D_SIZE);
+    GX_SetCapture(GX_CAPTURE_SIZE_256x192, GX_CAPTURE_MODE_AB, GX_CAPTURE_SRCA_2D3D, GX_CAPTURE_SRCB_VRAM_0x00000, GX_CAPTURE_DEST_VRAM_D_0x00000, 4, 12);
 
     SysTask_ExecuteAfterVBlank(ov5_021DF258, Unk_ov5_02202120, 1024);
     SysTask_Start(ov5_021DF28C, Unk_ov5_02202120, 1024);
@@ -1545,7 +1545,7 @@ static void ov5_021DF30C(FieldSystem *fieldSystem)
 {
     {
         GXBanks v0 = {
-            GX_VRAM_BG_256_BC,
+            GX_VRAM_BG_256_BD,
             GX_VRAM_BGEXTPLTT_NONE,
             GX_VRAM_SUB_BG_32_H,
             GX_VRAM_SUB_BGEXTPLTT_NONE,

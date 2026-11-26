@@ -35006,7 +35006,7 @@ index 0000000..4b3f9e5
 +    return 1;
 +}
 diff --git a/libraries/sim/src/sim_main.cpp b/libraries/sim/src/sim_main.cpp
-index 910d7da..0ce4bf8 100644
+index 910d7da..de466af 100644
 --- a/libraries/sim/src/sim_main.cpp
 +++ b/libraries/sim/src/sim_main.cpp
 @@ -1,14 +1,23 @@
@@ -36515,9 +36515,9 @@ index 910d7da..0ce4bf8 100644
 +    if ((vc & 0x80) && mst == 4) subBgAlias = (u8 *)s_HW_DB_BG_VRAM + destOfs;
 +    if (!bgAlias) {
 +      // Not BG-mapped yet: the game maps it right after capturing. Use the
-+      // layouts the capture users set up (C as the second 128K of a 256K
++      // layouts the capture users set up (C/D as the second 128K of a 256K
 +      // main BG, A at 0) unless another bank already owns that BG range.
-+      int want = destBank == 0 ? 0 : destBank == 2 ? 0x20000 : -1;
++      int want = destBank == 0 ? 0 : (destBank == 2 || destBank == 3) ? 0x20000 : -1;
 +      if (want >= 0) {
 +        bool covered = false;
 +        for (int b = 0; b < 4; b++) {

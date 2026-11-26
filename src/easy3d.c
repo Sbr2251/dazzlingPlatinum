@@ -78,9 +78,14 @@ void Easy3D_DrawRenderObjSimple(NNSG3dRenderObj *renderObj, const VecFx32 *pos, 
 
 static G3DPipelineBuffers *sPipelineBuffers = NULL;
 
+void Easy3D_InitWithTexSize(const u8 heapID, enum TextureVramSize texVramSize)
+{
+    sPipelineBuffers = G3DPipeline_Init(heapID, texVramSize, PALETTE_VRAM_SIZE_64K, Easy3D_SetupEngine);
+}
+
 void Easy3D_Init(const u8 heapID)
 {
-    sPipelineBuffers = G3DPipeline_Init(heapID, TEXTURE_VRAM_SIZE_256K, PALETTE_VRAM_SIZE_64K, Easy3D_SetupEngine);
+    Easy3D_InitWithTexSize(heapID, TEXTURE_VRAM_SIZE_256K);
 }
 
 static void Easy3D_SetupEngine(void)

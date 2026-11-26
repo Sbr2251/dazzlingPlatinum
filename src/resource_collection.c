@@ -464,8 +464,16 @@ static void TexRes_UploadToVRam(NNSG3dResTex *texRes, TextureResource *texResour
 
     DC_FlushRange(texRes, texRes->header.size);
 
-    NNS_G3dTexLoad(texRes, TRUE);
-    NNS_G3dPlttLoad(texRes, TRUE);
+    // Guard against uploading to VRAM address 0x00000000 if a texture/palette
+    // allocation failed (which would overwrite the first texture in VRAM, e.g.
+    // the player sprite).
+    if ((NNS_G3dTexGetRequiredSize(texRes) == 0 || texResource->texKey != NNS_GFD_ALLOC_ERROR_TEXKEY)
+        && (NNS_G3dTex4x4GetRequiredSize(texRes) == 0 || texResource->tex4x4Key != NNS_GFD_ALLOC_ERROR_TEXKEY)) {
+        NNS_G3dTexLoad(texRes, TRUE);
+    }
+    if (NNS_G3dPlttGetRequiredSize(texRes) == 0 || texResource->paletteKey != NNS_GFD_ALLOC_ERROR_PLTTKEY) {
+        NNS_G3dPlttLoad(texRes, TRUE);
+    }
 }
 
 static void TexRes_AssignVRamKeys(NNSG3dResTex *texRes, NNSGfdTexKey texKey, NNSGfdTexKey tex4x4Key, NNSGfdPlttKey paletteKey)

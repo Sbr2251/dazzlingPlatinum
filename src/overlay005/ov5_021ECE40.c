@@ -856,7 +856,7 @@ static void ov5_021ED778(MapObjectManager *param0, UnkStruct_ov5_021ED0A4 *param
 static void ov5_021ED7D0(UnkStruct_ov5_021ED0A4 *param0)
 {
     int *v0 = ov5_021EDCB8(param0);
-    ov5_021ED504(v0, 0xffff, 32);
+    ov5_021ED504(v0, 0xffff, 64);
 }
 
 static void ov5_021ED7E4(UnkStruct_ov5_021ED0A4 *param0, int param1)
@@ -1101,6 +1101,8 @@ static int ov5_021EDB3C(const MapObjectManager *param0, int param1, const MapObj
             continue;
         }
 
+        v0 = MapObject_GetGraphicsID(v2);
+
         if (v0 == 0xffff) {
             continue;
         }
@@ -1112,8 +1114,6 @@ static int ov5_021EDB3C(const MapObjectManager *param0, int param1, const MapObj
                 continue;
             }
         }
-
-        v0 = MapObject_GetGraphicsID(v2);
 
         if (BerryPatchGraphics_IsBerryPatch(v0) == 1) {
             v0 = BerryPatchGraphics_GetCurrentGraphicsResourceID(v2);
