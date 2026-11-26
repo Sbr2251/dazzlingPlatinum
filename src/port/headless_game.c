@@ -406,6 +406,9 @@ static void CmdObjects(const char *line, char *reply, size_t cap) {
     MapObject *obj = NULL;
     int idx = 0, first = 1;
     while (MapObjectMan_FindObjectWithStatus(fsys->mapObjMan, &obj, &idx, MAP_OBJ_STATUS_0) == TRUE) {
+        if (MapObject_CheckStatusFlag(obj, MAP_OBJ_STATUS_AUTO_BORDER_CLONE)) {
+            continue;
+        }
         int lid = (int)MapObject_GetLocalID(obj);
         const char *name = NULL;
         for (int i = 0; i < kHeadlessLocalsCount; i++)
