@@ -15,7 +15,7 @@
 #include "math_util.h"
 #include "rtc.h"
 
-#define AREA_LIGHT_FILE_COUNT 5
+#define AREA_LIGHT_FILE_COUNT 6
 #define SCRATCH_BUFFER_SIZE   256
 #define INVALID_LIGHT_COLOR   0xFFFF
 
