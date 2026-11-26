@@ -68,18 +68,20 @@ OX, OZ = 64, 736                 # planar UV origin (keeps texcoords small, seam
 MATS = {
     "ev_grass": ("ev_grass", True, "back"), "ev_tgrass": ("ev_tgrass", True, "back"),
     "ev_spiral_flw": ("ev_spiral_flw", True, "back"), "ev_cobble": ("ev_cobble", True, "back"),
-    "ev_water": ("ev_water", True, "back"), "ev_marble": ("ev_marble", True, "back"),
+    "ev_water": ("sea", True, "back"), "ev_marble": ("ev_marble", True, "back"),
     "ev_cliff": ("ev_cliff", True, "back"), "ev_blossom": ("ev_blossom", True, "back"),
+    "ev_tree": ("tree01", True, "none"),
     "ev_bridge": ("ev_bridge", True, "back"),
-    "u_marble": ("ev_marble", False, "back"), "u_water": ("ev_water", False, "back"),
+    "u_marble": ("ev_marble", False, "back"), "u_water": ("sea", False, "back"),
     "u_jet": ("ev_marble", False, "none"), "u_gv": ("ev_gardevoir", False, "back"),
     "u_gv2": ("ev_gardevoir", False, "none"), "u_crystal": ("ev_crystal", False, "back"),
-    "u_mushroom": ("ev_mushroom", False, "back"), "u_blossom": ("ev_spiral_flw", False, "back"),
+    "u_mushroom": ("ev_mushroom", False, "back"), "u_blossom": ("ev_flw_decal", False, "none"),
 }
+TEX_SIZES = {"sea": [16, 16], "tree01": [64, 64], "conttree_t": [64, 64], "conttree_b": [64, 64]}
 
 
-# groups whose vertices snap to the 1/16-tile grid (the fountain and the crystal keep full fx16 precision)
-SNAP = {"ground", "curb", "canopy", "crowns", "bridge", "pier", "lanterns", "mushrooms", "spiral"}
+# groups whose vertices snap to the 1/16-tile grid (fountain, crystal, and spiral decals keep full fx16 precision)
+SNAP = {"ground", "curb", "canopy", "crowns", "bridge", "pier", "lanterns", "mushrooms"}
 
 
 def chunk_of_x(x):
@@ -186,7 +188,8 @@ class Art:
                 if not flist:
                     continue
             tex, lit, cull = MATS[mat]
-            mats.append({"name": mat, "texture": tex, "palette": TM.pal_name(tex), "size": [TM.N, TM.N],
+            sz = TEX_SIZES.get(tex, [TM.N, TM.N])
+            mats.append({"name": mat, "texture": tex, "palette": TM.pal_name(tex), "size": sz,
                          "repeat": [True, True], "polygon_attr": {"lights": 1 if lit else 0, "cull": cull, "fog": True}})
             pos, uv, col, nrm, tris, quads = [], [], [], [], [], []
             for pts, uvs, colors, normals, _ in flist:
@@ -251,7 +254,9 @@ def build_ground(F, t):
             for j in range(d):
                 used.add((x + i, z + j))
         m, h, _, edge = k
-        F.flat(m, x, z, (STEP_X if edge else x + w), z + d, h)
+        # Original Platinum 'sea' is 16x16 (1 tile/repeat); custom 32x32 textures are 2 tiles/repeat (UVR=0.5).
+        uv_scale = 1.0 if m == "ev_water" else UVR
+        F.flat(m, x, z, (STEP_X if edge else x + w), z + d, h, planar=uv_scale)
     # octagon chamfers: the plaza continues to the diagonal x+z = 835 / x-z = -645 / z-x = 669 / x+z = 859
     for p in chamfer_triangles():
         F.add("ev_marble", p, [planar(q) for q in p], facing=(0, 1, 0), group="ground", solid=False)
@@ -458,21 +463,35 @@ def build_forest(F, t):
     for x, z in sorted(trees - in_block):
         cell(x, z, 1)
     n_crowns = 0
-    bark = GF.uvbox(TM.BARK)
+    # Authentic Platinum 4-tier stacked tree01 (64x64, c0=1 transparent) re-paletted to cherry-blossom Sakura!
+    # Exact tree01 atlas quadrants: trunk (top-right), lower canopy (bottom-right), mid canopy (top-left), peak (bottom-left).
+    TREE_LAYERS = [
+        # (u0, v0, u1, v1, half_w, half_d, h, dz_off)
+        (34 / 64,  2 / 64, 63 / 64, 28 / 64, 0.52, 0.45, 0.28,  0.10),  # trunk + grass base
+        (22 / 64, 29 / 64, 63 / 64, 63 / 64, 0.88, 0.74, 0.82, -0.04),  # wide lower sakura canopy
+        ( 0 / 64,  0 / 64, 34 / 64, 30 / 64, 0.72, 0.62, 1.32, -0.14),  # mid cherry-blossom tier
+        ( 0 / 64, 42 / 64, 21 / 64, 63 / 64, 0.44, 0.44, 1.80, -0.22),  # top pale blush peak
+    ]
     for x, z in sorted(trees):
-        open_dirs = [(dx, dz) for dx, dz in ((0, 1), (1, 0), (-1, 0))
+        open_dirs = [(dx, dz) for dx, dz in ((0, 1), (1, 0), (-1, 0), (0, -1))
                      if (x + dx, z + dz) in t and t[(x + dx, z + dz)][2] not in ("tree", "gate_pad")]
         if not open_dirs or (x + z) % 2:
             continue
-        ox = sum(d[0] for d in open_dirs) * 0.14
-        oz = sum(d[1] for d in open_dirs) * 0.14
-        cx, cz = x + 0.5 + ox, z + 0.5 + oz
-        r = 0.66 + 0.1 * hash01(x, z, 11)
-        top = 2.15 + 0.3 * hash01(x, z, 13)
-        win = CROWN_WINDOWS[int(hash01(x, z, 17) * len(CROWN_WINDOWS))]
-        GF.lathe(F, "ev_blossom", (cx, cz), [(r * 0.72, 0.8), (r, 1.28), (r * 0.66, top - 0.28), (0.0, top)], 6, win, ang0=hash01(x, z, 19) * 1.2, group="crowns",
-                 solid=False, chunk=chunk_of_x(x))
-        F.wall("ev_blossom", (cx - 0.08, cz + 0.12), (cx + 0.08, cz + 0.12), 0.0, 0.9, bark, group="crowns", solid=False)
+        cx = x + 0.5 + (hash01(x, z, 11) - 0.5) * 0.16
+        cz = z + 0.5 + (hash01(x, z, 13) - 0.5) * 0.14
+        sc = 0.94 + 0.14 * hash01(x, z, 17)
+        c = chunk_of_x(x)
+        for (u0, v0, u1, v1, hw, hd, hh, dzo) in TREE_LAYERS:
+            hw_s, hd_s, h_s = hw * sc, hd * sc, hh * sc
+            # Gently tilted ~20 deg toward the south camera so tiers stack naturally like real Platinum pines
+            pts = [
+                (cx - hw_s, h_s + hd_s * 0.35, cz + dzo - hd_s * 0.94),
+                (cx + hw_s, h_s + hd_s * 0.35, cz + dzo - hd_s * 0.94),
+                (cx + hw_s, h_s - hd_s * 0.35, cz + dzo + hd_s * 0.94),
+                (cx - hw_s, h_s - hd_s * 0.35, cz + dzo + hd_s * 0.94),
+            ]
+            uvs = [(u0, v0), (u1, v0), (u1, v1), (u0, v1)]
+            F.add("ev_tree", pts, uvs, facing=(0.0, 0.94, 0.34), chunk=c, group="crowns", solid=False)
         n_crowns += 1
     return n_crowns, len(blocks)
 
@@ -602,25 +621,27 @@ SPIRAL_T = 0.84
 
 
 def build_spiral(F, t):
-    """Glowing pixel blossoms on the arms of the meadow's spiral: flat unlit decals (0.4 tile) mapped onto the
-    pink / cyan / gold blossom sprites of ev_spiral_flw, sampled on a half-tile lattice where
-    sin(3 theta - 1.55 r) > 0.78."""
+    """Delicate c0=1 transparent pixel-art blossoms tucked naturally into the Spiral Blossom Meadow along
+    sin(3 theta - 1.55 r) > 0.78, using soft pastel sakura/lavender/cream hues."""
     meadow = {k for k, v in t.items() if v[2] in ("tallgrass", "spiral_grass", "spiral_flw")
               and 74 <= k[0] <= 86 and 756 <= k[1] <= 763}
     n = 0
-    names = ["pink", "cyan", "gold"]
+    names = ["pink", "lav", "cream", "mix"]
     for (x, z) in sorted(meadow):
         for a in (0.25, 0.75):
             for b in (0.25, 0.75):
                 px, pz = x + a, z + b
-                if spiral_value(px, pz) < SPIRAL_T:
+                if spiral_value(px, pz) < 0.78:
                     continue
-                jx, jz = (hash01(px * 4, pz * 4, 1) - 0.5) * 0.12, (hash01(px * 4, pz * 4, 2) - 0.5) * 0.12
-                name = names[int(hash01(px * 4, pz * 4, 3) * 3)]
+                if hash01(px * 4, pz * 4, 7) < 0.22:
+                    continue
+                jx = (hash01(px * 4, pz * 4, 1) - 0.5) * 0.18
+                jz = (hash01(px * 4, pz * 4, 2) - 0.5) * 0.18
+                name = names[int(hash01(px * 4, pz * 4, 3) * len(names))]
                 box = GF.uvbox(TM.BLOSSOMS[name])
-                s = 0.2
-                F.flat("u_blossom", px + jx - s, pz + jz - s, px + jx + s, pz + jz + s, G + 0.0625, group="spiral",
-                       uv=box, colors=[(255, 255, 255)] * 4)
+                s = 0.28 + 0.06 * hash01(px * 4, pz * 4, 5)
+                F.flat("u_blossom", px + jx - s, pz + jz - s, px + jx + s, pz + jz + s, G + 0.025, group="spiral",
+                       uv=box, colors=[(236, 224, 240)] * 4)
                 n += 1
     return n
 
