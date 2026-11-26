@@ -1990,6 +1990,15 @@ BOOL BattleHud_IsWindowVisible(void)
     return sHud.windowAdded;
 }
 
+BOOL BattleHud_IsBdspCornerHud(void)
+{
+#ifdef SDK_PORT
+    return BattleHud_IsEnabled() && SIM_Battle3D_IsEnabled();
+#else
+    return FALSE;
+#endif
+}
+
 int BattleHud_TopTouchButton(BattleSubscreen *btlSubscreen, int x, int y)
 {
     if (!BattleHud_IsEnabled() || btlSubscreen == NULL) {

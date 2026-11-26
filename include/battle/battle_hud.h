@@ -30,6 +30,10 @@ extern "C" {
 
 BOOL BattleHud_IsEnabled(void);
 BOOL BattleHud_IsWidePixelMode(void);
+// TRUE when the BDSP 3D battle + corner HUD is active (wide layout, battle
+// HUD on, 3D arena on). D-pad cursor code uses this to match the vertical
+// corner-HUD stacks instead of the DS 2D button grid.
+BOOL BattleHud_IsBdspCornerHud(void);
 BOOL BattleHud_IsWindowVisible(void);
 
 // Wide pixel mode (342x192, 43x24 tiles): extend the authentic Platinum
