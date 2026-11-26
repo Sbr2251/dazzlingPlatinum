@@ -260,7 +260,7 @@ EternaGym_Arc2AfterBadge:
     CloseMessage
     CheckItem ITEM_RESONATOR, 1, VAR_RESULT
     GoToIfEq VAR_RESULT, FALSE, EternaGym_Arc2SetProgress
-    PlayFanfare SEQ_SE_DP_KIRAKIRA_sseq
+    PlaySE SEQ_SE_DP_KIRAKIRA_sseq
     Message EternaGym_Text_Arc2ResonatorHums
     WaitFanfare
     WaitButton

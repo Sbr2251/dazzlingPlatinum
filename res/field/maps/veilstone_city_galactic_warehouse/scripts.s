@@ -422,8 +422,8 @@ DepotArc2_Trucks:
     ApplyMovement LOCALID_DEPOT_INDRA, DepotArc2_Movement_IndraOut
     WaitMovement
     RemoveObject LOCALID_DEPOT_INDRA
-    PlayFanfare SEQ_SE_DP_DOOR_OPEN_sseq
-    WaitFanfare
+    PlaySE SEQ_SE_DP_DOOR_OPEN_sseq
+    WaitSE SEQ_SE_DP_DOOR_OPEN_sseq
     // Looker comes down from the office
     ClearFlag FLAG_MAP_LOCAL_HIDE_OBSTACLE_16
     SetObjectEventPos LOCALID_DEPOT_LOOKER, 8, 5
@@ -443,8 +443,8 @@ DepotArc2_Trucks:
     ApplyMovement LOCALID_DEPOT_LOOKER, DepotArc2_Movement_LookerOut
     WaitMovement
     RemoveObject LOCALID_DEPOT_LOOKER
-    PlayFanfare SEQ_SE_DP_DOOR_OPEN_sseq
-    WaitFanfare
+    PlaySE SEQ_SE_DP_DOOR_OPEN_sseq
+    WaitSE SEQ_SE_DP_DOOR_OPEN_sseq
     ReleaseAll
     End
 

@@ -221,7 +221,7 @@ OreburghMineB2F_Arc1OnFrameRift:
     ApplyMovement LOCALID_ARC1_RIVAL, OreburghMineB2F_Movement_Arc1FaceNorth
     ApplyMovement LOCALID_PLAYER, OreburghMineB2F_Movement_Arc1FaceWest
     WaitMovement
-    PlayFanfare SEQ_SE_DP_WALL_HIT2_sseq
+    PlaySE SEQ_SE_DP_WALL_HIT2_sseq
     ShakeCamera 12, 2
     FadeScreenOut FADE_SCREEN_SPEED_FAST, COLOR_WHITE
     WaitFadeScreen
@@ -313,10 +313,10 @@ OreburghMineB2F_Arc1SealedTunnel:
     // Arc 1 r3 (hum): Ruth's reader (from the lab) is louder here than anywhere in town
     CheckItem ITEM_PORTAL_READER, 1, VAR_RESULT
     GoToIfEq VAR_RESULT, FALSE, OreburghMineB2F_Arc1SealedTunnelEnd
-    PlayFanfare SEQ_SE_DP_BEEP_sseq
-    WaitFanfare
-    PlayFanfare SEQ_SE_DP_BEEP_sseq
-    WaitFanfare
+    PlaySE SEQ_SE_DP_BEEP_sseq
+    WaitSE SEQ_SE_DP_BEEP_sseq
+    PlaySE SEQ_SE_DP_BEEP_sseq
+    WaitSE SEQ_SE_DP_BEEP_sseq
     Message OreburghMineB2F_Text_HumSealReaderBuzz
     WaitButton
 OreburghMineB2F_Arc1SealedTunnelEnd:
@@ -350,7 +350,7 @@ OreburghMineB2F_HumCratesAsk:
     Message OreburghMineB2F_Text_HumSqueezedPastCrates
     WaitButton
     CloseMessage
-    PlayFanfare SEQ_SE_DP_KAIDAN2_sseq
+    PlaySE SEQ_SE_DP_KAIDAN2_sseq
     FadeScreenOut
     WaitFadeScreen
     Warp MAP_HEADER_OREBURGH_MINE_SIDE_TUNNEL, 59, 7, DIR_WEST
@@ -360,10 +360,10 @@ OreburghMineB2F_HumCratesAsk:
     End
 
 OreburghMineB2F_HumCratesBuzz:
-    PlayFanfare SEQ_SE_DP_BEEP_sseq
-    WaitFanfare
-    PlayFanfare SEQ_SE_DP_BEEP_sseq
-    WaitFanfare
+    PlaySE SEQ_SE_DP_BEEP_sseq
+    WaitSE SEQ_SE_DP_BEEP_sseq
+    PlaySE SEQ_SE_DP_BEEP_sseq
+    WaitSE SEQ_SE_DP_BEEP_sseq
     Message OreburghMineB2F_Text_HumCratesBuzz
     GoTo OreburghMineB2F_HumCratesAsk
 
@@ -375,8 +375,8 @@ OreburghMineB2F_HumCratesNo:
 OreburghMineB2F_HumBuzzFaint:
     LockAll
     SetVar VAR_MAP_LOCAL_0x00, 2
-    PlayFanfare SEQ_SE_DP_BEEP_sseq
-    WaitFanfare
+    PlaySE SEQ_SE_DP_BEEP_sseq
+    WaitSE SEQ_SE_DP_BEEP_sseq
     Message OreburghMineB2F_Text_HumBuzzFaint
     WaitButton
     CloseMessage
@@ -386,10 +386,10 @@ OreburghMineB2F_HumBuzzFaint:
 OreburghMineB2F_HumBuzzLoud:
     LockAll
     SetVar VAR_MAP_LOCAL_0x00, 3
-    PlayFanfare SEQ_SE_DP_BEEP_sseq
-    WaitFanfare
-    PlayFanfare SEQ_SE_DP_BEEP_sseq
-    WaitFanfare
+    PlaySE SEQ_SE_DP_BEEP_sseq
+    WaitSE SEQ_SE_DP_BEEP_sseq
+    PlaySE SEQ_SE_DP_BEEP_sseq
+    WaitSE SEQ_SE_DP_BEEP_sseq
     Message OreburghMineB2F_Text_HumBuzzLoud
     WaitButton
     CloseMessage
@@ -399,12 +399,12 @@ OreburghMineB2F_HumBuzzLoud:
 OreburghMineB2F_HumBuzzCrack:
     LockAll
     SetVar VAR_MAP_LOCAL_0x00, 4
-    PlayFanfare SEQ_SE_DP_BEEP_sseq
-    WaitFanfare
-    PlayFanfare SEQ_SE_DP_BEEP_sseq
-    WaitFanfare
-    PlayFanfare SEQ_SE_DP_BEEP_sseq
-    WaitFanfare
+    PlaySE SEQ_SE_DP_BEEP_sseq
+    WaitSE SEQ_SE_DP_BEEP_sseq
+    PlaySE SEQ_SE_DP_BEEP_sseq
+    WaitSE SEQ_SE_DP_BEEP_sseq
+    PlaySE SEQ_SE_DP_BEEP_sseq
+    WaitSE SEQ_SE_DP_BEEP_sseq
     Message OreburghMineB2F_Text_HumBuzzCrack
     WaitButton
     CloseMessage

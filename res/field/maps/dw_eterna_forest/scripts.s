@@ -63,7 +63,7 @@ DWEternaForest_Fall:
     LockAll
     ApplyMovement LOCALID_PLAYER, DWEternaForest_Movement_PlayerFall
     WaitMovement
-    PlayFanfare SEQ_SE_PL_SYUWA_sseq
+    PlaySE SEQ_SE_PL_SYUWA_sseq
     FadeScreenOut
     WaitFadeScreen
     ApplyMovement LOCALID_PLAYER, DWEternaForest_Movement_SetVisible
@@ -78,7 +78,7 @@ DWEternaForest_Fall:
 // Coord event (17,12): the seam folds the player (and Cyrus) into the hive. Cyrus's ceiling line the first time.
 DWEternaForest_Fold:
     LockAll
-    PlayFanfare SEQ_SE_PL_SYUWA_sseq
+    PlaySE SEQ_SE_PL_SYUWA_sseq
     FadeScreenOut FADE_SCREEN_SPEED_FAST, COLOR_WHITE
     WaitFadeScreen
     ResetDistortionWorldPersistedCameraAngles
@@ -119,7 +119,7 @@ DWEternaForest_HoneyFallSetHint:
 DWEternaForest_HoneyFallContinue:
     ApplyMovement LOCALID_PLAYER, DWEternaForest_Movement_PlayerFall
     WaitMovement
-    PlayFanfare SEQ_SE_PL_SYUWA_sseq
+    PlaySE SEQ_SE_PL_SYUWA_sseq
     FadeScreenOut
     WaitFadeScreen
     ApplyMovement LOCALID_PLAYER, DWEternaForest_Movement_SetVisible
@@ -164,12 +164,12 @@ DWEternaForest_Totem:
     ApplyMovement LOCALID_TOTEM, DWEternaForest_Movement_TotemHover
     WaitMovement
     BufferPlayerName 0
-    PlayFanfare SEQ_SE_PL_KIRAKIRA_sseq
+    PlaySE SEQ_SE_PL_KIRAKIRA_sseq
     Message DWEternaForest_Text_GotCalmShard
     WaitFanfare
     WaitButton
     CloseMessage
-    PlayFanfare SEQ_SE_PL_SYUWA_sseq
+    PlaySE SEQ_SE_PL_SYUWA_sseq
     DeleteDistortionWorldMapObject LOCALID_TOTEM
     WaitTime 40, VAR_RESULT
     // Cyrus, below, looks at the empty space where it hung
@@ -181,7 +181,7 @@ DWEternaForest_Totem:
     SetFlag FLAG_TOTEM_VESPIQUEN_DEFEATED
     SetFlag FLAG_HIDE_TOTEM_VESPIQUEN
     SetVar VAR_ARC2_PROGRESS, 26
-    PlayFanfare SEQ_SE_PL_SYUWA_sseq
+    PlaySE SEQ_SE_PL_SYUWA_sseq
     FadeScreenOut
     WaitFadeScreen
     DoDWWarp

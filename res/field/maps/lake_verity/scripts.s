@@ -403,15 +403,15 @@ LakeVerity_Arc1OnFrameRoofLanding:
     SetFlag FLAG_HIDE_LAKE_VERITY_LOW_WATER_PROF_ROWAN
     SetFlag FLAG_HIDE_LAKE_VERITY_LOW_WATER_COUNTERPART
     WaitTime 30, VAR_RESULT
-    PlayFanfare SEQ_SE_PL_SYUWA_sseq
+    PlaySE SEQ_SE_PL_SYUWA_sseq
     FadeScreenOut FADE_SCREEN_SPEED_FAST, COLOR_WHITE
     WaitFadeScreen
     FadeScreenIn FADE_SCREEN_SPEED_FAST, COLOR_WHITE
     WaitFadeScreen
     WaitTime 10, VAR_RESULT
-    PlayFanfare SEQ_SE_DP_WALL_HIT2_sseq
+    PlaySE SEQ_SE_DP_WALL_HIT2_sseq
     ShakeCamera 24, 4
-    PlayFanfare SEQ_SE_PL_SYUWA_sseq
+    PlaySE SEQ_SE_PL_SYUWA_sseq
     FadeScreenOut FADE_SCREEN_SPEED_FAST, COLOR_WHITE
     WaitFadeScreen
     // Cyrus's event position is (28,24) for the castle-top scene; OnTransition moved it to (32,30)
@@ -531,9 +531,9 @@ LakeVerity_Arc1OnFrameArrival:
     ClearFlag FLAG_HIDE_LAKE_VERITY_LOW_WATER_RIVAL
     WaitTime 30, VAR_RESULT
     // A sound from the castle top
-    PlayFanfare SEQ_SE_PL_SYUWA_sseq
+    PlaySE SEQ_SE_PL_SYUWA_sseq
     WaitTime 12, VAR_RESULT
-    PlayFanfare SEQ_SE_DP_WALL_HIT2_sseq
+    PlaySE SEQ_SE_DP_WALL_HIT2_sseq
     ShakeCamera 20, 2
     WaitTime 8, VAR_RESULT
     ApplyMovement LOCALID_RIVAL, LakeVerity_Movement_Arc1ExclamationMark
@@ -925,7 +925,7 @@ LakeVerity_Arc1PlayerOntoTerraceFrom24:
 
 // Someone steps into the portal: the swirl sound and a quick white flash
 LakeVerity_Arc1PortalSwallow:
-    PlayFanfare SEQ_SE_PL_SYUWA_sseq
+    PlaySE SEQ_SE_PL_SYUWA_sseq
     FadeScreenOut FADE_SCREEN_SPEED_FAST, COLOR_WHITE
     WaitFadeScreen
     FadeScreenIn FADE_SCREEN_SPEED_FAST, COLOR_WHITE
@@ -974,7 +974,7 @@ LakeVerity_Arc1LaunchpadStepIn:
     ShowYesNoMenu VAR_RESULT
     GoToIfEq VAR_RESULT, MENU_NO, LakeVerity_LaunchpadStayBehind
     CloseMessage
-    PlayFanfare SEQ_SE_PL_SYUWA_sseq
+    PlaySE SEQ_SE_PL_SYUWA_sseq
     FadeScreenOut
     WaitFadeScreen
     DoDWWarp
@@ -1023,7 +1023,7 @@ LakeVerity_Arc1OnFrameReturn:
     ApplyMovement LOCALID_ARC1_COUNTERPART, LakeVerity_Movement_Arc1FaceNorth
     ApplyMovement LOCALID_CYRUS, LakeVerity_Movement_Arc1FaceNorth
     WaitMovement
-    PlayFanfare SEQ_SE_PL_SYUWA_sseq
+    PlaySE SEQ_SE_PL_SYUWA_sseq
     FadeScreenOut FADE_SCREEN_SPEED_FAST, COLOR_WHITE
     WaitFadeScreen
     SetLakeVerityPortalHidden 1
@@ -1085,7 +1085,7 @@ LakeVerity_Arc1OnFrameReturn:
     ApplyMovement LOCALID_PLAYER, LakeVerity_Movement_Arc1PlayerWatchRivalLeave
     WaitMovement
     RemoveObject LOCALID_RIVAL
-    PlayFanfare SEQ_SE_DP_KAIDAN2_sseq
+    PlaySE SEQ_SE_DP_KAIDAN2_sseq
     SetVar VAR_ARC1_PROGRESS, 8
     SetVar VAR_VISITED_LAKE_VERITY_WITH_RIVAL, 1
     SetVar VAR_FOLLOWER_RIVAL_STATE, 4

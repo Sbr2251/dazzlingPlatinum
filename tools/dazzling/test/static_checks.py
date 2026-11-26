@@ -374,6 +374,24 @@ def check_self_loops(root):
     return errs
 
 
+def check_playfanfare_sfx(root):
+    """Flag PlayFanfare called with a SEQ_SE_* sound effect instead of PlaySE.
+    PlayFanfare pauses BGM and sets fanfareDelay=15; without WaitFanfare it leaves
+    fanfareDelay stuck and can deadlock subsequent map transitions."""
+    errs = []
+    pat = re.compile(r"^PlayFanfare\s+(SEQ_SE_\w+)\b")
+    for path in script_files(root):
+        rel = os.path.relpath(path, root)
+        for lineno, line in enumerate(read_lines(path), 1):
+            s = strip_comment(line)
+            m = pat.match(s)
+            if m:
+                errs.append(
+                    f"playfanfare_sfx: {rel}:{lineno}: PlayFanfare used with sound effect '{m.group(1)}' (use PlaySE / WaitSE instead)"
+                )
+    return errs
+
+
 CHECKS = {
     "script_targets": check_script_targets,
     "text_labels": check_text_labels,
@@ -382,6 +400,7 @@ CHECKS = {
     "curly": check_curly,
     "waitfanfare": check_waitfanfare,
     "self_loops": check_self_loops,
+    "playfanfare_sfx": check_playfanfare_sfx,
 }
 
 def main(argv=None):

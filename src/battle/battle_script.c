@@ -2548,7 +2548,8 @@ static BOOL BtlCmd_SwitchAndUpdateMon(BattleSystem *battleSys, BattleContext *ba
 
     switch (inBattler) {
     default:
-        break;
+        GF_ASSERT(FALSE);
+        return FALSE;
 
     case BTLSCR_ATTACKER:
         battler = battleCtx->attacker;
@@ -11821,7 +11822,7 @@ static int BattleMessage_NameTag(BattleSystem *battleSys, BattleContext *battleC
  */
 static int BattleMessage_MoveTag(BattleContext *battleCtx, int battlerIn)
 {
-    int move;
+    int move = MOVE_NONE;
     switch (battlerIn) {
     case BTLSCR_ATTACKER:
         move = battleCtx->moveCur;
@@ -11847,7 +11848,7 @@ static int BattleMessage_MoveTag(BattleContext *battleCtx, int battlerIn)
  */
 static int BattleMessage_ItemTag(BattleContext *battleCtx, int battlerIn)
 {
-    int item;
+    int item = ITEM_NONE;
     switch (battlerIn) {
     case BTLSCR_ATTACKER:
         item = battleCtx->battleMons[battleCtx->attacker].heldItem;
@@ -11884,7 +11885,7 @@ static int BattleMessage_ItemTag(BattleContext *battleCtx, int battlerIn)
  */
 static int BattleMessage_NumTag(BattleContext *battleCtx, int battlerIn)
 {
-    int num;
+    int num = 0;
     if (battlerIn == BTLSCR_MSG_TEMP) {
         num = battleCtx->msgTemp;
     }
@@ -11901,7 +11902,7 @@ static int BattleMessage_NumTag(BattleContext *battleCtx, int battlerIn)
  */
 static int BattleMessage_TypeTag(BattleContext *battleCtx, int battlerIn)
 {
-    int type;
+    int type = TYPE_NORMAL;
     if (battlerIn == BTLSCR_MSG_TEMP) {
         type = battleCtx->msgTemp;
     }
@@ -11940,7 +11941,7 @@ static int BattleMessage_AbilityTag(BattleSystem *battleSys, BattleContext *batt
  */
 static int BattleMessage_StatTag(BattleContext *battleCtx, int battlerIn)
 {
-    int status;
+    int status = 0;
     if (battlerIn == BTLSCR_MSG_TEMP) {
         status = battleCtx->msgTemp;
     }
@@ -11957,7 +11958,7 @@ static int BattleMessage_StatTag(BattleContext *battleCtx, int battlerIn)
  */
 static int BattleMessage_StatusTag(BattleContext *battleCtx, int battlerIn)
 {
-    int status;
+    int status = 0;
     if (battlerIn == BTLSCR_MSG_TEMP) {
         status = battleCtx->msgTemp;
     }
@@ -11994,7 +11995,7 @@ static int BattleMessage_PokeTag(BattleSystem *battleSys, BattleContext *battleC
  */
 static int BattleMessage_PoffinTag(BattleContext *battleCtx, int battlerIn)
 {
-    int poffin;
+    int poffin = 0;
     if (battlerIn == BTLSCR_MSG_TEMP) {
         poffin = battleCtx->msgTemp;
     }
@@ -12011,7 +12012,7 @@ static int BattleMessage_PoffinTag(BattleContext *battleCtx, int battlerIn)
  */
 static int BattleMessage_FlavorTag(BattleContext *battleCtx, int battlerIn)
 {
-    int flavor;
+    int flavor = 0;
     if (battlerIn == BTLSCR_MSG_TEMP) {
         flavor = battleCtx->msgTemp;
     }

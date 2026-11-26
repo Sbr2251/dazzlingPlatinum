@@ -32,5 +32,8 @@ jobs:
       - name: Build the Mac app
         run: tools/macos/build.sh
 
+      - name: Seam-crossing VRAM & billboard checks
+        run: python3 tools/dazzling/test/check_seams.py --build build_macos --cine
+
       - name: Scenario suite (headless lockstep)
         run: python3 tools/dazzling/test/run.py -j 4 --timeout 900

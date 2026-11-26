@@ -74,7 +74,7 @@ DWRoute214_Frame:
     SetVar VAR_MAP_LOCAL_0x02, 1
     GoToIfSet FLAG_ARC2_RIFTB_A, DWRoute214_End
     LockAll
-    PlayFanfare SEQ_SE_PL_SYUWA_sseq
+    PlaySE SEQ_SE_PL_SYUWA_sseq
     DeleteDistortionWorldMapObject LOCALID_CYRUS_ENTRY
     SetFlag FLAG_ARC2_RIFTB_A
     AddDistortionWorldMapObject LOCALID_CYRUS_FRAME
@@ -91,7 +91,7 @@ DWRoute214_Frame:
     CloseMessage
     ApplyMovement LOCALID_CYRUS_FRAME, DWRoute214_Movement_CyrusPull
     WaitMovement
-    PlayFanfare SEQ_SE_PL_SYUWA_sseq
+    PlaySE SEQ_SE_PL_SYUWA_sseq
     FadeScreenOut FADE_SCREEN_SPEED_FAST, COLOR_WHITE
     WaitFadeScreen
     DeleteDistortionWorldMapObject LOCALID_FRAME
@@ -141,7 +141,7 @@ DWRoute214_TotemBattle:
     SetFlag FLAG_HIDE_TOTEM_SKARMORY
     // The Calm Shard: a sound effect, not PlayFanfare SEQ_FANFA4_sseq (that pauses the music and the exit Warp then hangs)
     BufferPlayerName 0
-    PlayFanfare SEQ_SE_DP_KIRAKIRA_sseq
+    PlaySE SEQ_SE_DP_KIRAKIRA_sseq
     Message DWRoute214_Text_GotCalmShard
     WaitFanfare
     WaitButton
@@ -149,7 +149,7 @@ DWRoute214_TotemBattle:
     WaitButton
     CloseMessage
     SetVar VAR_ARC2_PROGRESS, 63
-    PlayFanfare SEQ_SE_PL_SYUWA_sseq
+    PlaySE SEQ_SE_PL_SYUWA_sseq
     FadeScreenOut
     WaitFadeScreen
     DoDWWarp
@@ -181,7 +181,7 @@ DWRoute214_Fall:
     LockAll
     ApplyMovement LOCALID_PLAYER, DWRoute214_Movement_PlayerFall
     WaitMovement
-    PlayFanfare SEQ_SE_PL_SYUWA_sseq
+    PlaySE SEQ_SE_PL_SYUWA_sseq
     FadeScreenOut
     WaitFadeScreen
     ApplyMovement LOCALID_PLAYER, DWRoute214_Movement_SetVisible

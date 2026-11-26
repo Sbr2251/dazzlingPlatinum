@@ -294,7 +294,7 @@ TwinleafTownPlayerHouse1F_RivalsMomEnters:
     End
 
 TwinleafTownPlayerHouse1F_Unused_RivalsMomEnters:
-    PlayFanfare SEQ_SE_DP_DOOR_OPEN_sseq
+    PlaySE SEQ_SE_DP_DOOR_OPEN_sseq
     ClearFlag FLAG_HIDE_TWINLEAF_TOWN_PLAYER_HOUSE_1F_RIVAL_MOM
     AddObject LOCALID_RIVAL_MOM
     WaitSE SEQ_SE_DP_DOOR_OPEN_sseq

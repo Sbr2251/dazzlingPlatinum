@@ -4348,6 +4348,7 @@ static BOOL TickJumpOnFloatingPlatformMovementAnimation(DistWorldFloatingPlatfor
 
     default:
         GF_ASSERT(FALSE);
+        targetOffset = &spriteJumpOffset->y;
         break;
     }
 

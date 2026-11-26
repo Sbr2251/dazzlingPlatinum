@@ -12,32 +12,41 @@ ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
 
 
 def map_changed_paths(paths):
-    """Map repository paths to scenario tags and whether battle tests apply."""
+    """Map repository paths to scenario tags and whether battle/seam tests apply."""
     tags = set()
     battle = False
     compare_note = False
     release = False
+    seams = False
     known = False
     for raw in paths:
         path = raw.replace("\\", "/").lstrip("./")
+        base = os.path.basename(path)
         if path.startswith(("src/battle/", "src/battle_anim/")):
             tags.add("battle"); battle = True; known = True
-        if path.startswith(("src/overlay005/", "res/field/")):
-            tags.add("field"); known = True
+        if (path.startswith(("src/overlay005/", "res/field/", "src/field_",
+                             "src/overworld_", "src/map_object", "src/map_matrix",
+                             "src/player_"))
+                or "billboard" in path or "vram" in path):
+            tags.add("field"); seams = True; known = True
         if path.startswith("src/applications/"):
             tags.add("menu"); known = True
-        if any(part in path for part in ("render_gpu/", "gpu/", "sim_g2", "sim_g3")):
-            tags.add("visual"); compare_note = True; known = True
+        if (any(part in path for part in ("render_gpu/", "gpu/", "sim_g2", "sim_g3"))
+                or path.startswith("subprojects/libntr/")):
+            tags.add("visual"); compare_note = True; seams = True; known = True
         if "sim_touchpad" in path or path.startswith("tools/ios/"):
             tags.add("touchpad"); known = True
         if "sim_save_flash" in path or path.startswith("src/savedata"):
             tags.add("save"); known = True
-        if os.path.basename(path) in ("meson.build", "meson.options"):
-            tags.add("smoke"); release = True; known = True
-    if not paths or not known:
+        if base in ("meson.build", "meson.options"):
+            tags.add("smoke"); release = True; seams = True; known = True
+        if path in ("tools/dazzling/test/check_seams.py", "tools/dazzling/repro_lib.py"):
+            tags.add("field"); seams = True; known = True
+    if not paths or not known or not tags:
         tags = {"smoke"}
     return {"tags": sorted(tags), "battle": battle,
-            "compare_backends_note": compare_note, "release": release}
+            "compare_backends_note": compare_note, "release": release,
+            "seams": seams}
 
 
 def capture_changed_paths():
@@ -96,23 +105,53 @@ def find_release_game(explicit):
     return None
 
 
+def resolve_seams_build_dir(game=None, release_game=None):
+    """Return the build dir containing the resolved game binary, or None."""
+    candidates = []
+    if game:
+        candidates.append(game)
+    else:
+        candidates.append("build_macos/main" if sys.platform == "darwin" else "build_linux/main")
+        rel = find_release_game(release_game)
+        if rel:
+            candidates.append(rel)
+    for cand in candidates:
+        if not cand or cand.endswith(".py"):
+            continue
+        full = cand if os.path.isabs(cand) else os.path.join(ROOT, cand)
+        if os.path.isfile(full):
+            build_dir = os.path.dirname(full)
+            if os.path.isfile(os.path.join(build_dir, "main")):
+                try:
+                    rel_dir = os.path.relpath(build_dir, ROOT)
+                    if not rel_dir.startswith(".."):
+                        return rel_dir
+                except ValueError:
+                    pass
+                return build_dir
+    return None
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--tier", choices=("smoke", "fast", "full"), default="smoke")
     parser.add_argument("--changed", action="store_true")
     parser.add_argument("--full", action="store_true", help="alias for --tier full")
+    parser.add_argument("--game", help="game executable passed to run.py")
     parser.add_argument("--release-game")
     parser.add_argument("--compare-backends", action="store_true")
     parser.add_argument("--json-report")
     parser.add_argument("--skip-static", action="store_true")
     parser.add_argument("--skip-patches", action="store_true")
     parser.add_argument("--skip-battle", action="store_true")
+    parser.add_argument("--skip-seams", action="store_true")
     args = parser.parse_args(argv)
     began = time.monotonic()
     results = []
     changed = capture_changed_paths() if args.changed else []
     mapping = map_changed_paths(changed) if args.changed else {
-        "tags": [], "battle": False, "compare_backends_note": False, "release": False}
+        "tags": [], "battle": False, "compare_backends_note": False,
+        "release": False, "seams": False}
     if args.changed:
         print("gate: changed=" + (",".join(changed) if changed else "<none>"))
         print("gate: tags=" + ",".join(mapping["tags"]))
@@ -128,6 +167,8 @@ def main(argv=None):
         ok = run_step("battle", [sys.executable, os.path.join(ROOT, "tools", "battle", "run_tests.py")], results) and ok
 
     run_cmd = [sys.executable, os.path.join(HERE, "run.py")]
+    if args.game:
+        run_cmd += ["--game", args.game]
     if args.changed and mapping["tags"] != ["smoke"]:
         run_cmd += [item for tag in mapping["tags"] for item in ("--tag", tag)]
     else:
@@ -135,6 +176,14 @@ def main(argv=None):
     if args.compare_backends:
         run_cmd.append("--compare-backends")
     ok = run_step("scenarios", run_cmd, results) and ok
+
+    should_run_seams = (not args.changed) or args.full or mapping["seams"]
+    if not args.skip_seams and should_run_seams:
+        seams_build = resolve_seams_build_dir(args.game, args.release_game)
+        if seams_build:
+            seams_cmd = [sys.executable, os.path.join(HERE, "check_seams.py"),
+                         "--build", seams_build, "--cine"]
+            ok = run_step("seams", seams_cmd, results) and ok
 
     release_game = find_release_game(args.release_game)
     if release_game and (args.release_game or mapping["release"]):

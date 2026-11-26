@@ -464,7 +464,7 @@ GalacticHQControlRoom_Arc2EnterScene:
     WaitFadeScreen
     WaitTime 20, VAR_RESULT
     // The Eclipse Shard on the console pulses
-    PlayFanfare SEQ_SE_PL_SYUWA_sseq
+    PlaySE SEQ_SE_PL_SYUWA_sseq
     FadeScreenOut FADE_SCREEN_SPEED_FAST, COLOR_WHITE
     WaitFadeScreen
     FadeScreenIn FADE_SCREEN_SPEED_FAST, COLOR_WHITE

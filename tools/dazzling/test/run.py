@@ -497,15 +497,63 @@ def platform_reference(ref_path):
     drivers (Apple GL vs Mesa llvmpipe rasterization), so on macOS a reference
     under references/<dir>/ is looked up in references/<dir>_mac/ instead
     (recorded there with --record/--update on a Mac). Linux keeps the base dir."""
-    d, f = os.path.split(ref_path)
+    d, f = os.path.split(os.path.normpath(ref_path))
     # Only subdirectories of references/ (e.g. visual/) are per platform; the
-    # legacy top-level references (title, dex entry) match on both.
-    if sys.platform != "darwin" or os.path.basename(d) == "references":
+    # legacy top-level references (title, dex entry) and ad-hoc test paths stay
+    # as given.
+    if sys.platform != "darwin" or os.path.basename(os.path.dirname(d)) != "references":
         return ref_path
     return os.path.join(d + "_mac", f)
 
 
-def run_scenario(path, game_path, record=False, timeout=600, work_root=None, mock=False, env_extra=None, update=False, use_gpu_tolerance=False):
+def check_health_guards(client, step_idx, final_state):
+    """Post-scenario VRAM OOM and overworld billboard integrity checks.
+
+    Handles older or mock binaries gracefully when `memory` or
+    `inspect billboards` returns ok:false or omits the counter keys.
+    """
+    mem_reply = client.cmd({"cmd": "memory", "_expect_error": True})
+    if isinstance(mem_reply, dict) and mem_reply.get("ok") is True:
+        mem_obj = mem_reply.get("memory")
+        vram = mem_obj.get("vram") if isinstance(mem_obj, dict) else None
+        if isinstance(vram, dict):
+            oom_keys = ("tex_oom", "pltt_oom", "pool_oom")
+            present = {
+                k: vram[k] for k in oom_keys
+                if k in vram and isinstance(vram[k], (int, float)) and not isinstance(vram[k], bool)
+            }
+            if any(v > 0 for v in present.values()):
+                summary = ", ".join(f"{k}={vram.get(k, 0)}" for k in oom_keys)
+                raise ScenarioFailure(
+                    step_idx,
+                    {"health_check": "memory"},
+                    f"VRAM/pool OOM detected: {summary}",
+                    final_state,
+                    client.last_screenshot,
+                )
+
+    if isinstance(final_state, dict) and final_state.get("app") == "field":
+        bb_reply = client.cmd({"cmd": "inspect", "what": "billboards", "_expect_error": True})
+        if isinstance(bb_reply, dict) and bb_reply.get("ok") is True:
+            data = bb_reply.get("data")
+            if isinstance(data, dict):
+                bb_keys = ("oob_count", "zero_tex_count")
+                present = {
+                    k: data[k] for k in bb_keys
+                    if k in data and isinstance(data[k], (int, float)) and not isinstance(data[k], bool)
+                }
+                if any(v > 0 for v in present.values()):
+                    summary = ", ".join(f"{k}={data.get(k, 0)}" for k in bb_keys)
+                    raise ScenarioFailure(
+                        step_idx,
+                        {"health_check": "billboards"},
+                        f"Corrupt billboard(s) detected: {summary}",
+                        final_state,
+                        client.last_screenshot,
+                    )
+
+
+def run_scenario(path, game_path, record=False, timeout=600, work_root=None, mock=False, env_extra=None, update=False, use_gpu_tolerance=False, health_checks=True):
     with open(path, encoding="utf-8") as f:
         sc = json.load(f)
     # A scenario may declare its own timeout floor (e.g. the naming
@@ -930,6 +978,9 @@ def run_scenario(path, game_path, record=False, timeout=600, work_root=None, moc
             err = check_assertion(st, assertion)
             if err:
                 raise ScenarioFailure(len(sc.get("steps") or []), {"assert": assertion}, err, st, client.last_screenshot)
+        if health_checks and not sc.get("skip_health_checks"):
+            final_st = client.state()
+            check_health_guards(client, len(sc.get("steps") or []), final_st)
         suffix = ("; " + "; ".join(pending_notes)) if pending_notes else ""
         return name, True, f"ok ({time.time() - started:.1f}s, workdir {client.dir}){suffix}", client
     except ScenarioFailure as e:
@@ -1052,6 +1103,8 @@ def main(argv=None):
                     "Combinable with --compare-renderers")
     ap.add_argument("--interactive-fx", action="store_true",
                     help="use interactive sim_config_prj.ini FX defaults even under SIM_HEADLESS")
+    ap.add_argument("--no-health-checks", action="store_true",
+                    help="skip automatic post-scenario VRAM OOM and billboard integrity checks")
     ap.add_argument("--timeout", type=int, default=600)
     ap.add_argument("--work-root", default=None)
     args = ap.parse_args(argv)
@@ -1090,7 +1143,8 @@ def main(argv=None):
                             env["SIM_G2_GPU"] = g2; labels.append(f"SIM_G2_GPU={g2}")
                         name, ok, msg, client = run_scenario(
                             p, game, timeout=args.timeout, work_root=work_root,
-                            env_extra=env, use_gpu_tolerance=(backend == "gpu"))
+                            env_extra=env, use_gpu_tolerance=(backend == "gpu"),
+                            health_checks=not args.no_health_checks)
                         msgs.append(f"{', '.join(labels)}: {'ok' if ok else msg}")
                         ok_all = ok_all and ok
                         if client is not None:
@@ -1119,7 +1173,8 @@ def main(argv=None):
             name, ok, msg, client = run_scenario(
                 p, game, record=args.record, timeout=args.timeout,
                 work_root=work_root, update=args.update,
-                use_gpu_tolerance=use_gpu_tol)
+                use_gpu_tolerance=use_gpu_tol,
+                health_checks=not args.no_health_checks)
             return name, ok, msg, _result_details(name, ok, msg, time.monotonic() - began)
         except Exception as e:
             name, msg = os.path.splitext(os.path.basename(p))[0], f"FAIL (runner): {e}"

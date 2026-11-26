@@ -1346,7 +1346,7 @@ void BattleSystem_Record(BattleSystem *battleSys, int battler, u8 action)
 
 BOOL BattleSystem_ReadNextRecordedInput(BattleSystem *battleSys, int battler, u8 *outInput)
 {
-    BOOL result;
+    BOOL result = FALSE;
 
     *outInput = 0xFF;
 

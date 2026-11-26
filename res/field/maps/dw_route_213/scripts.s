@@ -107,7 +107,7 @@ DWRoute213_Card:
 DWRoute213_Totem:
     GoToIfSet FLAG_TOTEM_LAPRAS_DEFEATED, DWRoute213_End
     LockAll
-    PlayFanfare SEQ_SE_PL_SYUWA_sseq
+    PlaySE SEQ_SE_PL_SYUWA_sseq
     DeleteDistortionWorldMapObject LOCALID_LAPRAS
     PlayCry SPECIES_LAPRAS
     FadeScreenOut FADE_SCREEN_SPEED_FAST, COLOR_WHITE
@@ -122,12 +122,12 @@ DWRoute213_Totem:
     SetFlag FLAG_TOTEM_LAPRAS_DEFEATED
     SetFlag FLAG_HIDE_TOTEM_LAPRAS
     // The battle reload put it back on the island: the aura drains and it slips into the hanging lake
-    PlayFanfare SEQ_SE_PL_SYUWA_sseq
+    PlaySE SEQ_SE_PL_SYUWA_sseq
     DeleteDistortionWorldMapObject LOCALID_LAPRAS
     WaitTime 20, VAR_RESULT
     // A sound effect, not PlayFanfare SEQ_FANFA4_sseq (that pauses the music and the exit Warp then hangs)
     BufferPlayerName 0
-    PlayFanfare SEQ_SE_DP_KIRAKIRA_sseq
+    PlaySE SEQ_SE_DP_KIRAKIRA_sseq
     Message DWRoute213_Text_GotCalmShard
     WaitFanfare
     WaitButton
@@ -135,7 +135,7 @@ DWRoute213_Totem:
     WaitButton
     CloseMessage
     SetVar VAR_ARC2_PROGRESS, 84
-    PlayFanfare SEQ_SE_PL_SYUWA_sseq
+    PlaySE SEQ_SE_PL_SYUWA_sseq
     FadeScreenOut
     WaitFadeScreen
     DoDWWarp
@@ -209,7 +209,7 @@ DWRoute213_Fall:
     LockAll
     ApplyMovement LOCALID_PLAYER, DWRoute213_Movement_PlayerFall
     WaitMovement
-    PlayFanfare SEQ_SE_PL_SYUWA_sseq
+    PlaySE SEQ_SE_PL_SYUWA_sseq
     FadeScreenOut
     WaitFadeScreen
     ApplyMovement LOCALID_PLAYER, DWRoute213_Movement_SetVisible

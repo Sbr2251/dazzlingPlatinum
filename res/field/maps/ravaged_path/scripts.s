@@ -117,7 +117,7 @@ RavagedPath_Arc2Rift:
     GoToIfGe VAR_ARC2_PROGRESS, 15, RavagedPath_End
     LockAll
     SetVar VAR_ARC2_PROGRESS, 14
-    PlayFanfare SEQ_SE_PL_SYUWA_sseq
+    PlaySE SEQ_SE_PL_SYUWA_sseq
     FadeScreenOut
     WaitFadeScreen
     DoDWWarp
@@ -230,7 +230,7 @@ RavagedPath_Arc2TagBattle:
     ApplyMovement RAVAGED_PATH_CYRUS, RavagedPath_Movement_FaceNorth
     ApplyMovement RAVAGED_PATH_RUTH, RavagedPath_Movement_FaceNorth
     WaitMovement
-    PlayFanfare SEQ_SE_PL_SYUWA_sseq
+    PlaySE SEQ_SE_PL_SYUWA_sseq
     ShakeCamera 16, 2
     FadeScreenOut FADE_SCREEN_SPEED_FAST, COLOR_WHITE
     WaitFadeScreen
@@ -376,7 +376,7 @@ RavagedPath_EchoCheck:
     WaitButton
     CloseMessage
     // The echo starts: a white flash, then the ghosts fade in
-    PlayFanfare SEQ_SE_PL_SYUWA_sseq
+    PlaySE SEQ_SE_PL_SYUWA_sseq
     FadeScreenOut FADE_SCREEN_SPEED_FAST, COLOR_WHITE
     WaitFadeScreen
     SetVar VAR_MAP_LOCAL_0x05, 1
@@ -393,7 +393,7 @@ RavagedPath_EchoCheck:
     ApplyMovement RAVAGED_PATH_ECHO_GRUNT_M, RavagedPath_Movement_EchoFaceEast
     ApplyMovement RAVAGED_PATH_ECHO_GRUNT_F, RavagedPath_Movement_EchoFaceWest
     WaitMovement
-    PlayFanfare SEQ_SE_DP_BOX03_sseq
+    PlaySE SEQ_SE_DP_BOX03_sseq
     ShakeCamera 4, 1
     WaitFanfare
     Message RavagedPath_Text_EchoCrate
@@ -406,8 +406,8 @@ RavagedPath_EchoCheck:
     ApplyMovement RAVAGED_PATH_ECHO_GRUNT_M, RavagedPath_Movement_EchoGruntMWatch
     ApplyMovement RAVAGED_PATH_ECHO_GRUNT_F, RavagedPath_Movement_EchoGruntFWatch
     WaitMovement
-    PlayFanfare SEQ_SE_PL_KUSARI_sseq
-    WaitFanfare
+    PlaySE SEQ_SE_PL_KUSARI_sseq
+    WaitSE SEQ_SE_PL_KUSARI_sseq
     Message RavagedPath_Text_EchoStrapped
     WaitButton
     CloseMessage
@@ -421,7 +421,7 @@ RavagedPath_EchoCheck:
     CloseMessage
     // The air tears beside it (the rift's tile)
     AddObject RAVAGED_PATH_ECHO_TEAR
-    PlayFanfare SEQ_SE_PL_SYUWA_sseq
+    PlaySE SEQ_SE_PL_SYUWA_sseq
     ShakeCamera 16, 2
     FadeScreenOut FADE_SCREEN_SPEED_FAST, COLOR_WHITE
     WaitFadeScreen

@@ -783,6 +783,22 @@ void FieldSystem_StartLoadMapFromErrorTask(FieldSystem *fieldSystem)
     FieldSystem_CreateTask(fieldSystem, FieldTask_LoadMapFromError, errorData);
 }
 
+static BOOL FieldMapChange_IsBGMFadeActive(void)
+{
+    u16 *fanfareDelay = SoundSystem_GetParam(SOUND_SYSTEM_PARAM_FANFARE_DELAY);
+
+    if (*fanfareDelay != 0) {
+        // Guard against scripts that ran PlayFanfare without WaitFanfare:
+        // SoundSystem_Tick() freezes fadeCounter while fanfareDelay != 0,
+        // which deadlocks any map change waiting on Sound_IsFadeActive().
+        if (Sound_IsBGMPausedByFanfare() && *fanfareDelay == 0) {
+            Sound_IsBGMPausedByFanfare();
+        }
+    }
+
+    return Sound_IsFadeActive();
+}
+
 static BOOL FieldTask_ChangeMap(FieldTask *task)
 {
     FieldSystem *fieldSystem = FieldTask_GetFieldSystem(task);
@@ -801,7 +817,7 @@ static BOOL FieldTask_ChangeMap(FieldTask *task)
         mapChangeData->state++;
         break;
     case 2:
-        if (Sound_IsFadeActive()) {
+        if (FieldMapChange_IsBGMFadeActive()) {
             break;
         }
 
@@ -895,7 +911,7 @@ static BOOL FieldTask_ChangeMapFull(FieldTask *task)
         mapChangeSub->state++;
         break;
     case 2:
-        if (Sound_IsFadeActive()) {
+        if (FieldMapChange_IsBGMFadeActive()) {
             break;
         }
 
@@ -969,7 +985,7 @@ static BOOL FieldTask_MapChangeFly(FieldTask *task)
         mapChangeData->state++;
         break;
     case 2:
-        if (Sound_IsFadeActive()) {
+        if (FieldMapChange_IsBGMFadeActive()) {
             break;
         }
 
@@ -1091,7 +1107,7 @@ static BOOL FieldTask_MapChangeByFieldWarp(FieldTask *task)
         mapChangeData->state++;
         break;
     case 2:
-        if (Sound_IsFadeActive()) {
+        if (FieldMapChange_IsBGMFadeActive()) {
             break;
         }
 
@@ -1203,7 +1219,7 @@ static BOOL FieldTask_MapChangeWarp(FieldTask *task)
         mapChangeWarpData->state++;
         break;
     case 3:
-        if (Sound_IsFadeActive()) {
+        if (FieldMapChange_IsBGMFadeActive()) {
             break;
         }
 
@@ -1379,7 +1395,7 @@ BOOL FieldTask_MapChangeToUnderground(FieldTask *task)
         ctx->state++;
         break;
     case ENTER_UNDERGROUND_START_MAP:
-        if (Sound_IsFadeActive()) {
+        if (FieldMapChange_IsBGMFadeActive()) {
             break;
         }
 
@@ -1445,7 +1461,7 @@ BOOL FieldTask_MapChangeFromUnderground(FieldTask *task)
         ctx->state++;
         break;
     case EXIT_UNDERGROUND_START_MAP:
-        if (Sound_IsFadeActive()) {
+        if (FieldMapChange_IsBGMFadeActive()) {
             break;
         }
 
@@ -1566,7 +1582,7 @@ static BOOL sub_02054538(FieldTask *task)
         (*state)++;
         break;
     case 3:
-        if (Sound_IsFadeActive()) {
+        if (FieldMapChange_IsBGMFadeActive()) {
             break;
         }
 
@@ -1624,7 +1640,7 @@ static BOOL sub_02054648(FieldTask *task)
         (*state)++;
         break;
     case 3:
-        if (Sound_IsFadeActive()) {
+        if (FieldMapChange_IsBGMFadeActive()) {
             break;
         }
 
@@ -1686,7 +1702,7 @@ static BOOL FieldTask_ChangeMapColosseum(FieldTask *task)
         mapChangeData->state++;
         break;
     case 2:
-        if (Sound_IsFadeActive()) {
+        if (FieldMapChange_IsBGMFadeActive()) {
             break;
         }
 

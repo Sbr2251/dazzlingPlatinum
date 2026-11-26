@@ -597,7 +597,7 @@ OreburghCity_Arc1MinerDarkCoats:
 OreburghCity_Arc1OnFrameTunnelGlowing:
     LockAll
     WaitTime 15, VAR_RESULT
-    PlayFanfare SEQ_SE_DP_WALL_HIT2_sseq
+    PlaySE SEQ_SE_DP_WALL_HIT2_sseq
     ShakeCamera 24, 4
     WaitTime 20, VAR_RESULT
     // The runner only runs up when the player is at the Gym door; arriving any other way at 15 (Pokemon Center,
@@ -699,8 +699,8 @@ OreburghCity_HumMiner:
     SetVar VAR_MAP_LOCAL_0x00, 1
     SetVar VAR_MAP_LOCAL_0x01, 1
     WaitTime 10, VAR_RESULT
-    PlayFanfare SEQ_SE_DP_BEEP_sseq
-    WaitFanfare
+    PlaySE SEQ_SE_DP_BEEP_sseq
+    WaitSE SEQ_SE_DP_BEEP_sseq
     Message OreburghCity_Text_HumReaderFirstBuzz
     WaitButton
     Message OreburghCity_Text_HumMinerWhatsThatRacket
@@ -865,24 +865,24 @@ OreburghCity_HumBuzzEnd:
     End
 
 OreburghCity_HumBeep1:
-    PlayFanfare SEQ_SE_DP_BEEP_sseq
-    WaitFanfare
+    PlaySE SEQ_SE_DP_BEEP_sseq
+    WaitSE SEQ_SE_DP_BEEP_sseq
     Return
 
 OreburghCity_HumBeep2:
-    PlayFanfare SEQ_SE_DP_BEEP_sseq
-    WaitFanfare
-    PlayFanfare SEQ_SE_DP_BEEP_sseq
-    WaitFanfare
+    PlaySE SEQ_SE_DP_BEEP_sseq
+    WaitSE SEQ_SE_DP_BEEP_sseq
+    PlaySE SEQ_SE_DP_BEEP_sseq
+    WaitSE SEQ_SE_DP_BEEP_sseq
     Return
 
 OreburghCity_HumBeep3:
-    PlayFanfare SEQ_SE_DP_BEEP_sseq
-    WaitFanfare
-    PlayFanfare SEQ_SE_DP_BEEP_sseq
-    WaitFanfare
-    PlayFanfare SEQ_SE_DP_BEEP_sseq
-    WaitFanfare
+    PlaySE SEQ_SE_DP_BEEP_sseq
+    WaitSE SEQ_SE_DP_BEEP_sseq
+    PlaySE SEQ_SE_DP_BEEP_sseq
+    WaitSE SEQ_SE_DP_BEEP_sseq
+    PlaySE SEQ_SE_DP_BEEP_sseq
+    WaitSE SEQ_SE_DP_BEEP_sseq
     Return
 
     .balign 4, 0

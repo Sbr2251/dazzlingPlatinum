@@ -33,6 +33,7 @@ void VramStats_NotePlttLnk(u32 totalBytes);
 void VramStats_NoteTexFrm(void);
 void VramStats_NotePlttFrm(void);
 void VramStats_NoteFrm(void); // both managers switched to frame type
+void VramStats_NoteShutdown(void); // active G3D pipeline buffers freed
 void VramStats_NoteTexOom(const char *site, u32 requestedBytes, BOOL is4x4);
 void VramStats_NotePlttOom(const char *site, u32 requestedBytes, BOOL is4Pltt);
 void VramStats_NotePoolOom(const char *site, int id, int capacity);

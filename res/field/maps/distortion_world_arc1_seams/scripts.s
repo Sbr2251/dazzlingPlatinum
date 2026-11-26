@@ -42,7 +42,7 @@ DistortionWorldArc1Seams_Fall:
     LockAll
     ApplyMovement LOCALID_PLAYER, DistortionWorldArc1Seams_Movement_PlayerFall
     WaitMovement
-    PlayFanfare SEQ_SE_PL_SYUWA_sseq
+    PlaySE SEQ_SE_PL_SYUWA_sseq
     FadeScreenOut
     WaitFadeScreen
     ApplyMovement LOCALID_PLAYER, DistortionWorldArc1Seams_Movement_SetVisible
@@ -86,10 +86,10 @@ DistortionWorldArc1Seams_EntryScene:
     ApplyMovement LOCALID_BARRY_ENTRY, DistortionWorldArc1Seams_Movement_BarryJump
     ApplyMovement LOCALID_PLAYER, DistortionWorldArc1Seams_Movement_PlayerWatchBarry
     WaitMovement
-    PlayFanfare SEQ_SE_PL_SYUWA_sseq
+    PlaySE SEQ_SE_PL_SYUWA_sseq
     DeleteDistortionWorldMapObject LOCALID_BARRY_ENTRY
     WaitTime 50, VAR_RESULT
-    PlayFanfare SEQ_SE_PL_SYUWA_sseq
+    PlaySE SEQ_SE_PL_SYUWA_sseq
     AddDistortionWorldMapObject LOCALID_BARRY_ENTRY
     ApplyMovement LOCALID_BARRY_ENTRY, DistortionWorldArc1Seams_Movement_BarryDazed
     ApplyMovement LOCALID_PLAYER, DistortionWorldArc1Seams_Movement_FaceEast
@@ -161,7 +161,7 @@ DistortionWorldArc1Seams_BriefcaseScene:
     Message DistortionWorldArc1Seams_Text_CyrusTheWorldFolds
     WaitButton
     CloseMessage
-    PlayFanfare SEQ_SE_PL_SYUWA_sseq
+    PlaySE SEQ_SE_PL_SYUWA_sseq
     DeleteDistortionWorldMapObject LOCALID_CYRUS_ENTRY
     AddDistortionWorldMapObject LOCALID_CYRUS_CASE
     WaitTime 20, VAR_RESULT
@@ -169,7 +169,7 @@ DistortionWorldArc1Seams_BriefcaseScene:
     Message DistortionWorldArc1Seams_Text_BarryHeyWaitUp
     WaitButton
     CloseMessage
-    PlayFanfare SEQ_SE_PL_SYUWA_sseq
+    PlaySE SEQ_SE_PL_SYUWA_sseq
     DeleteDistortionWorldMapObject LOCALID_BARRY_ENTRY
     AddDistortionWorldMapObject LOCALID_BARRY_CASE
     WaitTime 20, VAR_RESULT
@@ -189,7 +189,7 @@ DistortionWorldArc1Seams_BriefcaseScene:
     // briefcase with a far jump and lands at (15,23), right in front of the player, facing them.
     // Cyrus and Barry are on the rows either side (22 and 24) and out of its path.
     WaitTime 24, VAR_RESULT
-    PlayFanfare SEQ_SE_PL_SYUWA_sseq
+    PlaySE SEQ_SE_PL_SYUWA_sseq
     // The Mawile is script-only (overlay condition 6): it spawns on no map load, so it stays hidden until
     // this AddDistortionWorldMapObject, at any HINTS value. Never gate it on HINTS == 4 again: that condition auto-spawns it
     // on a HINTS 4 map load, visible before the lunge.
@@ -244,7 +244,7 @@ DistortionWorldArc1Seams_AfterMawileBattle:
     WaitMovement
     CallIfEq VAR_0x8004, BATTLE_RESULT_PLAYER_FLED, DistortionWorldArc1Seams_MawileFledLine
     CallIfNe VAR_0x8004, BATTLE_RESULT_PLAYER_FLED, DistortionWorldArc1Seams_MawileDroppedLine
-    PlayFanfare SEQ_SE_PL_SYUWA_sseq
+    PlaySE SEQ_SE_PL_SYUWA_sseq
     // Re-show the Mawile before hiding it: if the battle reloaded the map, the script-only Mawile did not
     // respawn, and DeleteDistortionWorldMapObject on a missing object asserts. The 311 is a no-op (same frame, not rendered)
     // if the Mawile was retained through the battle.
@@ -262,7 +262,7 @@ DistortionWorldArc1Seams_AfterMawileBattle:
     SetVar VAR_ARC1_DW_HINTS, 5
     SetVar VAR_ARC1_PROGRESS, 6
     // The exit rift opens beside the briefcase spot
-    PlayFanfare SEQ_SE_PL_SYUWA_sseq
+    PlaySE SEQ_SE_PL_SYUWA_sseq
     FadeScreenOut FADE_SCREEN_SPEED_FAST, COLOR_WHITE
     WaitFadeScreen
     FadeScreenIn FADE_SCREEN_SPEED_FAST, COLOR_WHITE
@@ -272,7 +272,7 @@ DistortionWorldArc1Seams_AfterMawileBattle:
     Message DistortionWorldArc1Seams_Text_CyrusTheWorldIsClosing
     WaitButton
     CloseMessage
-    PlayFanfare SEQ_SE_PL_SYUWA_sseq
+    PlaySE SEQ_SE_PL_SYUWA_sseq
     FadeScreenOut
     WaitFadeScreen
     DoDWWarp
@@ -289,7 +289,7 @@ DistortionWorldArc1Seams_AfterMawileBattle:
 // select: the player already has their starter.
 DistortionWorldArc1Seams_BriefcaseMawileOnly:
     LockAll
-    PlayFanfare SEQ_SE_PL_SYUWA_sseq
+    PlaySE SEQ_SE_PL_SYUWA_sseq
     AddDistortionWorldMapObject LOCALID_MAWILE
     ApplyMovement LOCALID_MAWILE, DistortionWorldArc1Seams_Movement_MawileChargeApproach
     ApplyMovement LOCALID_PLAYER, DistortionWorldArc1Seams_Movement_PlayerKnockedBack

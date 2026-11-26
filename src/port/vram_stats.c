@@ -55,6 +55,14 @@ void VramStats_NoteFrm(void)
     VramStats_NotePlttFrm();
 }
 
+void VramStats_NoteShutdown(void)
+{
+    sTexKind = VRAM_KIND_UNKNOWN;
+    sPlttKind = VRAM_KIND_UNKNOWN;
+    sTexTotal = VRAM_UNKNOWN;
+    sPlttTotal = VRAM_UNKNOWN;
+}
+
 static void SumFreeBlock(u32 addr, u32 szByte, void *userData)
 {
     (void)addr;

@@ -291,12 +291,12 @@ OreburghGym_WinchHeave:
     PlayCry SPECIES_MACHOP
     WaitMovement
     WaitCry
-    PlayFanfare SEQ_SE_DP_KI_GASYAN_sseq
-    WaitFanfare
+    PlaySE SEQ_SE_DP_KI_GASYAN_sseq
+    WaitSE SEQ_SE_DP_KI_GASYAN_sseq
     Return
 
 OreburghGym_RockfallFx:
-    PlayFanfare SEQ_SE_DP_WALL_HIT2_sseq
+    PlaySE SEQ_SE_DP_WALL_HIT2_sseq
     ShakeCamera 16, 3
     Return
 
