@@ -1101,8 +1101,10 @@ static void BdspSpriteOffset(int index, fx32 *outDx, fx32 *outDy)
     type = BattleSystem_GetBattlerType(sStageSprites.battleSys, index);
     switch (type) {
     case BATTLER_TYPE_SOLO_PLAYER:
-        *outDx = 8 * FX32_ONE;
-        *outDy = 14 * FX32_ONE;
+        // bdsp-fix: right of and above the bottom-left player card, so big
+        // back sprites (Infernape) are not hidden behind it.
+        *outDx = 38 * FX32_ONE;
+        *outDy = 2 * FX32_ONE;
         break;
     case BATTLER_TYPE_SOLO_ENEMY:
         *outDx = -16 * FX32_ONE;

@@ -318,6 +318,13 @@ BOOL Battle_Main(ApplicationManager *appMan, int *state)
 
 void BattleSystem_EnterSubMenu(BattleSystem *battleSys)
 {
+    // bdsp-fix: the bag/party apps show the battle at the DS 256 px width
+    // beside them; the BDSP healthboxes sit on the 342 px canvas (the enemy
+    // card is cut off at x=256 and the player card covers the sprite), so
+    // hide them while the sub-menu is open. ExitSubMenu shows them again.
+    if (SIM_Battle3D_IsEnabled()) {
+        BattleSystem_HideHealthboxes(battleSys);
+    }
     SIM_Battle3D_Reset();
     SIM_Wide_SetWide2DWidth(0);
     SIM_Wide_SetScene(SIM_WIDE_SCENE_MENU); // battlehud hook (widegame note)
@@ -359,6 +366,18 @@ void BattleSystem_FreeGraphics(BattleSystem *battleSys)
 void BattleSystem_ExitSubMenu(BattleSystem *battleSys)
 {
     SIM_Wide_SetScene(SIM_WIDE_SCENE_BATTLE); // battlehud hook (widegame note)
+    // bdsp-fix: EnterSubMenu drops the wide 2D canvas to the DS 256 px for the
+    // bag/party apps, and SetScene resets it too; restore it (after the scene
+    // switch) before the battle BGs and healthboxes come back, otherwise the
+    // 2D layer is drawn as a centred 256 px strip: everything right of x=256
+    // (enemy healthbox, corner HUD) is clipped and the player card shifts.
+    // Same rule as BattleMain_InitBattleGraphics.
+    if (BattleHud_IsWidePixelMode()) {
+        SIM_Wide_SetWide2DWidth(342);
+    }
+    if (SIM_Battle3D_IsEnabled()) {
+        BattleSystem_ShowHealthboxes(battleSys);
+    }
     Overlay_UnloadByID(FS_OVERLAY_ID(battle_sub_menus));
 
     if (battleSys->overlayFlags == FALSE) {

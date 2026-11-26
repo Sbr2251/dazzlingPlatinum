@@ -627,8 +627,10 @@ static void HealthBox_BaseXY(u8 type, int *outX, int *outY)
         case HEALTHBOX_TYPE_PLAYER_SOLO:
         case HEALTHBOX_TYPE_SAFARI_ZONE:
         case HEALTHBOX_TYPE_PAL_PARK:
-            *outX = 64;
-            *outY = 158;
+            // bdsp-fix: tucked into the corner (was 64,158) so it clears the
+            // player's back sprite, which moved right (BdspSpriteOffset).
+            *outX = 58;
+            *outY = 164;
             return;
         case HEALTHBOX_TYPE_ENEMY_SOLO:
             *outX = 276;
