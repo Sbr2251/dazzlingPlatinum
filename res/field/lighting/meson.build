@@ -8,7 +8,8 @@ lighting_txt_gen = generator(
 lighting_data_srcs = lighting_txt_gen.process(files(
     'lighting_set_000.json',
     'lighting_set_002.json',
-    'lighting_set_004.json'),
+    'lighting_set_004.json',
+    'lighting_set_005.json'),
     env: jsoncnv_env,
 )
 
