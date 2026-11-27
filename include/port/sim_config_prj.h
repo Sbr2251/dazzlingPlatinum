@@ -35,6 +35,7 @@ typedef struct {
     BOOL battleHudStyleHd; // bdsp-parity: BattleHudStyle=hd|pixel (TRUE = hd, FALSE = pixel); default hd when supported, headless pixel unless SIM_FX_HUDHD=1
     BOOL weatherFx; // Lane weather: fog/shafts/heat/rain/lightning post effects (GPU only)
     BOOL waterReflections; // Lane weather: pixelated water reflections + shoreline foam (GPU only)
+    BOOL battleSpriteSizingHeight; // BDSP per-species sprite height sizing; app default TRUE (height), headless FALSE unless SIM_FX_BDSP_SIZING=1
 } SIM_Config_prj_type;
 
 // True when the game runs logic at 60 Hz AND time-based quantities must be

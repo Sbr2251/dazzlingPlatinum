@@ -1,15 +1,19 @@
 #include "battle/battle_stage_sprites.h"
 
+#include <math.h>
 #include <nitro.h>
 #include <nnsys.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "config/battle_stage.h"
 #include "constants/battle.h"
 #include "constants/graphics.h"
+#include "constants/heap.h"
 #include "constants/narc.h"
 #include "generated/shadow_sizes.h"
 
+#include "battle/battle_context.h"
 #include "battle/battle_stage.h"
 #include "battle/battle_stage_camera.h"
 #include "battle/battle_display.h"
@@ -20,11 +24,18 @@
 #include "fx_lighting.h"
 #include "graphics.h"
 #include "heap.h"
+#include "height_weight_data.h"
 #include "palette.h"
+#include "pokedex_heightweight.h"
 #include "pokemon_sprite.h"
 #include "port/sim_battle3d.h"
+#include "port/sim_config_prj.h"
 #include "unk_0208C098.h"
 #include "vram_transfer.h"
+
+#ifdef SDK_PORT
+#include <simulator/sim_headless.h>
+#endif
 
 // The mesh: GRID x GRID quads, drawn as GRID quad strips
 #define GRID          8
@@ -177,6 +188,7 @@ typedef struct StageSprites {
     // UpdateConditions, per battler
     u16 rate[MAX_MON_SPRITES]; // the animation speed: speed, or 0 frozen
     StageCondition conditions[MAX_MON_SPRITES];
+    HeightWeightData *hwData; // Pokedex heights for BDSP per-species sizing
 } StageSprites;
 
 static u32 DrawHook(PokemonSpriteManager *monSpriteMan, int index, const PokemonSpriteDrawRect *rect);
@@ -273,6 +285,9 @@ void BattleStageSprites_Init(BattleSystem *battleSys, BattleStageSpriteFields *f
     }
 
     sStageSprites.hasBlobs = InitBlobs(camera);
+    if (sStageSprites.hwData == NULL) {
+        sStageSprites.hwData = HeightWeightData_Load(HEAP_ID_BATTLE);
+    }
     PokemonSpriteManager_SetDrawHook(BattleSystem_GetPokemonSpriteManager(battleSys), DrawHook);
     sStageSprites.hooked = TRUE;
     BattleStageStream_Init(BattleSystem_GetPokemonSpriteManager(battleSys));
@@ -290,6 +305,10 @@ void BattleStageSprites_Free(void)
     BattleStageStream_Free();
     FreeStatFx();
     FreeBlobs();
+    if (sStageSprites.hwData != NULL) {
+        HeightWeightData_Free(sStageSprites.hwData);
+        sStageSprites.hwData = NULL;
+    }
     sStageSprites.battleSys = NULL;
     sStageSprites.visible = FALSE;
     sStageSprites.streamLive = FALSE;
@@ -1083,9 +1102,110 @@ static BOOL DrawFlatStream(PokemonSpriteManager *monSpriteMan, int index, const 
     return TRUE;
 }
 
+BOOL BattleStageSprites_IsHeightSizingEnabled(void)
+{
+    if (!SIM_Battle3D_IsEnabled()) {
+        return FALSE;
+    }
+#ifdef SDK_PORT
+    {
+        const char *env = getenv("SIM_FX_BDSP_SIZING");
+        if (SIM_Headless_Enabled()) {
+            return (env != NULL && env[0] == '1') ? TRUE : FALSE;
+        }
+        if (env != NULL) {
+            if (env[0] == '0') {
+                return FALSE;
+            }
+            if (env[0] == '1') {
+                return TRUE;
+            }
+        }
+        {
+            SIM_Config_prj_type *cfg = SIM_Config_prj_GetConfig();
+            return (cfg != NULL) ? cfg->battleSpriteSizingHeight : TRUE;
+        }
+    }
+#else
+    return FALSE;
+#endif
+}
+
+float BattleStageSprites_GetSpeciesScale(int index)
+{
+    BattleSystem *battleSys = sStageSprites.battleSys;
+    BattleContext *ctx;
+    int maxBattlers;
+    int btype;
+    int species = 0;
+    int inches = 39;
+    float hMeters;
+    float rel;
+    float base;
+    float scale;
+
+    if (battleSys == NULL || index < 0 || index >= MAX_BATTLERS) {
+        return 1.0f;
+    }
+    maxBattlers = BattleSystem_GetMaxBattlers(battleSys);
+    if (index >= maxBattlers) {
+        return 1.0f;
+    }
+
+    ctx = BattleSystem_GetBattleContext(battleSys);
+    if (ctx != NULL) {
+        species = ctx->battleMons[index].species;
+    }
+    if (sStageSprites.hwData != NULL && species > 0) {
+        inches = Pokedex_HeightWeightData_Height(sStageSprites.hwData, species);
+    }
+    hMeters = (inches > 0) ? ((float)inches * 0.0254f) : 1.0f;
+    if (hMeters < 0.05f) {
+        hMeters = 0.05f;
+    }
+
+    // Compressed power curve so tiny (0.3m) and giant (9.2m Steelix) species both stay readable.
+    rel = powf(hMeters, 0.36f);
+    if (rel < 0.60f) {
+        rel = 0.60f;
+    } else if (rel > 1.72f) {
+        rel = 1.72f;
+    }
+
+    btype = BattleSystem_GetBattlerType(battleSys, index);
+    switch (btype) {
+    case BATTLER_TYPE_SOLO_PLAYER:
+        base = 1.06f;
+        break;
+    case BATTLER_TYPE_PLAYER_SIDE_SLOT_1:
+    case BATTLER_TYPE_PLAYER_SIDE_SLOT_2:
+        base = 0.90f;
+        break;
+    case BATTLER_TYPE_SOLO_ENEMY:
+        base = 0.80f;
+        break;
+    case BATTLER_TYPE_ENEMY_SIDE_SLOT_1:
+    case BATTLER_TYPE_ENEMY_SIDE_SLOT_2:
+        base = 0.72f;
+        break;
+    default:
+        base = 0.80f;
+        break;
+    }
+
+    scale = base * rel;
+    if (scale < 0.42f) {
+        scale = 0.42f;
+    } else if (scale > 1.45f) {
+        scale = 1.45f;
+    }
+    return scale;
+}
+
 static void BdspSpriteOffset(int index, fx32 *outDx, fx32 *outDy)
 {
     int type;
+    BOOL sizing;
 
     *outDx = 0;
     *outDy = 0;
@@ -1098,27 +1218,28 @@ static void BdspSpriteOffset(int index, fx32 *outDx, fx32 *outDy)
         return;
     }
 
+    sizing = BattleStageSprites_IsHeightSizingEnabled();
     type = BattleSystem_GetBattlerType(sStageSprites.battleSys, index);
     switch (type) {
     case BATTLER_TYPE_SOLO_PLAYER:
-        // bdsp-fix: right of and above the bottom-left player card, so big
-        // back sprites (Infernape) are not hidden behind it.
-        *outDx = 38 * FX32_ONE;
-        *outDy = 2 * FX32_ONE;
+        // bdsp-fix: right of the bottom-left card, feet just above card top edge (~y=154)
+        // so the full body (~45% height at 1.7m) is completely in frame.
+        *outDx = (sizing ? 24 : 38) * FX32_ONE;
+        *outDy = (sizing ? 0 : 2) * FX32_ONE;
         break;
     case BATTLER_TYPE_SOLO_ENEMY:
-        *outDx = -16 * FX32_ONE;
-        *outDy = 14 * FX32_ONE;
+        *outDx = (sizing ? -22 : -16) * FX32_ONE;
+        *outDy = (sizing ? 0 : 14) * FX32_ONE;
         break;
     case BATTLER_TYPE_PLAYER_SIDE_SLOT_1:
     case BATTLER_TYPE_PLAYER_SIDE_SLOT_2:
         *outDx = 4 * FX32_ONE;
-        *outDy = 12 * FX32_ONE;
+        *outDy = (sizing ? 6 : 12) * FX32_ONE;
         break;
     case BATTLER_TYPE_ENEMY_SIDE_SLOT_1:
     case BATTLER_TYPE_ENEMY_SIDE_SLOT_2:
         *outDx = -12 * FX32_ONE;
-        *outDy = 12 * FX32_ONE;
+        *outDy = (sizing ? 10 : 12) * FX32_ONE;
         break;
     default:
         break;
@@ -1216,6 +1337,65 @@ static u32 DrawHook(PokemonSpriteManager *monSpriteMan, int index, const Pokemon
         v0 = canvas.v0;
         u1 = canvas.u1;
         v1 = canvas.v1;
+    }
+
+    if (BattleStageSprites_IsHeightSizingEnabled()) {
+        float spScale = BattleStageSprites_GetSpeciesScale(index);
+        int topRow = 0;
+        int botRow = MON_SPRITE_FRAME_HEIGHT - 1;
+        int texH = MON_SPRITE_FRAME_HEIGHT;
+        float emptyBottomFrac;
+        float opaqueFrac;
+        int btype = (sStageSprites.battleSys != NULL) ? BattleSystem_GetBattlerType(sStageSprites.battleSys, index) : -1;
+
+        if (!streamed || !BattleStageStream_GetOpaqueBounds(index, &topRow, &botRow, &texH)) {
+            if (sprite->opaqueBottom >= sprite->opaqueTop && sprite->opaqueBottom < MON_SPRITE_FRAME_HEIGHT) {
+                topRow = sprite->opaqueTop;
+                botRow = sprite->opaqueBottom;
+                texH = MON_SPRITE_FRAME_HEIGHT;
+            }
+        }
+        if (texH <= 0) {
+            texH = MON_SPRITE_FRAME_HEIGHT;
+        }
+        emptyBottomFrac = (float)(texH - 1 - botRow) / (float)texH;
+        opaqueFrac = (float)(botRow - topRow + 1) / (float)texH;
+        if (opaqueFrac < 0.10f) {
+            opaqueFrac = 0.10f;
+        }
+
+        if (btype == BATTLER_TYPE_SOLO_ENEMY || btype == BATTLER_TYPE_ENEMY_SIDE_SLOT_1 || btype == BATTLER_TYPE_ENEMY_SIDE_SLOT_2) {
+            float targetFootY = (btype == BATTLER_TYPE_SOLO_ENEMY) ? 104.0f : 100.0f;
+            float maxOpaquePx = 62.0f; // keep top below enemy card bottom (~y=36)
+            float curOpaquePx = (float)height * spScale * opaqueFrac;
+            if (curOpaquePx > maxOpaquePx && curOpaquePx > 0.01f) {
+                spScale *= (maxOpaquePx / curOpaquePx);
+            }
+            width = (int)lroundf((float)width * spScale);
+            height = (int)lroundf((float)height * spScale);
+            if (width == 0) width = 1;
+            if (height == 0) height = 1;
+            centreY = (fx32)lroundf((targetFootY - (float)height * (0.5f - emptyBottomFrac)) * (float)FX32_ONE);
+        } else if (btype == BATTLER_TYPE_SOLO_PLAYER || btype == BATTLER_TYPE_PLAYER_SIDE_SLOT_1 || btype == BATTLER_TYPE_PLAYER_SIDE_SLOT_2) {
+            float targetFootY = (btype == BATTLER_TYPE_SOLO_PLAYER) ? 154.0f : 152.0f;
+            float maxOpaquePx = 94.0f;
+            float curOpaquePx = (float)height * spScale * opaqueFrac;
+            if (curOpaquePx > maxOpaquePx && curOpaquePx > 0.01f) {
+                spScale *= (maxOpaquePx / curOpaquePx);
+            }
+            width = (int)lroundf((float)width * spScale);
+            height = (int)lroundf((float)height * spScale);
+            if (width == 0) width = 1;
+            if (height == 0) height = 1;
+            centreY = (fx32)lroundf((targetFootY - (float)height * (0.5f - emptyBottomFrac)) * (float)FX32_ONE);
+        } else {
+            fx32 footY = centreY + (fx32)((height * FX32_ONE) / 2);
+            width = (int)lroundf((float)width * spScale);
+            height = (int)lroundf((float)height * spScale);
+            if (width == 0) width = 1;
+            if (height == 0) height = 1;
+            centreY = footY - (fx32)((height * FX32_ONE) / 2);
+        }
     }
 
     if (monSpriteMan->excludeIdentity == TRUE

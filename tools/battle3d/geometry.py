@@ -340,20 +340,21 @@ def add_pine_tree(
     height: float,
     base_radius: float,
     rng: random.Random,
-    tiers: int = 4,
-    lobes: int = 6,
+    tiers: int = 5,
+    lobes: int = 8,
     tint_dark: Color4 = (0.48, 0.66, 0.58, 1.0),
     tint_lit: Color4 = (0.98, 1.0, 0.90, 1.0),
     snow_dusted: bool = False,
+    curved: bool = True,
 ) -> None:
-    """Stylized BDSP multi-tiered conifer with scalloped fluted bough cones and AO shading."""
+    """Stylized BDSP multi-tiered conifer with curved drooping boughs and AO shading."""
     lean_x = rng.uniform(-0.18, 0.18)
     lean_z = rng.uniform(-0.18, 0.18)
 
     # Tapered trunk embedded slightly below y
     trunk_h = height * 0.62
-    trunk_r0 = base_radius * 0.20
-    trunk_r1 = base_radius * 0.07
+    trunk_r0 = base_radius * 0.19
+    trunk_r1 = base_radius * 0.06
     add_cylinder(
         bark_sm,
         x, y - 0.35, z,
@@ -366,20 +367,20 @@ def add_pine_tree(
     )
 
     n_pts = lobes * 2  # alternating outer branch tips & inner valleys
-    bough_start = height * 0.18
+    bough_start = height * 0.16
     bough_span = height - bough_start
     phase_base = rng.uniform(0.0, math.tau)
 
     for t in range(tiers):
         frac0 = t / tiers
         frac1 = (t + 1) / tiers
-        # Overlapping tiers: each tier reaches down past previous tier's base
-        ty_bot = y + bough_start + bough_span * (frac0 * 0.78)
-        ty_top = y + bough_start + bough_span * (min(1.0, frac0 * 0.78 + (1.0 / tiers) * 1.48))
+        # Tiered boughs with clear dark undersides and drooping outer tips
+        ty_bot = y + bough_start + bough_span * (frac0 * 0.74)
+        ty_top = y + bough_start + bough_span * (min(1.0, frac0 * 0.74 + (1.0 / tiers) * 1.32))
         if t == tiers - 1:
             ty_top = y + height
-        tr_out = base_radius * ((1.0 - frac0 * 0.76) * rng.uniform(0.94, 1.06))
-        tr_in = tr_out * 0.72
+        tr_out = base_radius * ((1.0 - frac0 * 0.74) * rng.uniform(0.92, 1.08))
+        tr_in = tr_out * 0.52
         # Slight horizontal lean along trunk
         ox_bot = x + lean_x * (ty_bot - y) / height
         oz_bot = z + lean_z * (ty_bot - y) / height
@@ -387,46 +388,63 @@ def add_pine_tree(
         oz_top = z + lean_z * (ty_top - y) / height
 
         # Vertical AO gradient: lower tiers darker, sunlit tips brighter
-        tier_shade = 0.72 + 0.28 * frac1
-        c_rim_out = _lerp4(tint_dark, tint_lit, 0.42 + 0.38 * frac1)
-        c_rim_in = _mul_color(_lerp4(tint_dark, tint_lit, 0.22 + 0.25 * frac1), 0.78)
-        c_apex = _lerp4(tint_dark, tint_lit, 0.72 + 0.28 * frac1)
+        tier_shade = 0.70 + 0.30 * frac1
+        c_rim_out = _lerp4(tint_dark, tint_lit, 0.46 + 0.40 * frac1)
+        c_rim_in = _mul_color(_lerp4(tint_dark, tint_lit, 0.16 + 0.20 * frac1), 0.68)
+        c_mid_out = _lerp4(tint_dark, tint_lit, 0.58 + 0.32 * frac1)
+        c_apex = _lerp4(tint_dark, tint_lit, 0.76 + 0.24 * frac1)
         if snow_dusted:
             c_apex = _lerp4(c_apex, (0.96, 0.98, 1.0, 1.0), 0.65 + 0.25 * frac1)
+            c_mid_out = _lerp4(c_mid_out, (0.92, 0.96, 1.0, 1.0), 0.45 + 0.25 * frac1)
             c_rim_out = _lerp4(c_rim_out, (0.90, 0.95, 1.0, 1.0), 0.35 + 0.25 * frac1)
-        c_under = _mul_color(tint_dark, 0.56 * tier_shade)
+        c_under = _mul_color(tint_dark, 0.44 * tier_shade)
 
         apex_idx = pine_sm.add_vertex((ox_top, ty_top, oz_top), (0.0, 1.0, 0.0), (0.5, 0.0), c_apex)
         under_center_idx = pine_sm.add_vertex(
-            (ox_bot, ty_bot + (ty_top - ty_bot) * 0.14, oz_bot),
+            (ox_bot, ty_bot + (ty_top - ty_bot) * 0.20, oz_bot),
             (0.0, -1.0, 0.0),
             (0.5, 1.0),
             c_under,
         )
 
-        phase = phase_base + t * (math.pi / lobes) + rng.uniform(-0.18, 0.18)
+        phase = phase_base + t * (math.pi / lobes) + rng.uniform(-0.16, 0.16)
+        mid_ids: List[int] = []
         rim_top_ids: List[int] = []
         rim_und_ids: List[int] = []
         slope_h = max(0.2, ty_top - ty_bot)
+        ox_mid = _lerp(ox_top, ox_bot, 0.46)
+        oz_mid = _lerp(oz_top, oz_bot, 0.46)
+        ty_mid = _lerp(ty_top, ty_bot, 0.44)
+
         for i in range(n_pts):
             ang = phase + (i / n_pts) * math.tau
             is_lobe = (i % 2 == 0)
-            rad = (tr_out if is_lobe else tr_in) * rng.uniform(0.95, 1.05)
-            droop = -0.14 * (ty_top - ty_bot) if is_lobe else 0.05 * (ty_top - ty_bot)
+            rad = (tr_out if is_lobe else tr_in) * rng.uniform(0.93, 1.07)
+            droop = -0.32 * slope_h if is_lobe else 0.06 * slope_h
             ca = math.cos(ang)
             sa = math.sin(ang)
             px = ox_bot + ca * rad
             pz = oz_bot + sa * rad
             py = ty_bot + droop
-            n_out = v3_norm((ca * slope_h, rad * 0.85, sa * slope_h))
+            n_out = v3_norm((ca * slope_h, rad * 0.88, sa * slope_h))
             u = (i / n_pts) * 2.0
             c_v = c_rim_out if is_lobe else c_rim_in
+            if curved:
+                mid_rad = rad * (0.52 if is_lobe else 0.46)
+                mx = ox_mid + ca * mid_rad
+                mz = oz_mid + sa * mid_rad
+                my = ty_mid + (0.04 * slope_h if is_lobe else 0.06 * slope_h)
+                mid_ids.append(pine_sm.add_vertex((mx, my, mz), n_out, (u, 0.48), c_mid_out if is_lobe else c_rim_in))
             rim_top_ids.append(pine_sm.add_vertex((px, py, pz), n_out, (u, 1.0), c_v))
             rim_und_ids.append(pine_sm.add_vertex((px, py, pz), (ca * 0.2, -0.96, sa * 0.2), (u, 0.9), c_under))
 
         for i in range(n_pts):
             j = (i + 1) % n_pts
-            pine_sm.add_tri(apex_idx, rim_top_ids[j], rim_top_ids[i], enforce_winding=True)
+            if curved:
+                pine_sm.add_tri(apex_idx, mid_ids[j], mid_ids[i], enforce_winding=True)
+                pine_sm.add_quad(mid_ids[i], mid_ids[j], rim_top_ids[j], rim_top_ids[i], enforce_winding=True)
+            else:
+                pine_sm.add_tri(apex_idx, rim_top_ids[j], rim_top_ids[i], enforce_winding=True)
             pine_sm.add_tri(under_center_idx, rim_und_ids[i], rim_und_ids[j], enforce_winding=True)
 
 
@@ -834,3 +852,71 @@ def add_floating_island(
             c_mid, c_mid, c_tip,
             outward_hint=(out_x, -0.75, out_z),
         )
+
+
+def add_mountain_ring(
+    sm: SubmeshBuilder,
+    rng: random.Random,
+    r_inner: float = 40.0,
+    r_peak: float = 52.0,
+    r_outer: float = 64.0,
+    segs: int = 72,
+    base_y: float = -0.5,
+    base_height: float = 9.5,
+    c_base: Color4 = (0.28, 0.36, 0.52, 1.0),
+    c_peak: Color4 = (0.48, 0.58, 0.78, 1.0),
+) -> None:
+    """Distant blue-hazed faceted mountain range ringing the horizon (Mt. Coronet backdrop)."""
+    inner_pts: List[Vec3] = []
+    ridge_pts: List[Vec3] = []
+    outer_pts: List[Vec3] = []
+
+    for i in range(segs):
+        ang = (i / segs) * math.tau
+        ca = math.cos(ang)
+        sa = math.sin(ang)
+
+        # Wrap angular distance helper
+        def ang_dist(target: float) -> float:
+            d = (ang - target + math.pi) % math.tau - math.pi
+            return abs(d)
+
+        # Hero Mt. Coronet massif right-back behind opponent (-0.52 rad) + secondary peaks
+        hero = 19.0 * math.exp(-((ang_dist(-0.52) / 0.24) ** 2))
+        sec1 = 9.0 * math.exp(-((ang_dist(-1.15) / 0.28) ** 2))
+        sec2 = 7.5 * math.exp(-((ang_dist(-2.05) / 0.32) ** 2))
+        sec3 = 6.5 * math.exp(-((ang_dist(0.35) / 0.35) ** 2))
+        harm = (
+            2.6 * math.sin(ang * 5.0 + 0.4)
+            + 1.8 * math.cos(ang * 9.0 - 1.1)
+            + 1.2 * math.sin(ang * 17.0 + 0.7)
+        )
+        h = max(4.5, base_height + hero + sec1 + sec2 + sec3 + harm + rng.uniform(-0.8, 0.8))
+
+        ri = r_inner + rng.uniform(-1.5, 1.5)
+        rp = r_peak + rng.uniform(-2.0, 2.0)
+        ro = r_outer
+        inner_pts.append((ca * ri, base_y, sa * ri))
+        ridge_pts.append((ca * rp, base_y + h, sa * rp))
+        outer_pts.append((ca * ro, base_y - 2.0, sa * ro))
+
+    for i in range(segs):
+        j = (i + 1) % segs
+        p0, p1 = inner_pts[i], inner_pts[j]
+        p2, p3 = ridge_pts[j], ridge_pts[i]
+        o0, o1 = outer_pts[i], outer_pts[j]
+        out_in = (-((p0[0] + p1[0]) * 0.5), 0.35, -((p0[2] + p1[2]) * 0.5))
+        sm.add_flat_quad(
+            p0, p1, p2, p3,
+            (i * 0.15, 0.0), ((i + 1) * 0.15, 0.0), ((i + 1) * 0.15, 1.0), (i * 0.15, 1.0),
+            c_base, c_base, c_peak, c_peak,
+            outward_hint=out_in,
+        )
+        out_ex = ((p2[0] + p3[0]) * 0.5, 0.35, (p2[2] + p3[2]) * 0.5)
+        sm.add_flat_quad(
+            p3, p2, o1, o0,
+            (i * 0.15, 1.0), ((i + 1) * 0.15, 1.0), ((i + 1) * 0.15, 0.0), (i * 0.15, 0.0),
+            c_peak, c_peak, c_base, c_base,
+            outward_hint=out_ex,
+        )
+

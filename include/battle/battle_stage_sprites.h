@@ -58,5 +58,8 @@ BOOL BattleStageSprites_GroundPoint(int side, int px, VecFx32 *point);
 // draw rect places it); FALSE when the sprite is not cut, is drawn with excludeIdentity or
 // has its bottom row off
 BOOL BattleStageSprites_CutHomeY(int battler, int *y);
+// BDSP per-species Pokedex height sizing (gated on SIM_Battle3D_IsEnabled & BattleSpriteSizing/SIM_FX_BDSP_SIZING)
+BOOL BattleStageSprites_IsHeightSizingEnabled(void);
+float BattleStageSprites_GetSpeciesScale(int index);
 
 #endif // POKEPLATINUM_BATTLE_BATTLE_STAGE_SPRITES_H

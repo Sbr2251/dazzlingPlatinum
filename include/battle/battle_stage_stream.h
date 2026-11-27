@@ -90,5 +90,7 @@ void BattleStageStream_CanvasRect(int index, const PokemonSpriteTransforms *tran
 const u8 *BattleStageStream_GetFrame(int index);
 // The scale the battler's stream is drawn at (MonStream_Scale, in eighths), 1:1 when it has none
 int BattleStageStream_GetScale(int index);
+// Cached opaque vertical bounds [outTop..outBottom] inside [0..outTexHeight-1]
+BOOL BattleStageStream_GetOpaqueBounds(int index, int *outTop, int *outBottom, int *outTexHeight);
 
 #endif // POKEPLATINUM_BATTLE_BATTLE_STAGE_STREAM_H

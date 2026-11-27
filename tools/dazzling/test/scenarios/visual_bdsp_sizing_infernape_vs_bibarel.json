@@ -1,0 +1,33 @@
+{
+ "_note": "BDSP per-species Pokedex height sizing golden (Infernape vs Bibarel, forest night).",
+ "config": {
+  "ScreenLayout": "wide",
+  "InternalResolutionScale": "4"
+ },
+ "env": {
+  "SIM_FX_BATTLEHUD": "1",
+  "SIM_FX_BDSP_BATTLE": "1",
+  "SIM_FX_BDSP_SIZING": "1",
+  "SIM_FX_WIDE": "1",
+  "SIM_RENDERER": "gpu",
+  "SIM_FIXED_RTC": "2026-01-01T22:00:00"
+ },
+ "name": "visual_bdsp_sizing_infernape_vs_bibarel",
+ "requires_exists": [
+  "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+ ],
+ "start": {
+  "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+ },
+ "steps": [
+  {"step": 900},
+  {"press_until": {"app": "field"}, "keys": "A", "press_frames": 10, "interval_frames": 300, "timeout_frames": 7200},
+  {"step": 180},
+  {"warp": {"map": "MAP_HEADER_ETERNA_FOREST", "x": 20, "z": 20, "dir": "DIR_NORTH"}},
+  {"step": 180},
+  {"start_battle": {"spec": "../../../battle/specs/bdsp_infernape_vs_bibarel.json"}},
+  {"timeout_frames": 7200, "wait_until": {"op": "eq", "path": "battle.waiting", "value": true}},
+  {"step": 60},
+  {"screenshot": "visual_bdsp_sizing_infernape_vs_bibarel", "reference": "../references/visual_mac/visual_bdsp_sizing_infernape_vs_bibarel.bmp", "tolerance": 0.0, "optional_reference": true}
+ ]
+}

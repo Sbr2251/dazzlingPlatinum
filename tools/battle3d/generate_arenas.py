@@ -37,6 +37,7 @@ from geometry import (  # noqa: E402
     add_grass_tuft,
     add_icosphere_blob,
     add_leafy_bush,
+    add_mountain_ring,
     add_pine_tree,
     add_pitched_house,
     add_radial_ground,
@@ -145,6 +146,7 @@ def build_plain_route() -> ArenaScene:
     bark_tex = scene.add_texture(128, 128, make_bark_texture(128, 106), B3D_TEX_FLAG_REPEAT)
 
     sky_sm = scene.add_submesh(sky_tex, SKY_FLAGS, roughness=1.0, fog_factor=0.0)
+    mtn_sm = scene.add_submesh(rock_tex, B3D_SUBMESH_RECEIVE_SHADOW, roughness=0.95, fog_factor=1.0)
     ground_sm = scene.add_submesh(ground_tex, B3D_SUBMESH_RECEIVE_SHADOW, roughness=0.9, fog_factor=0.72)
     rock_sm = scene.add_submesh(rock_tex, SHADOW_BOTH, roughness=0.88, fog_factor=0.85)
     cap_sm = scene.add_submesh(ground_tex, SHADOW_BOTH, roughness=0.85, fog_factor=0.82)
@@ -154,6 +156,7 @@ def build_plain_route() -> ArenaScene:
     tuft_sm = scene.add_submesh(-1, B3D_SUBMESH_RECEIVE_SHADOW | B3D_SUBMESH_DOUBLE_SIDED, roughness=0.8, fog_factor=0.82)
 
     add_sky_dome(sky_sm, radius=74.0, segs_u=32, segs_v=12)
+    add_mountain_ring(mtn_sm, rng, r_inner=40.0, r_peak=52.0, r_outer=64.0, segs=72)
 
     # Smooth flat clearing (r <= 9.2) rising into rolling green hills behind cliffs.
     def height_fn(x: float, z: float) -> float:
@@ -167,12 +170,12 @@ def build_plain_route() -> ArenaScene:
         return hill
 
     def color_fn(x: float, z: float, r: float, y: float):
-        # Warm sunlit sandy-ochre clearing center -> vibrant BDSP chartreuse grass -> rich forest floor.
+        # Soft BDSP clearing: worn sandy-olive center -> natural soft meadow grass -> forest floor.
         n = 0.5 + 0.5 * math.sin(x * 0.38 + z * 0.29) * math.cos(z * 0.44 - x * 0.21)
-        dirt = (0.86, 0.78, 0.48, 1.0)
-        mid_grass = (0.62, 0.84, 0.36, 1.0)
-        lush_grass = (0.40, 0.72, 0.32, 1.0)
-        deep_floor = (0.28, 0.56, 0.28, 1.0)
+        dirt = (0.76, 0.72, 0.52, 1.0)
+        mid_grass = (0.46, 0.72, 0.38, 1.0)
+        lush_grass = (0.30, 0.58, 0.32, 1.0)
+        deep_floor = (0.20, 0.44, 0.26, 1.0)
         r_warped = r + (n - 0.5) * 1.6
         if r_warped < 6.0:
             return _lerp4(dirt, mid_grass, _smoothstep(2.4, 6.0, r_warped))
@@ -187,18 +190,18 @@ def build_plain_route() -> ArenaScene:
     # Camera looks along (+0.37, -0.09, -0.92), so z=-10..-16, x=-10..+18 is hero framing.
     cliff_specs = [
         # Hero back cliffs directly behind opponent & framing left/right
-        (-7.5, -10.8, 6.2, 4.4, 2.35, 0.25),
-        (-1.4, -12.6, 6.8, 4.6, 2.05, -0.10),
-        (5.6, -12.4, 7.2, 4.8, 2.55, -0.32),
-        (11.8, -9.8, 6.6, 4.5, 2.45, -0.68),
-        (14.6, -3.6, 6.0, 4.4, 2.15, -1.25),
-        (-12.2, -5.8, 6.2, 4.4, 2.25, 0.85),
+        (-7.5, -10.8, 6.2, 4.4, 1.75, 0.25),
+        (-1.4, -12.6, 6.8, 4.6, 1.60, -0.10),
+        (5.6, -12.4, 7.2, 4.8, 1.85, -0.32),
+        (11.8, -9.8, 6.6, 4.5, 1.80, -0.68),
+        (14.6, -3.6, 6.0, 4.4, 1.65, -1.25),
+        (-12.2, -5.8, 6.2, 4.4, 1.75, 0.85),
         # Rear wrap cliffs so orbits have zero holes
-        (13.2, 4.0, 6.2, 4.2, 1.95, -1.85),
-        (8.0, 11.2, 6.6, 4.4, 1.85, -2.55),
-        (-1.5, 13.0, 7.0, 4.4, 1.80, 3.05),
-        (-10.2, 9.8, 6.4, 4.4, 1.95, 2.35),
-        (-14.2, 2.4, 6.0, 4.2, 2.00, 1.60),
+        (13.2, 4.0, 6.2, 4.2, 1.55, -1.85),
+        (8.0, 11.2, 6.6, 4.4, 1.50, -2.55),
+        (-1.5, 13.0, 7.0, 4.4, 1.50, 3.05),
+        (-10.2, 9.8, 6.4, 4.4, 1.55, 2.35),
+        (-14.2, 2.4, 6.0, 4.2, 1.60, 1.60),
     ]
     for cx, cz, cw, cd, ch, yaw in cliff_specs:
         by = max(0.0, height_fn(cx, cz) - 0.55)
@@ -208,44 +211,45 @@ def build_plain_route() -> ArenaScene:
             cap_top_color=(0.48, 0.84, 0.34, 1.0),
             cap_lip_color=(0.30, 0.62, 0.24, 1.0),
             n_sides=9,
-            cap_thickness=0.44,
+            cap_thickness=0.38,
         )
 
-    # Hero foreground/midground stylized Sinnoh pine trees (exact BDSP layered silhouette).
+    # Hero foreground/midground stylized Sinnoh pine trees (treetops in-frame + window to mountain peak).
     hero_pines = [
-        (-8.6, -11.2, 9.4, 2.45),
-        (-4.8, -14.8, 8.6, 2.25),
-        (2.4, -12.8, 10.2, 2.65),
-        (8.8, -11.2, 8.4, 2.20),
-        (12.2, -9.4, 10.6, 2.75),
-        (15.2, -5.4, 8.8, 2.30),
-        (-12.4, -6.2, 9.0, 2.35),
-        (-1.2, -17.5, 9.8, 2.50),
-        (5.8, -16.8, 10.8, 2.70),
-        (10.8, -15.6, 9.2, 2.35),
-        (-10.4, -15.8, 9.6, 2.45),
+        (-13.2, -6.6, 7.2, 2.15, 6),
+        (-10.4, -12.2, 7.8, 2.30, 6),
+        (-5.6, -15.0, 6.6, 1.95, 5),
+        (-1.2, -16.2, 8.0, 2.35, 6),
+        (2.8, -15.6, 6.8, 2.00, 5),
+        (7.0, -14.2, 6.0, 1.85, 5),
+        (14.8, -9.6, 7.4, 2.20, 6),
+        (16.8, -4.6, 6.8, 2.00, 5),
+        (-14.8, -1.6, 7.0, 2.05, 6),
+        (-11.2, -16.0, 7.6, 2.20, 6),
     ]
-    for px, pz, ph, pr in hero_pines:
-        py = height_fn(px, pz) + 0.9
+    for px, pz, ph, pr, tiers in hero_pines:
+        py = height_fn(px, pz) - 0.1
         add_pine_tree(
             bark_sm, pine_sm, px, py, pz, ph, pr, rng,
-            tiers=5, lobes=7,
+            tiers=tiers, lobes=9, curved=True,
             tint_dark=(0.46, 0.68, 0.62, 1.0),
             tint_lit=(0.96, 1.00, 0.90, 1.0),
         )
 
-    # Outer forest ring (r = 17..35) for atmospheric blue haze depth & 360 orbit wrap.
+    # Outer forest ring (r = 18.5..34) for atmospheric blue haze depth & 360 orbit wrap.
     for i in range(30):
         ang = (i / 30.0) * math.tau + rng.uniform(-0.08, 0.08)
-        dist = rng.uniform(18.0, 33.5)
+        if abs((ang - (-0.42) + math.pi) % math.tau - math.pi) < 0.20:
+            continue
+        dist = rng.uniform(18.5, 34.0)
         px = math.cos(ang) * dist
         pz = math.sin(ang) * dist
         py = height_fn(px, pz) - 0.15
-        ph = rng.uniform(7.2, 12.2)
-        pr = ph * rng.uniform(0.24, 0.28)
+        ph = rng.uniform(6.6, 10.4)
+        pr = ph * rng.uniform(0.23, 0.27)
         add_pine_tree(
             bark_sm, pine_sm, px, py, pz, ph, pr, rng,
-            tiers=4, lobes=6,
+            tiers=4, lobes=7, curved=False,
             tint_dark=(0.42, 0.64, 0.62, 1.0),
             tint_lit=(0.90, 0.98, 0.90, 1.0),
         )
@@ -287,7 +291,7 @@ def build_plain_route() -> ArenaScene:
 
 
 def build_forest() -> ArenaScene:
-    """Eterna Forest deep emerald canopy clearing."""
+    """Eterna Forest BDSP-parity clearing: dense 3-band pine forest, mossy cliffs, flowers, distant mountains."""
     rng = random.Random(20202)
     scene = ArenaScene("forest")
 
@@ -295,62 +299,225 @@ def build_forest() -> ArenaScene:
         256, 128,
         make_sky_dome_texture(
             256, 128, 201,
-            zenith=(0.14, 0.42, 0.64), mid_sky=(0.30, 0.62, 0.74), horizon=(0.54, 0.78, 0.74),
-            cloud_amount=0.35,
+            zenith=(0.16, 0.46, 0.78), mid_sky=(0.36, 0.68, 0.88), horizon=(0.64, 0.84, 0.86),
+            cloud_amount=0.40,
         ),
         B3D_TEX_FLAG_REPEAT,
     )
-    ground_tex = scene.add_texture(256, 256, make_painterly_ground_texture(256, 202, (0.84, 0.92, 0.82), (0.56, 0.70, 0.56)), B3D_TEX_FLAG_REPEAT)
-    rock_tex = scene.add_texture(128, 128, make_rock_cliff_texture(128, 203, (0.52, 0.60, 0.48), (0.38, 0.46, 0.38), (0.24, 0.30, 0.24)), B3D_TEX_FLAG_REPEAT)
-    pine_tex = scene.add_texture(128, 128, make_foliage_texture(128, 204, (0.10, 0.28, 0.24), (0.18, 0.44, 0.34), (0.34, 0.64, 0.40), True), B3D_TEX_FLAG_REPEAT)
-    leaf_tex = scene.add_texture(128, 128, make_foliage_texture(128, 205, (0.12, 0.36, 0.22), (0.24, 0.56, 0.32), (0.46, 0.78, 0.42), False), B3D_TEX_FLAG_REPEAT)
+    ground_tex = scene.add_texture(
+        256, 256,
+        make_painterly_ground_texture(
+            256, 202,
+            base_tint=(0.86, 0.92, 0.84),
+            dark_tint=(0.60, 0.72, 0.58),
+            speck_tint=(0.96, 0.98, 0.88),
+        ),
+        B3D_TEX_FLAG_REPEAT,
+    )
+    rock_tex = scene.add_texture(
+        128, 128,
+        make_rock_cliff_texture(
+            128, 203,
+            rock_light=(0.56, 0.62, 0.54),
+            rock_mid=(0.38, 0.44, 0.39),
+            rock_dark=(0.22, 0.27, 0.25),
+            strata_freq=8,
+        ),
+        B3D_TEX_FLAG_REPEAT,
+    )
+    pine_tex = scene.add_texture(
+        128, 128,
+        make_foliage_texture(
+            128, 204,
+            dark=(0.09, 0.28, 0.28),
+            mid=(0.16, 0.44, 0.38),
+            bright=(0.32, 0.64, 0.44),
+            needle_style=True,
+        ),
+        B3D_TEX_FLAG_REPEAT,
+    )
+    bush_tex = scene.add_texture(
+        128, 128,
+        make_foliage_texture(
+            128, 205,
+            dark=(0.12, 0.34, 0.32),
+            mid=(0.22, 0.52, 0.40),
+            bright=(0.40, 0.72, 0.46),
+            needle_style=False,
+        ),
+        B3D_TEX_FLAG_REPEAT,
+    )
     bark_tex = scene.add_texture(128, 128, make_bark_texture(128, 206, (0.22, 0.16, 0.12), (0.40, 0.30, 0.22)), B3D_TEX_FLAG_REPEAT)
 
     sky_sm = scene.add_submesh(sky_tex, SKY_FLAGS, 1.0, 0.0)
-    ground_sm = scene.add_submesh(ground_tex, B3D_SUBMESH_RECEIVE_SHADOW, 0.92, 0.82)
-    rock_sm = scene.add_submesh(rock_tex, SHADOW_BOTH, 0.90, 0.90)
+    mtn_sm = scene.add_submesh(rock_tex, B3D_SUBMESH_RECEIVE_SHADOW, 0.95, 0.62)
+    ground_sm = scene.add_submesh(ground_tex, B3D_SUBMESH_RECEIVE_SHADOW, 0.92, 0.80)
+    rock_sm = scene.add_submesh(rock_tex, SHADOW_BOTH, 0.90, 0.88)
+    cap_sm = scene.add_submesh(ground_tex, SHADOW_BOTH, 0.86, 0.85)
     bark_sm = scene.add_submesh(bark_tex, SHADOW_BOTH, 0.92, 0.95)
     pine_sm = scene.add_submesh(pine_tex, SHADOW_BOTH, 0.86, 1.0)
-    leaf_sm = scene.add_submesh(leaf_tex, SHADOW_BOTH, 0.84, 0.92)
-    tuft_sm = scene.add_submesh(-1, B3D_SUBMESH_RECEIVE_SHADOW | B3D_SUBMESH_DOUBLE_SIDED, 0.85, 0.85)
+    bush_sm = scene.add_submesh(bush_tex, SHADOW_BOTH, 0.84, 0.90)
+    tuft_sm = scene.add_submesh(-1, B3D_SUBMESH_RECEIVE_SHADOW | B3D_SUBMESH_DOUBLE_SIDED, 0.82, 0.84)
 
-    add_sky_dome(sky_sm, 72.0)
+    add_sky_dome(sky_sm, 72.0, segs_u=32, segs_v=12)
+    add_mountain_ring(mtn_sm, rng, r_inner=38.0, r_peak=47.0, r_outer=60.0, segs=72, base_height=11.0, c_base=(0.24, 0.34, 0.56, 1.0), c_peak=(0.46, 0.58, 0.84, 1.0))
 
-    def hfn(x, z):
+    def hfn(x: float, z: float) -> float:
         r = math.hypot(x, z)
-        return 0.0 if r <= 9.0 else 1.8 * _smoothstep(9.0, 32.0, r)
+        if r <= 9.2:
+            return 0.0
+        t = _smoothstep(9.2, 34.0, r)
+        hill = 2.4 * t + 1.2 * t * (math.sin(x * 0.15 + 0.4) * math.cos(z * 0.14 - 0.5) + 0.5)
+        if z < -10.0:
+            hill += 1.2 * _smoothstep(-10.0, -34.0, z)
+        return hill
 
-    def cfn(x, z, r, y):
-        moss = (0.46, 0.68, 0.36, 1.0)
-        deep = (0.20, 0.44, 0.26, 1.0)
-        path = (0.64, 0.66, 0.42, 1.0)
-        return _lerp4(path, moss, _smoothstep(2.0, 6.5, r)) if r < 6.5 else _lerp4(moss, deep, _smoothstep(6.5, 22.0, r))
+    def cfn(x: float, z: float, r: float, y: float):
+        # Distance to the battle corridor between player (-2.95, 1.35) and enemy (6.95, -7.80)
+        ax, az = -2.95, 1.35
+        bx, bz = 6.95, -7.80
+        abx, abz = bx - ax, bz - az
+        t_seg = _clamp01(((x - ax) * abx + (z - az) * abz) / (abx * abx + abz * abz))
+        d_corr = math.hypot(x - (ax + t_seg * abx), z - (az + t_seg * abz))
 
-    add_radial_ground(ground_sm, [0.0, 2.0, 4.5, 7.0, 9.5, 13.0, 18.0, 25.0, 36.0], 40, hfn, cfn, 0.22)
-
-    for i in range(38):
-        ang = (i / 38.0) * math.tau + rng.uniform(-0.08, 0.08)
-        dist = rng.uniform(10.2, 29.0)
-        tx, tz = math.cos(ang) * dist, math.sin(ang) * dist
-        ty = hfn(tx, tz) - 0.1
-        if i % 3 == 0:
-            add_broadleaf_tree(bark_sm, leaf_sm, tx, ty, tz, rng.uniform(6.2, 9.2), rng.uniform(2.2, 3.2), rng)
+        n = 0.5 + 0.5 * math.sin(x * 0.36 + z * 0.31) * math.cos(z * 0.41 - x * 0.24)
+        n2 = 0.5 + 0.5 * math.sin(x * 0.72 - z * 0.58)
+        clearing = (0.82, 0.76, 0.54, 1.0)
+        soft_grass = (0.42, 0.68, 0.40, 1.0)
+        teal_grass = (0.24, 0.52, 0.36, 1.0)
+        deep_edge = (0.12, 0.30, 0.22, 1.0)
+        dw = d_corr + (n - 0.5) * 1.4
+        if dw < 4.6:
+            col = _lerp4(clearing, soft_grass, _smoothstep(1.8, 4.6, dw))
+        elif dw < 8.8:
+            col = _lerp4(soft_grass, teal_grass, _smoothstep(4.6, 8.8, dw))
         else:
-            add_pine_tree(bark_sm, pine_sm, tx, ty, tz, rng.uniform(7.5, 12.0), rng.uniform(2.0, 2.8), rng, tiers=5)
+            col = _lerp4(teal_grass, deep_edge, _smoothstep(8.8, 16.0, dw))
+        v = 0.90 + 0.18 * n2
+        return (_clamp01(col[0] * v), _clamp01(col[1] * v), _clamp01(col[2] * v), 1.0)
 
-    for i in range(14):
-        ang = (i / 14.0) * math.tau
-        dist = rng.uniform(8.8, 12.0)
-        bx, bz = math.cos(ang) * dist, math.sin(ang) * dist
-        add_leafy_bush(leaf_sm, bx, hfn(bx, bz), bz, rng.uniform(1.0, 1.5), rng, puffs=4)
-        if i % 2 == 0:
-            add_icosphere_blob(rock_sm, bx * 0.92, hfn(bx, bz) + 0.35, bz * 0.92, 1.0, 0.65, 0.9, rng, (0.45, 0.52, 0.42, 1.0), (0.62, 0.78, 0.52, 1.0), flatten_bottom=0.4)
+    add_radial_ground(ground_sm, [0.0, 1.8, 3.6, 5.5, 7.4, 9.2, 11.8, 15.0, 19.5, 25.0, 32.0, 39.0], 44, hfn, cfn, 0.20)
 
-    for i in range(24):
-        ang = (i / 24.0) * math.tau
-        dist = rng.uniform(7.2, 10.0)
+    # Sculpted mossy rock cliff ledges framing the clearing (low enough to show treetops & sky)
+    cliff_specs = [
+        (-8.2, -10.2, 6.4, 4.4, 1.75, 0.25),
+        (-2.2, -12.4, 6.8, 4.6, 1.60, -0.10),
+        (4.8, -12.2, 6.8, 4.6, 1.80, -0.32),
+        (11.6, -8.8, 6.4, 4.4, 1.75, -0.75),
+        (14.4, -3.2, 6.0, 4.2, 1.65, -1.25),
+        (-12.2, -5.2, 6.2, 4.4, 1.70, 0.85),
+        (12.8, 4.2, 6.2, 4.2, 1.55, -1.85),
+        (7.6, 11.2, 6.6, 4.4, 1.50, -2.55),
+        (-1.5, 13.0, 7.0, 4.4, 1.50, 3.05),
+        (-10.2, 9.8, 6.4, 4.4, 1.55, 2.35),
+    ]
+    for cx, cz, w, d, ch, yaw in cliff_specs:
+        add_sculpted_cliff(
+            rock_sm, cap_sm, cx, cz, hfn(cx, cz), w, d, ch, yaw, rng,
+            rock_tint=(0.86, 0.90, 0.88, 1.0),
+            cap_top_color=(0.36, 0.68, 0.34, 1.0),
+            cap_lip_color=(0.22, 0.48, 0.24, 1.0),
+            n_sides=9,
+            cap_thickness=0.38,
+        )
+
+    def _near_cam(px: float, pz: float) -> bool:
+        return math.hypot(px - (-4.2), pz - 6.8) < 4.5 or (-6.5 < px < -0.5 and 3.0 < pz < 10.5)
+
+    # Band 1: Hero foreground/midground curved 6-tier pines with dramatic size variation
+    # Tallest pines frame the left/right edges, shorter pines across the back,
+    # leaving a clear valley window around -0.52 rad for the distant blue mountain.
+    hero_pines = [
+        (-13.2, -6.4, 10.6, 2.7, 6), (-10.6, -12.4, 11.4, 2.8, 6), (-5.8, -15.2, 7.6, 2.1, 5),
+        (-1.2, -16.4, 9.2, 2.5, 6), (2.8, -16.0, 6.8, 2.0, 5), (6.4, -15.2, 5.8, 1.8, 5),
+        (15.6, -8.8, 9.8, 2.5, 6), (17.2, -4.0, 7.4, 2.1, 5), (16.8, 1.2, 6.8, 2.0, 5),
+        (-15.0, -1.0, 9.4, 2.4, 6), (-14.2, 4.4, 7.2, 2.1, 5),
+    ]
+    for px, pz, h, rad, tiers in hero_pines:
+        add_pine_tree(
+            bark_sm, pine_sm, px, hfn(px, pz) - 0.1, pz, h, rad, rng,
+            tiers=tiers, lobes=9, curved=True,
+            tint_dark=(0.42, 0.62, 0.58, 1.0),
+            tint_lit=(0.94, 1.0, 0.88, 1.0),
+        )
+
+    # Band 2: Mid-back forest wall (24 trees)
+    for k in range(24):
+        ang = (k / 24.0) * math.tau + rng.uniform(-0.08, 0.08)
+        # Keep scenic valley window toward hero mountain (-0.52 rad)
+        if abs((ang - (-0.52) + math.pi) % math.tau - math.pi) < 0.28:
+            continue
+        dist = rng.uniform(18.5, 25.5)
+        tx, tz = math.cos(ang) * dist, math.sin(ang) * dist
+        if _near_cam(tx, tz):
+            continue
+        h = rng.uniform(6.4, 9.2)
+        add_pine_tree(
+            bark_sm, pine_sm, tx, hfn(tx, tz) - 0.1, tz, h, h * rng.uniform(0.23, 0.27), rng,
+            tiers=5, lobes=8, curved=True,
+            tint_dark=(0.40, 0.60, 0.58, 1.0),
+            tint_lit=(0.90, 0.98, 0.88, 1.0),
+        )
+
+    # Band 3: Far silhouette treeline (28 LOD trees bathed in atmospheric haze)
+    for k in range(28):
+        ang = (k / 28.0) * math.tau + rng.uniform(-0.07, 0.07)
+        if abs((ang - (-0.52) + math.pi) % math.tau - math.pi) < 0.24:
+            continue
+        dist = rng.uniform(27.5, 36.5)
+        tx, tz = math.cos(ang) * dist, math.sin(ang) * dist
+        h = rng.uniform(6.8, 9.8)
+        add_pine_tree(
+            bark_sm, pine_sm, tx, hfn(tx, tz) - 0.1, tz, h, h * rng.uniform(0.22, 0.26), rng,
+            tiers=4, lobes=7, curved=False,
+            tint_dark=(0.38, 0.56, 0.60, 1.0),
+            tint_lit=(0.82, 0.92, 0.90, 1.0),
+        )
+
+    # Lush bushes & mossy boulders tucked along cliff bases
+    bush_spots = [
+        (-5.2, -9.8, 1.25), (0.8, -10.8, 1.35), (4.6, -10.4, 1.15),
+        (9.2, -8.6, 1.30), (11.6, -4.4, 1.20), (-9.6, -6.2, 1.20),
+        (-3.0, -11.2, 1.05), (7.6, -10.0, 1.00), (-7.8, -8.6, 1.05),
+        (10.8, 1.2, 1.25), (6.4, 9.6, 1.15), (-5.8, 10.0, 1.20),
+    ]
+    for bx, bz, br in bush_spots:
+        add_leafy_bush(
+            bush_sm, bx, hfn(bx, bz) - 0.04, bz, br, rng,
+            c_bot=(0.20, 0.48, 0.44, 1.0),
+            c_top=(0.64, 0.92, 0.60, 1.0),
+            puffs=4,
+        )
+
+    for i in range(12):
+        ang = (i / 12.0) * math.tau + rng.uniform(-0.15, 0.15)
+        dist = rng.uniform(8.8, 11.0)
+        rx, rz = math.cos(ang) * dist, math.sin(ang) * dist
+        if _near_cam(rx, rz):
+            continue
+        add_icosphere_blob(
+            rock_sm, rx, hfn(rx, rz) + 0.25, rz,
+            rng.uniform(0.45, 0.85), rng.uniform(0.30, 0.50), rng.uniform(0.42, 0.78),
+            rng, (0.38, 0.44, 0.40, 1.0), (0.56, 0.72, 0.52, 1.0), flatten_bottom=0.45,
+        )
+
+    # Grass tufts & tiny white/blue wildflowers along cliff base
+    for i in range(44):
+        ang = (i / 44.0) * math.tau + rng.uniform(-0.08, 0.08)
+        dist = rng.uniform(7.4, 10.2)
         gx, gz = math.cos(ang) * dist, math.sin(ang) * dist
-        add_grass_tuft(tuft_sm, gx, hfn(gx, gz), gz, rng.uniform(0.9, 1.3), rng)
+        if _near_cam(gx, gz):
+            continue
+        gy = hfn(gx, gz)
+        add_grass_tuft(
+            tuft_sm, gx, gy, gz, rng.uniform(0.80, 1.30), rng,
+            c_root=(0.18, 0.44, 0.22, 1.0),
+            c_tip=(0.48, 0.82, 0.36, 1.0),
+        )
+        if i % 2 == 0:
+            petal = (0.96, 0.98, 1.0, 1.0) if (i % 4 == 0) else (0.76, 0.88, 1.0, 1.0)
+            add_wildflower(tuft_sm, gx + rng.uniform(-0.35, 0.35), gy, gz + rng.uniform(-0.35, 0.35), rng.uniform(1.2, 1.5), petal, rng)
+
     return scene
 
 
@@ -367,14 +534,17 @@ def build_water_lake() -> ArenaScene:
     bark_tex = scene.add_texture(128, 128, make_bark_texture(128, 306), B3D_TEX_FLAG_REPEAT)
 
     sky_sm = scene.add_submesh(sky_tex, SKY_FLAGS, 1.0, 0.0)
+    mtn_sm = scene.add_submesh(rock_tex, B3D_SUBMESH_RECEIVE_SHADOW, 0.95, 0.62)
     ground_sm = scene.add_submesh(ground_tex, B3D_SUBMESH_RECEIVE_SHADOW, 0.88, 0.72)
     water_sm = scene.add_submesh(water_tex, B3D_SUBMESH_RECEIVE_SHADOW, 0.25, 0.82)
     rock_sm = scene.add_submesh(rock_tex, SHADOW_BOTH, 0.85, 0.88)
     cap_sm = scene.add_submesh(ground_tex, SHADOW_BOTH, 0.85, 0.85)
     bark_sm = scene.add_submesh(bark_tex, SHADOW_BOTH, 0.92, 0.95)
     pine_sm = scene.add_submesh(pine_tex, SHADOW_BOTH, 0.85, 1.0)
+    tuft_sm = scene.add_submesh(-1, B3D_SUBMESH_RECEIVE_SHADOW | B3D_SUBMESH_DOUBLE_SIDED, 0.82, 0.84)
 
     add_sky_dome(sky_sm, 74.0)
+    add_mountain_ring(mtn_sm, rng, r_inner=38.0, r_peak=48.0, r_outer=62.0, segs=72, base_height=10.5, c_base=(0.24, 0.34, 0.56, 1.0), c_peak=(0.46, 0.58, 0.82, 1.0))
 
     def shore_h(x, z):
         r = math.hypot(x, z)
@@ -399,16 +569,27 @@ def build_water_lake() -> ArenaScene:
     # Distant forested lake shore / island behind the water
     for cx, cz, cw, ch in [(-14.0, -24.0, 11.0, 2.8), (2.0, -28.0, 14.0, 3.2), (17.0, -22.0, 11.0, 2.6)]:
         add_sculpted_cliff(rock_sm, cap_sm, cx, cz, -0.5, cw, 7.0, ch, rng.uniform(-0.4, 0.4), rng)
-        for k in range(5):
+        for k in range(6):
             px = cx + rng.uniform(-cw * 0.45, cw * 0.45)
             pz = cz + rng.uniform(-2.5, 2.5)
-            add_pine_tree(bark_sm, pine_sm, px, ch - 0.3, pz, rng.uniform(7.0, 10.5), rng.uniform(2.0, 2.6), rng)
+            add_pine_tree(bark_sm, pine_sm, px, ch - 0.3, pz, rng.uniform(6.5, 9.5), rng.uniform(1.9, 2.4), rng, tiers=5, lobes=8, curved=True)
 
-    for i in range(10):
-        ang = rng.uniform(-0.4, math.pi + 0.4)
+    for i in range(14):
+        ang = rng.uniform(-0.3, math.pi + 0.3)
         dist = rng.uniform(11.5, 22.0)
         px, pz = math.cos(ang) * dist, math.sin(ang) * dist
-        add_pine_tree(bark_sm, pine_sm, px, shore_h(px, pz), pz, rng.uniform(7.5, 10.5), 2.3, rng)
+        add_pine_tree(bark_sm, pine_sm, px, shore_h(px, pz), pz, rng.uniform(6.8, 9.8), 2.2, rng, tiers=5, lobes=8, curved=True)
+
+    # Shoreline pebbles, bushes, and grass tufts
+    for i in range(22):
+        ang = rng.uniform(-0.2, math.pi + 0.2)
+        dist = rng.uniform(7.2, 10.2)
+        gx, gz = math.cos(ang) * dist, math.sin(ang) * dist
+        gy = shore_h(gx, gz)
+        if gy > -0.05:
+            add_grass_tuft(tuft_sm, gx, gy, gz, rng.uniform(0.8, 1.25), rng)
+            if i % 3 == 0:
+                add_icosphere_blob(rock_sm, gx + 0.4, gy + 0.15, gz, 0.45, 0.28, 0.40, rng, (0.50, 0.48, 0.44, 1.0), (0.80, 0.76, 0.68, 1.0), flatten_bottom=0.45)
     return scene
 
 
@@ -442,12 +623,23 @@ def build_mountain_cave() -> ArenaScene:
         add_sculpted_cliff(rock_sm, rock_sm, cx, cz, -0.3, rng.uniform(5.0, 8.0), rng.uniform(4.0, 6.0), rng.uniform(4.5, 9.0), ang, rng,
                            rock_tint=(0.85, 0.86, 0.92, 1.0), cap_top_color=(0.48, 0.48, 0.54, 1.0), cap_lip_color=(0.32, 0.32, 0.38, 1.0))
 
-    for i in range(16):
-        ang = (i / 16.0) * math.tau + 0.15
-        dist = rng.uniform(9.2, 13.5)
+    for i in range(18):
+        ang = (i / 18.0) * math.tau + 0.15
+        dist = rng.uniform(9.2, 14.0)
         sx, sz = math.cos(ang) * dist, math.sin(ang) * dist
-        add_crystal_spire(crys_sm, sx, 0.0, sz, rng.uniform(0.35, 0.65), rng.uniform(1.6, 3.8), rng.uniform(-0.22, 0.22), rng.uniform(-0.22, 0.22),
+        add_crystal_spire(crys_sm, sx, 0.0, sz, rng.uniform(0.35, 0.72), rng.uniform(1.8, 4.2), rng.uniform(-0.22, 0.22), rng.uniform(-0.22, 0.22),
                           (0.30, 0.62, 0.96, 1.0), (0.82, 0.98, 1.0, 1.0))
+    # Hanging stalactites + cavern boulders
+    for i in range(16):
+        ang = (i / 16.0) * math.tau + 0.08
+        dist = rng.uniform(11.5, 19.0)
+        sx, sz = math.cos(ang) * dist, math.sin(ang) * dist
+        add_crystal_spire(rock_sm, sx, rng.uniform(8.5, 12.0), sz, rng.uniform(0.45, 0.85), rng.uniform(2.5, 5.2),
+                          rng.uniform(-0.08, 0.08), rng.uniform(-0.08, 0.08), (0.28, 0.28, 0.34, 1.0), (0.50, 0.50, 0.58, 1.0), invert_y=True)
+    for i in range(12):
+        ang = (i / 12.0) * math.tau
+        bx, bz = math.cos(ang) * rng.uniform(8.8, 11.2), math.sin(ang) * rng.uniform(8.8, 11.2)
+        add_icosphere_blob(rock_sm, bx, 0.28, bz, rng.uniform(0.5, 0.9), rng.uniform(0.35, 0.60), rng.uniform(0.45, 0.85), rng, (0.26, 0.26, 0.32, 1.0), (0.52, 0.50, 0.56, 1.0), flatten_bottom=0.4)
     return scene
 
 
@@ -463,6 +655,7 @@ def build_snow() -> ArenaScene:
     bark_tex = scene.add_texture(128, 128, make_bark_texture(128, 505, (0.24, 0.20, 0.20), (0.44, 0.38, 0.36)), B3D_TEX_FLAG_REPEAT)
 
     sky_sm = scene.add_submesh(sky_tex, SKY_FLAGS, 1.0, 0.0)
+    mtn_sm = scene.add_submesh(rock_tex, B3D_SUBMESH_RECEIVE_SHADOW, 0.92, 0.58)
     ground_sm = scene.add_submesh(snow_tex, B3D_SUBMESH_RECEIVE_SHADOW, 0.78, 0.78)
     rock_sm = scene.add_submesh(rock_tex, SHADOW_BOTH, 0.85, 0.88)
     cap_sm = scene.add_submesh(snow_tex, SHADOW_BOTH, 0.75, 0.85)
@@ -470,6 +663,7 @@ def build_snow() -> ArenaScene:
     pine_sm = scene.add_submesh(pine_tex, SHADOW_BOTH, 0.82, 1.0)
 
     add_sky_dome(sky_sm, 74.0)
+    add_mountain_ring(mtn_sm, rng, r_inner=38.0, r_peak=48.0, r_outer=62.0, segs=72, base_height=11.0, c_base=(0.40, 0.52, 0.72, 1.0), c_peak=(0.82, 0.90, 0.99, 1.0))
 
     def hfn(x, z):
         r = math.hypot(x, z)
@@ -487,11 +681,18 @@ def build_snow() -> ArenaScene:
         add_sculpted_cliff(rock_sm, cap_sm, cx, cz, max(0.0, hfn(cx, cz) - 0.5), 6.5, 4.6, 2.4, ang, rng,
                            rock_tint=(0.9, 0.95, 1.0, 1.0), cap_top_color=(0.94, 0.97, 1.0, 1.0), cap_lip_color=(0.76, 0.86, 0.96, 1.0))
 
-    for i in range(34):
-        ang = (i / 34.0) * math.tau + rng.uniform(-0.08, 0.08)
-        dist = rng.uniform(11.5, 32.0)
+    for i in range(36):
+        ang = (i / 36.0) * math.tau + rng.uniform(-0.08, 0.08)
+        if abs((ang - (-0.52) + math.pi) % math.tau - math.pi) < 0.24:
+            continue
+        dist = rng.uniform(12.5, 32.0)
         px, pz = math.cos(ang) * dist, math.sin(ang) * dist
-        add_pine_tree(bark_sm, pine_sm, px, hfn(px, pz) + 0.3, pz, rng.uniform(7.5, 11.5), rng.uniform(2.1, 2.7), rng, tiers=5, snow_dusted=True)
+        add_pine_tree(bark_sm, pine_sm, px, hfn(px, pz) + 0.1, pz, rng.uniform(6.8, 10.4), rng.uniform(1.9, 2.5), rng, tiers=5, lobes=8, curved=(dist < 22.0), snow_dusted=True)
+    # Frosted boulders along cliff edge
+    for i in range(12):
+        ang = (i / 12.0) * math.tau + 0.25
+        bx, bz = math.cos(ang) * 9.8, math.sin(ang) * 9.8
+        add_icosphere_blob(rock_sm, bx, hfn(bx, bz) + 0.25, bz, rng.uniform(0.5, 0.9), rng.uniform(0.35, 0.55), rng.uniform(0.45, 0.8), rng, (0.48, 0.56, 0.68, 1.0), (0.90, 0.95, 1.0, 1.0), flatten_bottom=0.45)
     return scene
 
 
@@ -506,6 +707,7 @@ def build_city() -> ArenaScene:
     bark_tex = scene.add_texture(128, 128, make_bark_texture(128, 604), B3D_TEX_FLAG_REPEAT)
 
     sky_sm = scene.add_submesh(sky_tex, SKY_FLAGS, 1.0, 0.0)
+    mtn_sm = scene.add_submesh(-1, B3D_SUBMESH_RECEIVE_SHADOW, 0.95, 0.65)
     floor_sm = scene.add_submesh(plaza_tex, B3D_SUBMESH_RECEIVE_SHADOW, 0.75, 0.72)
     wall_sm = scene.add_submesh(-1, SHADOW_BOTH, 0.82, 0.88)
     roof_sm = scene.add_submesh(-1, SHADOW_BOTH, 0.72, 0.90)
@@ -513,6 +715,7 @@ def build_city() -> ArenaScene:
     bark_sm = scene.add_submesh(bark_tex, SHADOW_BOTH, 0.90, 0.90)
 
     add_sky_dome(sky_sm, 74.0)
+    add_mountain_ring(mtn_sm, rng, r_inner=40.0, r_peak=50.0, r_outer=64.0, segs=72, base_height=9.5, c_base=(0.28, 0.36, 0.56, 1.0), c_peak=(0.48, 0.58, 0.80, 1.0))
     add_radial_ground(floor_sm, [0.0, 3.0, 6.5, 10.5, 16.0, 26.0, 36.0], 40, lambda x, z: 0.0,
                       lambda x, z, r, y: (0.94, 0.93, 0.90, 1.0) if r < 11.0 else (0.78, 0.80, 0.82, 1.0), 0.24)
 
@@ -560,6 +763,7 @@ def build_indoors_gym() -> ArenaScene:
         wx, wz = math.cos(ang + math.pi / 12.0) * 15.8, math.sin(ang + math.pi / 12.0) * 15.8
         add_box(arch_sm, wx, 4.5, wz, 8.2, 9.0, 1.2, -(ang + math.pi / 12.0) + math.pi * 0.5, (0.56, 0.60, 0.70, 1.0), (0.72, 0.76, 0.84, 1.0))
         add_box(trim_sm, wx * 0.95, 8.2, wz * 0.95, 6.8, 0.35, 0.3, -(ang + math.pi / 12.0) + math.pi * 0.5, (0.76, 0.90, 1.0, 1.0))
+        add_box(trim_sm, wx * 0.96, 1.8, wz * 0.96, 5.4, 0.18, 0.25, -(ang + math.pi / 12.0) + math.pi * 0.5, (0.54, 0.76, 0.96, 1.0))
     return scene
 
 
@@ -590,14 +794,14 @@ def build_distortion_world() -> ArenaScene:
     add_radial_ground(floor_sm, [0.0, 2.5, 5.5, 8.6, 10.2], 32, lambda x, z: 0.0,
                       lambda x, z, r, y: _lerp4((0.76, 0.70, 0.88, 1.0), (0.42, 0.36, 0.60, 1.0), _smoothstep(4.0, 10.2, r)), 0.22)
 
-    for i in range(14):
-        ang = (i / 14.0) * math.tau + rng.uniform(-0.1, 0.1)
-        dist = rng.uniform(14.0, 28.0)
+    for i in range(20):
+        ang = (i / 20.0) * math.tau + rng.uniform(-0.1, 0.1)
+        dist = rng.uniform(13.0, 30.0)
         ix, iz = math.cos(ang) * dist, math.sin(ang) * dist
-        iy = rng.uniform(-1.5, 7.5)
-        add_floating_island(floor_sm, rock_sm, ix, iy, iz, rng.uniform(2.0, 4.2), rng.uniform(2.5, 5.5), rng,
+        iy = rng.uniform(-1.5, 8.5)
+        add_floating_island(floor_sm, rock_sm, ix, iy, iz, rng.uniform(2.0, 4.4), rng.uniform(2.5, 5.8), rng,
                             (0.56, 0.48, 0.74, 1.0), (0.32, 0.26, 0.48, 1.0))
-        add_crystal_spire(crys_sm, ix, iy, iz, rng.uniform(0.45, 0.85), rng.uniform(2.5, 5.5),
+        add_crystal_spire(crys_sm, ix, iy, iz, rng.uniform(0.45, 0.90), rng.uniform(2.6, 5.8),
                           rng.uniform(-0.25, 0.25), rng.uniform(-0.25, 0.25),
                           (0.52, 0.22, 0.86, 1.0), (0.96, 0.62, 1.0, 1.0), invert_y=(i % 3 == 0))
     return scene
