@@ -1166,7 +1166,7 @@ void BattleStage_ScriptHealthbars(BOOL visible)
     for (i = 0; i < MaxBattlers(); i++) {
         healthbar = BattlerData_GetHealthBox(BattleSystem_GetBattlerData(sStageCamera.battleSys, i));
 
-        if (healthbar->mainSprite != NULL && ManagedSprite_GetDrawFlag(healthbar->mainSprite)) {
+        if (healthbar->mainSprite != NULL && HealthBox_IsVisible(healthbar)) {
             HealthBox_Enable(healthbar, FALSE);
             sStageCamera.scriptHidHealthbars |= 1 << i;
         }

@@ -83,7 +83,8 @@ typedef struct HealthBox {
     u8 doneScrolling : 1;
     u8 unused_4F_2 : 1;
     u8 numberMode : 1;
-    u8 padding : 4;
+    u8 hdVisible : 1;
+    u8 padding : 3;
     SysTask *bobbingAnimTask;
     u16 degrees;
 } HealthBox;
@@ -143,6 +144,7 @@ void Healthbox_SetExplicitPriority(HealthBox *healthbox, int priority);
  * @param enable    If TRUE, enable the healthbox; otherwise, disable it.
  */
 void HealthBox_Enable(HealthBox *healthbox, BOOL enable);
+BOOL HealthBox_IsVisible(const HealthBox *healthbox);
 
 /**
  * @brief Offset the healthbox's position by a given value along the X and Y axes.

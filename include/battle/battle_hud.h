@@ -30,6 +30,7 @@ extern "C" {
 
 BOOL BattleHud_IsEnabled(void);
 BOOL BattleHud_IsWidePixelMode(void);
+BOOL BattleHud_IsHdMode(void);
 // TRUE when the BDSP 3D battle + corner HUD is active (wide layout, battle
 // HUD on, 3D arena on). D-pad cursor code uses this to match the vertical
 // corner-HUD stacks instead of the DS 2D button grid.
@@ -53,6 +54,11 @@ void BattleHud_HideOnConfirm(BattleSubscreen *btlSubscreen);
 // button index for a click at (x, y), or -1. Clicks are routed by the
 // simulator only while the HUD has opted in (SIM_Layout main touch).
 int BattleHud_TopTouchButton(BattleSubscreen *btlSubscreen, int x, int y);
+
+// HD battle HUD (BDSP parity): submit SIM_HudHD_Frame every battle frame
+// (active = 0 when hidden or reset).
+void BattleHud_SyncFrame(BattleSystem *battleSys);
+void BattleHud_Reset(void);
 
 #ifdef __cplusplus
 }

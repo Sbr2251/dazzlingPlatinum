@@ -1108,14 +1108,36 @@ static void HealthBox_EnableArrow(HealthBox *battleSys, BOOL enable)
     ManagedSprite_SetDrawFlag(battleSys->arrowSprite, enable);
 }
 
-void HealthBox_Enable(HealthBox *battleSys, BOOL enable)
+void HealthBox_Enable(HealthBox *healthbox, BOOL enable)
 {
-    if (battleSys->mainSprite == NULL) {
+    healthbox->hdVisible = enable ? 1 : 0;
+
+    if (healthbox->mainSprite == NULL) {
         return;
     }
 
-    ManagedSprite_SetDrawFlag(battleSys->mainSprite, enable);
-    HealthBox_EnableArrow(battleSys, enable);
+    if (BattleHud_IsHdMode()) {
+        ManagedSprite_SetDrawFlag(healthbox->mainSprite, FALSE);
+        HealthBox_EnableArrow(healthbox, FALSE);
+        return;
+    }
+
+    ManagedSprite_SetDrawFlag(healthbox->mainSprite, enable);
+    HealthBox_EnableArrow(healthbox, enable);
+}
+
+BOOL HealthBox_IsVisible(const HealthBox *healthbox)
+{
+    if (healthbox == NULL) {
+        return FALSE;
+    }
+    if (BattleHud_IsHdMode()) {
+        return healthbox->hdVisible ? TRUE : FALSE;
+    }
+    if (healthbox->mainSprite == NULL) {
+        return FALSE;
+    }
+    return ManagedSprite_GetDrawFlag(healthbox->mainSprite) ? TRUE : FALSE;
 }
 
 void HealthBox_OffsetPositionXY(HealthBox *healthbox, int x, int y)

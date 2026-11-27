@@ -94,6 +94,9 @@ static int IniHandler(void* user, const char* section, const char* name,
     if(MATCH("General", "BattleHud")) {
         config->battleHud = StringToBool(value);
     }
+    if(MATCH("General", "BattleHudStyle")) {
+        config->battleHudStyleHd = (strcmp(value, "pixel") != 0 && strcmp(value, "PIXEL") != 0) ? TRUE : FALSE;
+    }
     if(MATCH("General", "DebugWideCamera")) {
         config->debugWideCamera = StringToBool(value);
     }
@@ -151,6 +154,7 @@ void SIM_Config_prj_LoadDefaults(SIM_Config_prj_type * aConfig)
   aConfig->fieldLoadRadius = 3;
   aConfig->debugWideCamera = FALSE;
   aConfig->battleHud = TRUE;
+  aConfig->battleHudStyleHd = TRUE;
 
   // Cheats section
   aConfig->walkThroughWalls = FALSE;
@@ -189,6 +193,7 @@ void SIM_Config_prj_SaveConfigFile(SIM_Config_prj_type * aConfig)
     fprintf(configFile, "FieldLoadRadius=%d\n", aConfig->fieldLoadRadius);
     fprintf(configFile, "DebugWideCamera=%s\n", BoolToString(aConfig->debugWideCamera));
     fprintf(configFile, "BattleHud=%s\n", BoolToString(aConfig->battleHud));
+    fprintf(configFile, "BattleHudStyle=%s\n", aConfig->battleHudStyleHd ? "hd" : "pixel");
     fprintf(configFile, "\n");
 
     fprintf(configFile, "[Cheats]\n");

@@ -29,15 +29,20 @@
 #include <simulator/sim_headless.h>
 #endif
 
+#include "constants/battle/condition.h"
+#include "constants/battle/moves.h"
 #include "constants/charcode.h"
 #include "constants/graphics.h"
 #include "generated/pokemon_types.h"
 
 #include "battle/battle_context.h"
+#include "battle/battle_display.h"
+#include "battle/battle_lib.h"
 #include "battle/battle_system.h"
 #include "battle/healthbox.h"
 #include "port/sim_battle3d.h"
 #include "port/sim_config_prj.h"
+#include "port/sim_hud_hd.h"
 #include "port/sim_wide.h"
 
 #include "bg_window.h"
@@ -45,6 +50,7 @@
 #include "message_util.h"
 #include "move_table.h"
 #include "palette.h"
+#include "party.h"
 #include "pokemon.h"
 #include "render_window.h"
 #include "string_gf.h"
@@ -164,6 +170,9 @@ typedef struct BattleHudState {
     int lastMega;
     int lastMoveSlot;
     u16 lastMovePP[4];
+    BattleSubscreen *activeSubscreen;
+    u32 lastDumpHash;
+    BOOL hasDumped;
 } BattleHudState;
 
 static BattleHudState sHud;
@@ -206,6 +215,33 @@ BOOL BattleHud_IsWidePixelMode(void)
         }
     }
     return FALSE;
+#else
+    return FALSE;
+#endif
+}
+
+BOOL BattleHud_IsHdMode(void)
+{
+#ifdef SDK_PORT
+    const char *env;
+
+    if (!SIM_Wide_IsWideLayout() || !BattleHud_IsEnabled()) {
+        return FALSE;
+    }
+    env = getenv("SIM_FX_HUDHD");
+    if (!GameHudHD_IsSupported()) {
+        if (env != NULL && env[0] == '1') {
+            return TRUE;
+        }
+        return FALSE;
+    }
+    if (env != NULL && env[0] != '\0') {
+        return env[0] != '0' ? TRUE : FALSE;
+    }
+    if (SIM_Headless_Enabled()) {
+        return FALSE;
+    }
+    return SIM_Config_prj_GetConfig()->battleHudStyleHd ? TRUE : FALSE;
 #else
     return FALSE;
 #endif
@@ -363,6 +399,7 @@ static void HudHideInternal(BattleSubscreen *btlSubscreen)
 
 void BattleHud_Hide(BattleSubscreen *btlSubscreen)
 {
+    sHud.activeSubscreen = NULL;
     HudHideInternal(btlSubscreen);
     SIM_Wide_SetMainTouchEnabled(0);
     if (BattleHud_IsEnabled()) {
@@ -376,6 +413,7 @@ void BattleHud_Hide(BattleSubscreen *btlSubscreen)
 // menu config 0 / subscreen free restores it).
 void BattleHud_HideOnConfirm(BattleSubscreen *btlSubscreen)
 {
+    sHud.activeSubscreen = NULL;
     HudHideInternal(btlSubscreen);
     SIM_Wide_SetMainTouchEnabled(0);
 }
@@ -1804,12 +1842,857 @@ static int BdspHudTouchButtonIndex(BattleSubscreen *btlSubscreen, int x, int y)
     return -1;
 }
 
+// --- HD Battle HUD (BDSP parity, sim_hud_hd.h) ---
+
+static void HudStringToUtf8(const String *str, char *out, int outSize)
+{
+    int pos = 0;
+    u32 i;
+    const charcode_t *data;
+
+    if (out == NULL || outSize <= 0) {
+        return;
+    }
+    out[0] = '\0';
+    if (str == NULL) {
+        return;
+    }
+
+    data = String_GetData(str);
+    if (data == NULL) {
+        return;
+    }
+
+    for (i = 0; i < 64 && pos < outSize - 1; i++) {
+        charcode_t c = data[i];
+        if (c == CHAR_EOS) {
+            break;
+        }
+        if (c == 0xFFFE) {
+            // Skip format control sequence (tag, id, argc, args...)
+            if (i + 2 < 64) {
+                u16 argc = data[i + 2];
+                i += 2 + argc;
+            }
+            continue;
+        }
+        if (c >= CHAR_0 && c <= CHAR_9) {
+            out[pos++] = (char)('0' + (c - CHAR_0));
+        } else if (c >= CHAR_A && c <= CHAR_Z) {
+            out[pos++] = (char)('A' + (c - CHAR_A));
+        } else if (c >= CHAR_a && c <= CHAR_z) {
+            out[pos++] = (char)('a' + (c - CHAR_a));
+        } else if (c == CHAR_SPACE || c == CHAR_WIDE_SPACE) {
+            out[pos++] = ' ';
+        } else if (c == CHAR_EXCLAMATION) {
+            out[pos++] = '!';
+        } else if (c == CHAR_QUESTION) {
+            out[pos++] = '?';
+        } else if (c == CHAR_PERIOD) {
+            out[pos++] = '.';
+        } else if (c == CHAR_COMMA) {
+            out[pos++] = ',';
+        } else if (c == CHAR_SINGLE_QUOTE_OPEN || c == CHAR_SINGLE_QUOTE_CLOSE) {
+            out[pos++] = '\'';
+        } else if (c == CHAR_DOUBLE_QUOTE_OPEN || c == CHAR_DOUBLE_QUOTE_CLOSE || c == CHAR_DOUBLE_QUOTE_CLOSE_INVERTED) {
+            out[pos++] = '"';
+        } else if (c == CHAR_MINUS) {
+            out[pos++] = '-';
+        } else if (c == CHAR_COLON) {
+            out[pos++] = ':';
+        } else if (c == CHAR_SLASH) {
+            out[pos++] = '/';
+        } else if (c == CHAR_PAREN_OPEN) {
+            out[pos++] = '(';
+        } else if (c == CHAR_PAREN_CLOSE) {
+            out[pos++] = ')';
+        } else if (c == CHAR_PLUS) {
+            out[pos++] = '+';
+        } else if (c == CHAR_STAR) {
+            out[pos++] = '*';
+        } else if (c == CHAR_ELLIPSIS) {
+            if (pos + 3 < outSize) {
+                out[pos++] = '.';
+                out[pos++] = '.';
+                out[pos++] = '.';
+            }
+        } else if (c == CHAR_MALE) {
+            if (pos + 3 < outSize) {
+                out[pos++] = (char)0xE2;
+                out[pos++] = (char)0x99;
+                out[pos++] = (char)0x82;
+            }
+        } else if (c == CHAR_FEMALE) {
+            if (pos + 3 < outSize) {
+                out[pos++] = (char)0xE2;
+                out[pos++] = (char)0x99;
+                out[pos++] = (char)0x80;
+            }
+        } else if (c == CHAR_e_ACUTE) {
+            if (pos + 2 < outSize) {
+                out[pos++] = (char)0xC3;
+                out[pos++] = (char)0xA9;
+            }
+        } else {
+            out[pos++] = '?';
+        }
+    }
+    out[pos] = '\0';
+}
+
+static int HdHudEffectiveness(BattleSystem *battleSys, BattleSubscreen *btlSubscreen, u16 moveID)
+{
+    u32 battleType;
+    BattleContext *ctx;
+    int attacker, defender;
+    u32 moveClass;
+    u32 moveStatusMask = 0;
+
+    if (battleSys == NULL || btlSubscreen == NULL || moveID == 0) {
+        return SIM_HUDHD_EFF_UNKNOWN;
+    }
+    battleType = BattleSystem_GetBattleType(battleSys);
+    if (battleType & BATTLE_TYPE_DOUBLES) {
+        return SIM_HUDHD_EFF_UNKNOWN;
+    }
+    moveClass = MoveTable_LoadParam(moveID, MOVEATTRIBUTE_CLASS);
+    if (moveClass == CLASS_STATUS) {
+        return SIM_HUDHD_EFF_UNKNOWN;
+    }
+
+    ctx = BattleSystem_GetBattleContext(battleSys);
+    if (ctx == NULL) {
+        return SIM_HUDHD_EFF_UNKNOWN;
+    }
+    attacker = BattleSystem_GetBattlerOfType(battleSys, btlSubscreen->battlerType);
+    defender = BattleSystem_GetBattlerOfType(battleSys, BATTLER_TYPE_SOLO_ENEMY);
+    if (attacker < 0 || attacker >= MAX_BATTLERS || defender < 0 || defender >= MAX_BATTLERS) {
+        return SIM_HUDHD_EFF_UNKNOWN;
+    }
+
+    BattleSystem_ApplyTypeChart(battleSys, ctx, moveID, 0, attacker, defender, 100, &moveStatusMask);
+
+    if (moveStatusMask & (MOVE_STATUS_INEFFECTIVE | MOVE_STATUS_LEVITATED | MOVE_STATUS_MAGNET_RISE | MOVE_STATUS_WONDER_GUARD)) {
+        return SIM_HUDHD_EFF_NONE;
+    }
+    if (moveStatusMask & MOVE_STATUS_SUPER_EFFECTIVE) {
+        return SIM_HUDHD_EFF_SUPER;
+    }
+    if (moveStatusMask & MOVE_STATUS_NOT_VERY_EFFECTIVE) {
+        return SIM_HUDHD_EFF_NOT_VERY;
+    }
+    return SIM_HUDHD_EFF_NORMAL;
+}
+
+static void HdHudPopulateButtonsAndMoves(BattleSubscreen *btlSubscreen, SIM_HudHD_Frame *frame,
+    int *btnTouchIdx, int *moveTouchIdx)
+{
+    BattleSystem *battleSys = btlSubscreen->battleSys;
+    MessageLoader *msgLoader = BattleSystem_GetMessageLoader(battleSys);
+    u32 battleType = BattleSystem_GetBattleType(battleSys);
+    int menu = btlSubscreen->activeMenuConfigIndex;
+    int cx = btlSubscreen->cursor.x;
+    int cy = btlSubscreen->cursor.y;
+    int i;
+
+    frame->numButtons = 0;
+    frame->numMoves = 0;
+    for (i = 0; i < SIM_HUDHD_MAX_BUTTONS; i++) {
+        btnTouchIdx[i] = -1;
+    }
+    for (i = 0; i < SIM_HUDHD_MAX_MOVES; i++) {
+        moveTouchIdx[i] = -1;
+    }
+
+    if (menu == HUD_MENU_IDLE || menu < 0) {
+        return;
+    }
+
+    if (menu >= 13 && menu <= 17) {
+        String *yesStr = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_Yes);
+        String *noStr = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_No);
+
+        SIM_HudHD_Button *b0 = &frame->buttons[0];
+        b0->visible = 1;
+        b0->style = SIM_HUDHD_BUTTON_YES;
+        b0->rect = (SIM_HudHD_Rect){ 256.0f, 96.0f, 78.0f, 20.0f };
+        HudStringToUtf8(yesStr, b0->label, sizeof(b0->label));
+        b0->selected = (cy == 0) ? 1 : 0;
+        b0->enabled = 1;
+        btnTouchIdx[0] = 0;
+
+        SIM_HudHD_Button *b1 = &frame->buttons[1];
+        b1->visible = 1;
+        b1->style = SIM_HUDHD_BUTTON_NO;
+        b1->rect = (SIM_HudHD_Rect){ 256.0f, 120.0f, 78.0f, 20.0f };
+        HudStringToUtf8(noStr, b1->label, sizeof(b1->label));
+        b1->selected = (cy == 1) ? 1 : 0;
+        b1->enabled = 1;
+        btnTouchIdx[1] = 1;
+
+        frame->numButtons = 2;
+        String_Free(yesStr);
+        String_Free(noStr);
+        return;
+    }
+
+    if (menu == HUD_MENU_MOVE) {
+        MoveSelectData *moveData = &btlSubscreen->activeMenuData.moveData;
+        for (i = 0; i < 4; i++) {
+            int col = i & 1;
+            int row = i >> 1;
+            SIM_HudHD_MoveCard *mc = &frame->moves[i];
+
+            if (moveData->moveIDs[i] == 0) {
+                mc->visible = 0;
+                continue;
+            }
+            {
+                String *nameStr = MessageUtil_MoveName(moveData->moveIDs[i], HEAP_ID_BATTLE);
+                u32 moveClass = MoveTable_LoadParam(moveData->moveIDs[i], MOVEATTRIBUTE_CLASS);
+                mc->visible = 1;
+                mc->rect = (SIM_HudHD_Rect){ 178.0f, 74.0f + (float)(i * 23), 156.0f, 21.0f };
+                HudStringToUtf8(nameStr, mc->name, sizeof(mc->name));
+                mc->type = (int)MoveTable_LoadParam(moveData->moveIDs[i], MOVEATTRIBUTE_TYPE);
+                if (moveClass == CLASS_PHYSICAL) {
+                    mc->category = SIM_HUDHD_CAT_PHYSICAL;
+                } else if (moveClass == CLASS_SPECIAL) {
+                    mc->category = SIM_HUDHD_CAT_SPECIAL;
+                } else {
+                    mc->category = SIM_HUDHD_CAT_STATUS;
+                }
+                mc->pp = moveData->currPP[i];
+                mc->maxPp = moveData->maxPP[i];
+                mc->effectiveness = HdHudEffectiveness(battleSys, btlSubscreen, moveData->moveIDs[i]);
+                mc->selected = (cx == col && cy == row) ? 1 : 0;
+                mc->enabled = (moveData->currPP[i] > 0) ? 1 : 0;
+                moveTouchIdx[i] = 1 + i;
+                String_Free(nameStr);
+            }
+        }
+        frame->numMoves = 4;
+
+        if (moveData->megaEvolutionAvailable) {
+            BattleContext *ctx = BattleSystem_GetBattleContext(battleSys);
+            int battler = BattleSystem_GetBattlerOfType(battleSys, btlSubscreen->battlerType);
+            int on = (ctx != NULL && ctx->megaEvolutionTriggered[battler]) ? 1 : 0;
+            String *megaStr = MessageLoader_GetNewString(msgLoader, 1272); // "MEGA"
+            SIM_HudHD_Button *mb = &frame->buttons[frame->numButtons];
+            mb->visible = 1;
+            mb->style = SIM_HUDHD_BUTTON_MEGA;
+            mb->rect = (SIM_HudHD_Rect){ 178.0f, 168.0f, 92.0f, 18.0f };
+            HudStringToUtf8(megaStr, mb->label, sizeof(mb->label));
+            mb->selected = (cy == 2 && cx == 0) ? 1 : 0;
+            mb->enabled = 1;
+            mb->toggled = on;
+            btnTouchIdx[frame->numButtons] = 5;
+            frame->numButtons++;
+            String_Free(megaStr);
+        }
+
+        {
+            String *cancelStr = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_Cancel2);
+            SIM_HudHD_Button *cb = &frame->buttons[frame->numButtons];
+            cb->visible = 1;
+            cb->style = SIM_HUDHD_BUTTON_CANCEL;
+            cb->rect = moveData->megaEvolutionAvailable
+                ? (SIM_HudHD_Rect){ 274.0f, 168.0f, 60.0f, 18.0f }
+                : (SIM_HudHD_Rect){ 254.0f, 168.0f, 80.0f, 18.0f };
+            HudStringToUtf8(cancelStr, cb->label, sizeof(cb->label));
+            cb->selected = (cy == 2 && (cx == 1 || !moveData->megaEvolutionAvailable)) ? 1 : 0;
+            cb->enabled = 1;
+            btnTouchIdx[frame->numButtons] = 0;
+            frame->numButtons++;
+            String_Free(cancelStr);
+        }
+        return;
+    }
+
+    if (menu == HUD_MENU_TARGET) {
+        TargetSelectData *data = &btlSubscreen->activeMenuData.targetSelectData;
+        StringTemplate *template = BattleSystem_GetStringTemplate(battleSys);
+        int layout = btlSubscreen->targetingLayout;
+        BOOL isMultiTarget = (layout == 1 || layout == 2 || layout == 3 || layout == 5 || layout == 7);
+        BOOL cancelSel = isMultiTarget ? (cy > 0) : (cy == 2);
+        u8 battlersByType[6];
+        static const u8 sGridTypeIdx[2][2] = { { 5, 3 }, { 2, 4 } };
+        static const u8 sGridTouchIdx[2][2] = { { 3, 1 }, { 0, 2 } };
+        int row, col;
+
+        BattleSystem_SetBattlersByType(battleSys, battlersByType);
+
+        for (row = 0; row < 2; row++) {
+            for (col = 0; col < 2; col++) {
+                int battlerIndex = battlersByType[sGridTypeIdx[row][col]];
+                SIM_HudHD_Button *tb = &frame->buttons[frame->numButtons];
+                BOOL selected = isMultiTarget
+                    ? ((!cancelSel) && WideHudTargetMultiSelected(layout, row, col))
+                    : ((!cancelSel) && (cy == row && cx == col));
+
+                tb->rect = (SIM_HudHD_Rect){
+                    col ? 242.0f : 146.0f,
+                    row ? 142.0f : 120.0f,
+                    92.0f, 18.0f
+                };
+                tb->style = SIM_HUDHD_BUTTON_GENERIC;
+                tb->selected = selected ? 1 : 0;
+                if (data->targetMonData[battlerIndex].isPresent) {
+                    String *fmt = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_HealthBoxPokemonName);
+                    String *msg = String_Init(32, HEAP_ID_BATTLE);
+                    Pokemon *mon = BattleSystem_GetPartyPokemon(battleSys, battlerIndex, data->targetMonData[battlerIndex].partySlot);
+                    StringTemplate_SetNickname(template, 0, Pokemon_GetBoxPokemon(mon));
+                    StringTemplate_Format(template, msg, fmt);
+                    tb->visible = 1;
+                    tb->enabled = 1;
+                    HudStringToUtf8(msg, tb->label, sizeof(tb->label));
+                    String_Free(msg);
+                    String_Free(fmt);
+                    btnTouchIdx[frame->numButtons] = sGridTouchIdx[row][col];
+                    frame->numButtons++;
+                }
+            }
+        }
+
+        {
+            String *cancelStr = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_Cancel3);
+            SIM_HudHD_Button *cb = &frame->buttons[frame->numButtons];
+            cb->visible = 1;
+            cb->style = SIM_HUDHD_BUTTON_CANCEL;
+            cb->rect = (SIM_HudHD_Rect){ 146.0f, 166.0f, 188.0f, 18.0f };
+            HudStringToUtf8(cancelStr, cb->label, sizeof(cb->label));
+            cb->selected = cancelSel ? 1 : 0;
+            cb->enabled = 1;
+            btnTouchIdx[frame->numButtons] = 4;
+            frame->numButtons++;
+            String_Free(cancelStr);
+        }
+        return;
+    }
+
+    if (menu >= 1 && menu <= 10) {
+        if (menu == 5 || menu == 6) {
+            String *fight = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_Fight);
+            SIM_HudHD_Button *b = &frame->buttons[0];
+            b->visible = 1;
+            b->style = SIM_HUDHD_BUTTON_FIGHT;
+            b->rect = (SIM_HudHD_Rect){ 248.0f, 162.0f, 86.0f, 24.0f };
+            HudStringToUtf8(fight, b->label, sizeof(b->label));
+            b->selected = 1;
+            b->enabled = 1;
+            btnTouchIdx[0] = 0;
+            frame->numButtons = 1;
+            String_Free(fight);
+            return;
+        }
+
+        if (menu == 9 || menu == 10) {
+            String *ball = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_BallPalPark);
+            String *run = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_Run);
+            SIM_HudHD_Button *b0 = &frame->buttons[0];
+            SIM_HudHD_Button *b1 = &frame->buttons[1];
+
+            b0->visible = 1;
+            b0->style = SIM_HUDHD_BUTTON_FIGHT;
+            b0->rect = (SIM_HudHD_Rect){ 248.0f, 138.0f, 86.0f, 22.0f };
+            HudStringToUtf8(ball, b0->label, sizeof(b0->label));
+            b0->selected = (cy == 0) ? 1 : 0;
+            b0->enabled = 1;
+            btnTouchIdx[0] = 0;
+
+            b1->visible = 1;
+            b1->style = SIM_HUDHD_BUTTON_RUN;
+            b1->rect = (SIM_HudHD_Rect){ 248.0f, 164.0f, 86.0f, 22.0f };
+            HudStringToUtf8(run, b1->label, sizeof(b1->label));
+            b1->selected = (cy == 1) ? 1 : 0;
+            b1->enabled = 1;
+            btnTouchIdx[1] = 1;
+
+            frame->numButtons = 2;
+            String_Free(ball);
+            String_Free(run);
+            return;
+        }
+
+        if (BdspHudHasWildQuickBall(btlSubscreen, menu)) {
+            SIM_HudHD_Button *qb = &frame->buttons[frame->numButtons];
+            qb->visible = 1;
+            qb->style = SIM_HUDHD_BUTTON_QUICK_BALL;
+            qb->rect = (SIM_HudHD_Rect){ 248.0f, 74.0f, 86.0f, 18.0f };
+            snprintf(qb->label, sizeof(qb->label), "Ball");
+            qb->selected = 0;
+            qb->enabled = 1;
+            btnTouchIdx[frame->numButtons] = 1;
+            frame->numButtons++;
+        }
+
+        {
+            String *fight, *bag, *party, *run;
+            SIM_HudHD_Button *b;
+
+            if (battleType & BATTLE_TYPE_SAFARI) {
+                fight = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_Ball);
+                bag = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_Bait);
+                party = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_Mud);
+            } else {
+                fight = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_Fight);
+                bag = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_Bag);
+                party = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_Pokemon);
+            }
+            run = MessageLoader_GetNewString(msgLoader,
+                btlSubscreen->activeMenuData.actionData.isWaitingForPartner
+                    ? BattleStrings_Text_Cancel : BattleStrings_Text_Run);
+
+            b = &frame->buttons[frame->numButtons];
+            b->visible = 1;
+            b->style = SIM_HUDHD_BUTTON_FIGHT;
+            b->rect = (SIM_HudHD_Rect){ 248.0f, 96.0f, 86.0f, 21.0f };
+            HudStringToUtf8(fight, b->label, sizeof(b->label));
+            b->selected = (cy == 0) ? 1 : 0;
+            b->enabled = 1;
+            btnTouchIdx[frame->numButtons++] = 0;
+
+            b = &frame->buttons[frame->numButtons];
+            b->visible = 1;
+            b->style = SIM_HUDHD_BUTTON_POKEMON;
+            b->rect = (SIM_HudHD_Rect){ 248.0f, 119.0f, 86.0f, 21.0f };
+            HudStringToUtf8(party, b->label, sizeof(b->label));
+            b->selected = (cy == 1 && cx == 2) ? 1 : 0;
+            b->enabled = 1;
+            btnTouchIdx[frame->numButtons++] = 2;
+
+            b = &frame->buttons[frame->numButtons];
+            b->visible = 1;
+            b->style = SIM_HUDHD_BUTTON_BAG;
+            b->rect = (SIM_HudHD_Rect){ 248.0f, 142.0f, 86.0f, 21.0f };
+            HudStringToUtf8(bag, b->label, sizeof(b->label));
+            b->selected = (cy == 1 && cx == 0) ? 1 : 0;
+            b->enabled = 1;
+            btnTouchIdx[frame->numButtons++] = 1;
+
+            b = &frame->buttons[frame->numButtons];
+            b->visible = 1;
+            b->style = SIM_HUDHD_BUTTON_RUN;
+            b->rect = (SIM_HudHD_Rect){ 248.0f, 165.0f, 86.0f, 21.0f };
+            HudStringToUtf8(run, b->label, sizeof(b->label));
+            b->selected = (cy == 1 && cx == 1) ? 1 : 0;
+            b->enabled = 1;
+            btnTouchIdx[frame->numButtons++] = 3;
+
+            String_Free(fight);
+            String_Free(bag);
+            String_Free(party);
+            String_Free(run);
+        }
+    }
+}
+
+static int HdHudTouchButtonIndex(BattleSubscreen *btlSubscreen, int x, int y)
+{
+    SIM_HudHD_Frame frame;
+    int btnTouchIdx[SIM_HUDHD_MAX_BUTTONS];
+    int moveTouchIdx[SIM_HUDHD_MAX_MOVES];
+    int i;
+
+    if (btlSubscreen == NULL || x < 0 || x >= WIDE_HUD_WIDTH_PX || y < 0 || y >= HW_LCD_HEIGHT) {
+        return -1;
+    }
+
+    memset(&frame, 0, sizeof(frame));
+    HdHudPopulateButtonsAndMoves(btlSubscreen, &frame, btnTouchIdx, moveTouchIdx);
+
+    for (i = 0; i < frame.numMoves; i++) {
+        if (!frame.moves[i].visible) {
+            continue;
+        }
+        {
+            SIM_HudHD_Rect r = frame.moves[i].rect;
+            if ((float)x >= r.x && (float)x < r.x + r.w && (float)y >= r.y && (float)y < r.y + r.h) {
+                return moveTouchIdx[i];
+            }
+        }
+    }
+    for (i = 0; i < frame.numButtons; i++) {
+        if (!frame.buttons[i].visible) {
+            continue;
+        }
+        {
+            SIM_HudHD_Rect r = frame.buttons[i].rect;
+            if ((float)x >= r.x && (float)x < r.x + r.w && (float)y >= r.y && (float)y < r.y + r.h) {
+                return btnTouchIdx[i];
+            }
+        }
+    }
+    return -1;
+}
+
+static int HdHudMapStatus(const HealthBox *hb, Pokemon *mon)
+{
+    if (hb->curHP <= 0 && hb->type != HEALTHBOX_TYPE_SAFARI_ZONE && hb->type != HEALTHBOX_TYPE_PAL_PARK) {
+        return SIM_HUDHD_STATUS_FNT;
+    }
+    switch (hb->status) {
+    case BATTLE_ANIMATION_ASLEEP:
+        return SIM_HUDHD_STATUS_SLP;
+    case BATTLE_ANIMATION_POISONED:
+        if (mon != NULL && (Pokemon_GetValue(mon, MON_DATA_STATUS, NULL) & MON_CONDITION_TOXIC)) {
+            return SIM_HUDHD_STATUS_TOX;
+        }
+        return SIM_HUDHD_STATUS_PSN;
+    case BATTLE_ANIMATION_BURNED:
+        return SIM_HUDHD_STATUS_BRN;
+    case BATTLE_ANIMATION_FROZEN:
+        return SIM_HUDHD_STATUS_FRZ;
+    case BATTLE_ANIMATION_PARALYZED:
+        return SIM_HUDHD_STATUS_PAR;
+    default:
+        return SIM_HUDHD_STATUS_NONE;
+    }
+}
+
+static SIM_HudHD_Rect HdHudCardRect(u8 healthboxType)
+{
+    switch (healthboxType) {
+    case HEALTHBOX_TYPE_PLAYER_SOLO:
+    case HEALTHBOX_TYPE_SAFARI_ZONE:
+    case HEALTHBOX_TYPE_PAL_PARK:
+        return (SIM_HudHD_Rect){ 8.0f, 128.0f, 126.0f, 44.0f };
+    case HEALTHBOX_TYPE_ENEMY_SOLO:
+        return (SIM_HudHD_Rect){ 216.0f, 8.0f, 118.0f, 34.0f };
+    case HEALTHBOX_TYPE_PLAYER_SLOT_1:
+        return (SIM_HudHD_Rect){ 8.0f, 100.0f, 122.0f, 34.0f };
+    case HEALTHBOX_TYPE_PLAYER_SLOT_2:
+        return (SIM_HudHD_Rect){ 14.0f, 138.0f, 122.0f, 34.0f };
+    case HEALTHBOX_TYPE_ENEMY_SLOT_1:
+        return (SIM_HudHD_Rect){ 220.0f, 6.0f, 114.0f, 32.0f };
+    case HEALTHBOX_TYPE_ENEMY_SLOT_2:
+        return (SIM_HudHD_Rect){ 212.0f, 40.0f, 114.0f, 32.0f };
+    default:
+        return (SIM_HudHD_Rect){ 8.0f, 128.0f, 126.0f, 44.0f };
+    }
+}
+
+static void HdHudFillCard(BattleSystem *battleSys, const HealthBox *hb, SIM_HudHD_Card *card)
+{
+    u32 battleType = BattleSystem_GetBattleType(battleSys);
+    BOOL isPlayer;
+    Pokemon *mon;
+    float animHp;
+    int dispHp;
+
+    if (hb == NULL || hb->mainSprite == NULL || !hb->hdVisible) {
+        card->visible = 0;
+        return;
+    }
+    if (hb->maxHP <= 0 && hb->type != HEALTHBOX_TYPE_SAFARI_ZONE && hb->type != HEALTHBOX_TYPE_PAL_PARK) {
+        card->visible = 0;
+        return;
+    }
+
+    isPlayer = (hb->type == HEALTHBOX_TYPE_PLAYER_SOLO
+        || hb->type == HEALTHBOX_TYPE_PLAYER_SLOT_1
+        || hb->type == HEALTHBOX_TYPE_PLAYER_SLOT_2
+        || hb->type == HEALTHBOX_TYPE_SAFARI_ZONE
+        || hb->type == HEALTHBOX_TYPE_PAL_PARK);
+
+    card->visible = 1;
+    card->isPlayer = isPlayer ? 1 : 0;
+    card->rect = HdHudCardRect(hb->type);
+    card->level = hb->level;
+    card->alpha = 1.0f;
+
+    if (hb->scrollDirection == HEALTHBOX_SCROLL_OUT && hb->doneScrolling) {
+        card->alpha = 0.0f;
+    }
+
+    if (hb->type == HEALTHBOX_TYPE_SAFARI_ZONE || hb->type == HEALTHBOX_TYPE_PAL_PARK) {
+        snprintf(card->name, sizeof(card->name), "%s",
+            (hb->type == HEALTHBOX_TYPE_SAFARI_ZONE) ? "Safari Balls" : "Park Balls");
+        card->gender = SIM_HUDHD_GENDER_NONE;
+        card->hpFrac = 1.0f;
+        card->hp = hb->numSafariBalls;
+        card->maxHp = 30;
+        card->showHpNumbers = 1;
+        card->showExp = 0;
+        card->expFrac = 0.0f;
+        card->status = SIM_HUDHD_STATUS_NONE;
+        card->caught = 0;
+        return;
+    }
+
+    mon = BattleSystem_GetPartyPokemon(battleSys, hb->battler, hb->selectedPartySlot);
+    if (mon != NULL) {
+        String *nick = String_Init(MON_NAME_LEN + 4, HEAP_ID_BATTLE);
+        Pokemon_GetValue(mon, MON_DATA_NICKNAME_STRING, nick);
+        HudStringToUtf8(nick, card->name, sizeof(card->name));
+        String_Free(nick);
+    }
+
+    if (hb->gender == GENDER_MALE) {
+        card->gender = SIM_HUDHD_GENDER_MALE;
+    } else if (hb->gender == GENDER_FEMALE) {
+        card->gender = SIM_HUDHD_GENDER_FEMALE;
+    } else {
+        card->gender = SIM_HUDHD_GENDER_NONE;
+    }
+
+    if (hb->hpTemp != (-0x7fffffff - 1) && hb->hpTemp > 0) {
+        if (hb->maxHP < 48) {
+            animHp = (float)hb->hpTemp / 256.0f;
+            dispHp = (hb->hpTemp >> 8) + ((hb->hpTemp & 0xFF) > 0 ? 1 : 0);
+        } else {
+            animHp = (float)hb->hpTemp;
+            dispHp = hb->hpTemp;
+        }
+    } else {
+        animHp = (float)hb->curHP;
+        dispHp = hb->curHP;
+    }
+
+    card->maxHp = hb->maxHP;
+    card->hp = dispHp;
+    card->hpFrac = (hb->maxHP > 0) ? (animHp / (float)hb->maxHP) : 0.0f;
+    if (card->hpFrac < 0.0f) {
+        card->hpFrac = 0.0f;
+    } else if (card->hpFrac > 1.0f) {
+        card->hpFrac = 1.0f;
+    }
+    card->showHpNumbers = isPlayer ? 1 : 0;
+
+    if (hb->type == HEALTHBOX_TYPE_PLAYER_SOLO && hb->level < MAX_POKEMON_LEVEL && hb->maxExp > 0) {
+        float animExp;
+        if (hb->expTemp != (-0x7fffffff - 1) && hb->expTemp > 0) {
+            animExp = (hb->maxExp < 64) ? ((float)hb->expTemp / 256.0f) : (float)hb->expTemp;
+        } else {
+            animExp = (float)hb->curExp;
+        }
+        card->showExp = 1;
+        card->expFrac = animExp / (float)hb->maxExp;
+        if (card->expFrac < 0.0f) {
+            card->expFrac = 0.0f;
+        } else if (card->expFrac > 1.0f) {
+            card->expFrac = 1.0f;
+        }
+    } else {
+        card->showExp = 0;
+        card->expFrac = 0.0f;
+    }
+
+    card->status = HdHudMapStatus(hb, mon);
+    card->caught = (!isPlayer && !(battleType & BATTLE_TYPE_TRAINER) && hb->caughtSpecies) ? 1 : 0;
+}
+
+static int HdHudBallState(Pokemon *mon)
+{
+    u32 hp, status;
+    if (mon == NULL || Pokemon_GetValue(mon, MON_DATA_IS_EGG, NULL)) {
+        return SIM_HUDHD_BALL_EMPTY;
+    }
+    hp = Pokemon_GetValue(mon, MON_DATA_HP, NULL);
+    if (hp == 0) {
+        return SIM_HUDHD_BALL_FAINTED;
+    }
+    status = Pokemon_GetValue(mon, MON_DATA_STATUS, NULL);
+    if (status & MON_CONDITION_ANY) {
+        return SIM_HUDHD_BALL_STATUS;
+    }
+    return SIM_HUDHD_BALL_OK;
+}
+
+static void HdHudFillPartyStrip(BattleSystem *battleSys, int battler, SIM_HudHD_Rect rect,
+    BOOL visible, SIM_HudHD_PartyStrip *strip)
+{
+    Party *party;
+    int count, i;
+
+    strip->visible = visible ? 1 : 0;
+    strip->rect = rect;
+    strip->count = 0;
+    for (i = 0; i < 6; i++) {
+        strip->balls[i] = SIM_HUDHD_BALL_EMPTY;
+    }
+    if (!visible) {
+        return;
+    }
+
+    party = BattleSystem_GetParty(battleSys, battler);
+    if (party == NULL) {
+        return;
+    }
+    count = Party_GetCurrentCount(party);
+    if (count > 6) {
+        count = 6;
+    }
+    strip->count = count;
+    for (i = 0; i < count; i++) {
+        strip->balls[i] = HdHudBallState(Party_GetPokemonBySlotIndex(party, i));
+    }
+}
+
+static u32 HdHudHashBytes(const void *data, size_t len)
+{
+    const u8 *p = (const u8 *)data;
+    u32 h = 2166136261u;
+    size_t i;
+    for (i = 0; i < len; i++) {
+        h ^= p[i];
+        h *= 16777619u;
+    }
+    return h;
+}
+
+static void HdHudDumpFrame(const SIM_HudHD_Frame *frame)
+{
+    const char *path = getenv("SIM_HUDHD_DUMP");
+    u32 h;
+    FILE *f;
+    int i, j;
+
+    if (path == NULL || path[0] == '\0') {
+        return;
+    }
+    h = HdHudHashBytes(frame, sizeof(*frame));
+    if (sHud.hasDumped && h == sHud.lastDumpHash) {
+        return;
+    }
+    sHud.lastDumpHash = h;
+    sHud.hasDumped = TRUE;
+
+    f = fopen(path, "a");
+    if (f == NULL) {
+        return;
+    }
+
+    fprintf(f, "{\"active\":%d,\"canvas\":[%.0f,%.0f],\"cards\":[",
+        frame->active, frame->canvasW, frame->canvasH);
+    for (i = 0; i < SIM_HUDHD_MAX_CARDS; i++) {
+        const SIM_HudHD_Card *c = &frame->cards[i];
+        if (i > 0) {
+            fprintf(f, ",");
+        }
+        fprintf(f, "{\"visible\":%d,\"isPlayer\":%d,\"rect\":[%.0f,%.0f,%.0f,%.0f],"
+            "\"name\":\"%s\",\"gender\":%d,\"level\":%d,\"hpFrac\":%.3f,"
+            "\"hp\":%d,\"maxHp\":%d,\"showHpNumbers\":%d,\"expFrac\":%.3f,"
+            "\"showExp\":%d,\"status\":%d,\"caught\":%d,\"alpha\":%.2f}",
+            c->visible, c->isPlayer, c->rect.x, c->rect.y, c->rect.w, c->rect.h,
+            c->name, c->gender, c->level, c->hpFrac, c->hp, c->maxHp,
+            c->showHpNumbers, c->expFrac, c->showExp, c->status, c->caught, c->alpha);
+    }
+    fprintf(f, "],\"partyStrips\":[");
+    for (i = 0; i < 2; i++) {
+        const SIM_HudHD_PartyStrip *ps = &frame->partyStrips[i];
+        if (i > 0) {
+            fprintf(f, ",");
+        }
+        fprintf(f, "{\"visible\":%d,\"count\":%d,\"balls\":[", ps->visible, ps->count);
+        for (j = 0; j < 6; j++) {
+            fprintf(f, "%s%d", j > 0 ? "," : "", ps->balls[j]);
+        }
+        fprintf(f, "]}");
+    }
+    fprintf(f, "],\"numButtons\":%d,\"buttons\":[", frame->numButtons);
+    for (i = 0; i < frame->numButtons; i++) {
+        const SIM_HudHD_Button *b = &frame->buttons[i];
+        if (i > 0) {
+            fprintf(f, ",");
+        }
+        fprintf(f, "{\"style\":%d,\"rect\":[%.0f,%.0f,%.0f,%.0f],\"label\":\"%s\",\"selected\":%d,\"enabled\":%d,\"toggled\":%d}",
+            b->style, b->rect.x, b->rect.y, b->rect.w, b->rect.h, b->label, b->selected, b->enabled, b->toggled);
+    }
+    fprintf(f, "],\"numMoves\":%d,\"moves\":[", frame->numMoves);
+    for (i = 0; i < frame->numMoves; i++) {
+        const SIM_HudHD_MoveCard *m = &frame->moves[i];
+        if (i > 0) {
+            fprintf(f, ",");
+        }
+        fprintf(f, "{\"visible\":%d,\"rect\":[%.0f,%.0f,%.0f,%.0f],\"name\":\"%s\",\"type\":%d,\"category\":%d,\"pp\":%d,\"maxPp\":%d,\"eff\":%d,\"selected\":%d,\"enabled\":%d}",
+            m->visible, m->rect.x, m->rect.y, m->rect.w, m->rect.h, m->name, m->type, m->category, m->pp, m->maxPp, m->effectiveness, m->selected, m->enabled);
+    }
+    fprintf(f, "]}\n");
+    fclose(f);
+}
+
+void BattleHud_SyncFrame(BattleSystem *battleSys)
+{
+    SIM_HudHD_Frame frame;
+    int maxBattlers, i;
+    BOOL anyPlayerCard = FALSE;
+    BOOL anyEnemyCard = FALSE;
+    u32 battleType;
+    int btnTouchIdx[SIM_HUDHD_MAX_BUTTONS];
+    int moveTouchIdx[SIM_HUDHD_MAX_MOVES];
+
+    if (battleSys == NULL || !BattleHud_IsHdMode()) {
+        return;
+    }
+
+    memset(&frame, 0, sizeof(frame));
+    frame.active = 1;
+    frame.canvasW = (float)WIDE_HUD_WIDTH_PX;
+    frame.canvasH = (float)HW_LCD_HEIGHT;
+
+    maxBattlers = BattleSystem_GetMaxBattlers(battleSys);
+    if (maxBattlers > SIM_HUDHD_MAX_CARDS) {
+        maxBattlers = SIM_HUDHD_MAX_CARDS;
+    }
+    for (i = 0; i < maxBattlers; i++) {
+        BattlerData *bd = BattleSystem_GetBattlerData(battleSys, i);
+        HealthBox *hb = (bd != NULL) ? BattlerData_GetHealthBox(bd) : NULL;
+        HdHudFillCard(battleSys, hb, &frame.cards[i]);
+        if (frame.cards[i].visible) {
+            if (frame.cards[i].isPlayer) {
+                anyPlayerCard = TRUE;
+            } else {
+                anyEnemyCard = TRUE;
+            }
+        }
+    }
+
+    battleType = BattleSystem_GetBattleType(battleSys);
+    if (battleType & (BATTLE_TYPE_SAFARI | BATTLE_TYPE_PAL_PARK)) {
+        anyPlayerCard = FALSE;
+    }
+    HdHudFillPartyStrip(battleSys, BATTLER_PLAYER_1,
+        (SIM_HudHD_Rect){ 10.0f, 174.0f, 122.0f, 12.0f },
+        anyPlayerCard, &frame.partyStrips[0]);
+    HdHudFillPartyStrip(battleSys, BATTLER_ENEMY_1,
+        (battleType & BATTLE_TYPE_DOUBLES)
+            ? (SIM_HudHD_Rect){ 216.0f, 74.0f, 118.0f, 12.0f }
+            : (SIM_HudHD_Rect){ 216.0f, 44.0f, 118.0f, 12.0f },
+        anyEnemyCard && (battleType & BATTLE_TYPE_TRAINER), &frame.partyStrips[1]);
+
+    if (sHud.activeSubscreen != NULL) {
+        HdHudPopulateButtonsAndMoves(sHud.activeSubscreen, &frame, btnTouchIdx, moveTouchIdx);
+    }
+
+    HdHudDumpFrame(&frame);
+    GameHudHD_Submit(&frame);
+}
+
+void BattleHud_Reset(void)
+{
+    SIM_HudHD_Frame frame;
+    sHud.activeSubscreen = NULL;
+    if (!BattleHud_IsHdMode()) {
+        return;
+    }
+    memset(&frame, 0, sizeof(frame));
+    frame.active = 0;
+    frame.canvasW = (float)WIDE_HUD_WIDTH_PX;
+    frame.canvasH = (float)HW_LCD_HEIGHT;
+    HdHudDumpFrame(&frame);
+    GameHudHD_Submit(&frame);
+}
+
 // Map a main-touch click (DS coords) to a touch-array button index for
 // the current menu, mirroring the bottom screen's button layout.
 static int HudTouchButtonIndex(BattleSubscreen *btlSubscreen, int x, int y)
 {
     int menu = btlSubscreen->activeMenuConfigIndex;
     int col, row;
+
+    if (BattleHud_IsHdMode()) {
+        return HdHudTouchButtonIndex(btlSubscreen, x, y);
+    }
 
     if (SIM_Battle3D_IsEnabled()) {
         return BdspHudTouchButtonIndex(btlSubscreen, x, y);
@@ -1853,11 +2736,13 @@ static int HudTouchButtonIndex(BattleSubscreen *btlSubscreen, int x, int y)
 int BattleHud_Update(BattleSubscreen *btlSubscreen)
 {
     int menu, cx, cy, touchX, touchY;
+    BOOL hdMode;
     BOOL bdsp3d;
     BOOL widePixel;
 
     if (!BattleHud_IsEnabled() || btlSubscreen == NULL) {
         if (btlSubscreen != NULL) {
+            sHud.activeSubscreen = NULL;
             HudHideInternal(btlSubscreen);
         }
         return -1;
@@ -1865,10 +2750,12 @@ int BattleHud_Update(BattleSubscreen *btlSubscreen)
 
     menu = btlSubscreen->activeMenuConfigIndex;
     if (menu == HUD_MENU_IDLE || menu < 0) {
+        sHud.activeSubscreen = NULL;
         HudHideInternal(btlSubscreen);
         return -1;
     }
 
+    hdMode = BattleHud_IsHdMode();
     bdsp3d = SIM_Battle3D_IsEnabled();
     widePixel = BattleHud_IsWidePixelMode();
 
@@ -1879,7 +2766,7 @@ int BattleHud_Update(BattleSubscreen *btlSubscreen)
     SIM_Wide_SetMainTouchEnabled(1);
 
     // Wild quick-ball shortcut: X opens Bag immediately in BDSP corner HUD.
-    if (bdsp3d && !btlSubscreen->isPanelSliding
+    if ((bdsp3d || hdMode) && !btlSubscreen->isPanelSliding
         && BdspHudHasWildQuickBall(btlSubscreen, menu)
         && (gSystem.pressedKeys & PAD_BUTTON_X)) {
         return 1;
@@ -1891,6 +2778,14 @@ int BattleHud_Update(BattleSubscreen *btlSubscreen)
         if (button >= 0) {
             return button;
         }
+    }
+
+    if (hdMode) {
+        sHud.activeSubscreen = btlSubscreen;
+        if (sHud.windowAdded) {
+            HudHideInternal(btlSubscreen);
+        }
+        return -1;
     }
 
     HudLiftHealthboxes(btlSubscreen, TRUE);
@@ -1993,7 +2888,7 @@ BOOL BattleHud_IsWindowVisible(void)
 BOOL BattleHud_IsBdspCornerHud(void)
 {
 #ifdef SDK_PORT
-    return BattleHud_IsEnabled() && SIM_Battle3D_IsEnabled();
+    return BattleHud_IsEnabled() && (SIM_Battle3D_IsEnabled() || BattleHud_IsHdMode());
 #else
     return FALSE;
 #endif

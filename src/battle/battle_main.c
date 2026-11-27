@@ -325,6 +325,7 @@ void BattleSystem_EnterSubMenu(BattleSystem *battleSys)
     if (SIM_Battle3D_IsEnabled()) {
         BattleSystem_HideHealthboxes(battleSys);
     }
+    BattleHud_Reset();
     SIM_Battle3D_Reset();
     SIM_Wide_SetWide2DWidth(0);
     SIM_Wide_SetScene(SIM_WIDE_SCENE_MENU); // battlehud hook (widegame note)
@@ -347,6 +348,7 @@ void BattleSystem_EnterSubMenu(BattleSystem *battleSys)
 
 void BattleSystem_FreeGraphics(BattleSystem *battleSys)
 {
+    BattleHud_Reset();
     SIM_Battle3D_Reset();
     SIM_Wide_SetWide2DWidth(0);
     SetVBlankCallback(NULL, NULL);
@@ -1747,6 +1749,7 @@ static void SysTask_DrawSprites(SysTask *task, void *inBattleSys)
         BattleTextbox_Update();
         if (battleSys->renderMode == 0) {
             BattleMain_SyncBdspMessageFrame(battleSys);
+            BattleHud_SyncFrame(battleSys);
         }
     }
 }

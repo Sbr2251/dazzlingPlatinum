@@ -304,6 +304,9 @@ static void ShowArrow(PartyGaugeArrow *arrow, enum PartyGaugeSide side, enum Par
     }
 
     Sprite_TickFrame(arrow->managedSprite->sprite);
+    if (BattleHud_IsHdMode()) {
+        ManagedSprite_SetDrawFlag(arrow->managedSprite, FALSE);
+    }
 
     arrow->side = side;
     arrow->position = pos;
@@ -454,6 +457,9 @@ static void ShowPokeballs(PartyGaugePokeballs *pokeballs, s8 *numBalls, enum Par
 
     Sprite_SetAnim(pokeballs->managedSprite->sprite, frame);
     Sprite_TickFrame(pokeballs->managedSprite->sprite);
+    if (BattleHud_IsHdMode()) {
+        ManagedSprite_SetDrawFlag(pokeballs->managedSprite, FALSE);
+    }
 
     pokeballs->side = side;
     pokeballs->ballSlot = slot;
