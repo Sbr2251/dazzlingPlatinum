@@ -45,6 +45,22 @@
             "z": 612,
             "y": 0,
             "player_facing_dir": "BG_EVENT_DIR_EAST"
+        },
+        {
+            "script": "Route223_SummitTerrace",
+            "type": "BG_EVENT_TYPE_FACING",
+            "x": 844,
+            "z": 610,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_WEST"
+        },
+        {
+            "script": "Route223_SummitTerrace",
+            "type": "BG_EVENT_TYPE_FACING",
+            "x": 849,
+            "z": 614,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_NORTH"
         }
     ],
     "object_events": [

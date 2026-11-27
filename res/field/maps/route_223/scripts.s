@@ -6,6 +6,7 @@
     ScriptEntry TotemKingdra_Encounter
     ScriptEntry Route223_KingdraRift
     ScriptEntry Route223_SummitPillar
+    ScriptEntry Route223_SummitTerrace
     ScriptEntryEnd
 
 TotemKingdra_Encounter:
@@ -45,6 +46,15 @@ Route223_SummitPillar:
     PlaySE SE_CONFIRM_sseq_3
     LockAll
     Message Route223_Text_SummitPillar
+    WaitABPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+Route223_SummitTerrace:
+    PlaySE SE_CONFIRM_sseq_3
+    LockAll
+    Message Route223_Text_SummitTerrace
     WaitABPadPress
     CloseMessage
     ReleaseAll

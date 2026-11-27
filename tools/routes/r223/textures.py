@@ -1,30 +1,37 @@
 #!/usr/bin/env python3
 """Route 223 (Rift Sea Route & Waterfall Summit) texture set: map_texture_set_082 = stock map_texture_set_013 +
-four procedurally generated pixel-art textures. NumPy maths (periodic value noise, Voronoi facets, polar SDF rings),
-quantised onto hand-picked 16-colour palettes (snapped to BGR555) with a 4x4 Bayer ordered dither, at Platinum's
-16 texels per tile.
+six hand-structured pixel-art textures (NumPy masks, hand-picked 16-colour palettes snapped to BGR555), drawn at
+Platinum's 16 texels per tile with crisp 1-texel outlines and flat tones (no noise static; the only dither is the
+ordered Bayer fleck pattern of the sea foam).
 
 Usage:
   ~/.venvs/desmume/bin/python tools/routes/r223/textures.py                 dry run: table, VRAM, round-trip checks
   ~/.venvs/desmume/bin/python tools/routes/r223/textures.py --preview DIR   also DIR/<texture>.png + a x8 sheet
   ~/.venvs/desmume/bin/python tools/routes/r223/textures.py --write         write SET_REL (refuses if a check fails)
 
-Idempotent: the base is always stock set 013 read from git (BASE_REV:BASE_SET_REL), never the work tree, so reruns
-never append twice. Stock textures and palettes keep their names, texels and colours (asserted); the four Route 223
-textures are appended after them. build_art.py imports build_set() and the UV boxes below.
+Idempotent: the base is always stock set 013 read from git (STOCK_REV:BASE_SET_REL, the commit before the Route 223
+art), never the work tree, so reruns never append twice. Stock textures and palettes keep their names, texels and
+colours (asserted); the Route 223 textures are appended after them. build_art.py imports build_set() and the UV
+boxes below.
 
 Textures (pltt16):
-  r223_rift    32x32 opaque  faceted deep-violet / electric-cyan Rift Crystal: Voronoi facets with lit edges and
-                             periodic cyan energy veins with white-hot cores (spires, shards, crystal clusters)
-  r223_pillar  32x32 opaque  weathered dark basalt with columnar joints. PILLAR_UV: rows 0..23 two carved rune
-                             panels (left: Dialga sapphire channel with diamond glyphs, right: Palkia rose channel
-                             with pearl glyphs), rows 24..31 plain basalt (caps, backs, plinths)
-  r223_chain   32x32 c0=1    CHAIN_UV: rows 0..11 shattered violet shard-chain links (tile along u, 2 links per
-                             repeat), rows 12..19 a glowing rune band (tiles along u: the water-level ring),
-                             rows 20..31 jagged glowing rift cracks (flat decals on the rock tops)
-  r223_seal    64x64 c0=1    the Rift Resonance Seal: outer tick ring, glyph band, three converging nodes (Dialga
-                             sapphire diamond, Palkia rose pearl, Giratina gold chevron) joined by spokes and a
-                             triangle, and a white-hot rift tear in the centre (4 x 4 tiles = 16 texels per tile)
+  r223_rift     32x32 opaque  RIFT_STRIPS: four flat crystal facet styles side by side (shadow deep indigo, mid
+                              vivid violet, lit electric cyan, hot bright cyan), each 8 columns: dark outline, 1-texel
+                              specular ridge, one flat fill. Constant along v; one facet = one strip.
+  r223_pillar   32x32 opaque  weathered dark basalt with columnar joints. PILLAR_UV: rows 0..23 two carved rune
+                              panels (left: Dialga sapphire channel with diamond glyphs, right: Palkia rose channel
+                              with pearl glyphs), rows 24..31 plain basalt (caps, backs, plinths)
+  r223_chain    32x32 c0=1    CHAIN_UV: rows 0..11 chunky crystal-iron chain (a face-on iron oval link threaded by
+                              an edge-on violet crystal link, 3-texel bodies, 1-texel dark outlines; tiles along u),
+                              rows 12..19 a glowing rune band (the floating fractured ring of the Kingdra spire),
+                              rows 20..31 jagged glowing rift cracks (flat decals on the rock tops)
+  r223_foam     32x32 c0=1    FOAM_V: two phases of a lapping sea-foam strip (white crest against the stone,
+                              ordered-dither flecks fading out), laid on the water around every stone that meets it
+  r223_pave     32x32 opaque  carved basalt flagstones, one slab per tile with a chiselled inset border (2 x 2
+                              tiles per repeat), two slabs engraved with violet-inlaid glyphs: terrace, pier and
+                              landing tops
+  r223_terrace  32x32 opaque  TERRACE_V row bands: W carved wall with a Greek-key frieze, R rune inlay channel
+                              (glowing glyphs), S riser blocks (steps, low walls, the stone ring's rim blocks)
 """
 import os
 import subprocess
@@ -38,7 +45,8 @@ sys.path.insert(0, os.path.join(ROOT, "tools", "lake_verity"))
 import nsbtx  # noqa: E402
 
 SET_REL = "res/field/mapmodels/texture_sets/map_texture_set_082.nsbtx"
-BASE_REV = "HEAD"
+STOCK_REV = "406c75f6a8dfbd4cd2165be59e1fe0edb77e7398"   # routes-wave2 contract commit: stock Route 223 data
+BASE_REV = STOCK_REV
 BASE_SET_REL = "res/field/mapmodels/texture_sets/map_texture_set_013.nsbtx"
 VRAM_TARGET = 160 * 1024        # PLAN goal for this set
 NAME_MAX = 15
@@ -48,7 +56,10 @@ BAYER4 = (np.array([[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]
 # texel boxes (x0, y0, x1, y1), exclusive ends, for build_art.py's UV mapping
 PILLAR_UV = {"blue": (0, 0, 16, 24), "rose": (16, 0, 32, 24), "plain": (0, 24, 32, 32)}
 CHAIN_UV = {"chain": (0, 0, 32, 12), "band": (0, 12, 32, 20), "cracks": (0, 20, 32, 32)}
-TRANSPARENT_TEX = {"r223_chain", "r223_seal"}
+RIFT_STRIPS = {"shadow": 0, "mid": 1, "lit": 2, "hot": 3}          # strip k = texel columns 8k..8k+7
+FOAM_V = ((0, 8), (8, 16))                                         # texel rows of the two foam phases
+TERRACE_V = {"wall": (0, 16), "rune": (16, 24), "riser": (24, 32)}  # texel rows of the r223_terrace bands
+TRANSPARENT_TEX = {"r223_chain", "r223_foam"}
 
 
 def grid(n):
@@ -90,43 +101,30 @@ def snap(c):
 
 
 # ---------------------------------------------------------------------------------------------------------------
-# r223_rift: faceted violet / cyan crystal with energy veins
+# r223_rift: clean flat-shaded crystal facets (4 facet strips of 8 texel columns, constant along v)
 # ---------------------------------------------------------------------------------------------------------------
 
 def tex_rift():
+    """Four facet styles side by side (RIFT_STRIPS): each strip is one flat crystal facet - a 1-texel dark outline
+    (col 0), a crisp 1-texel ridge highlight (col 1) and one flat fill colour (cols 2..7). No noise, no dither:
+    build_art.py maps every crystal facet onto one strip picked from its baked light (shadow / mid / lit / hot)."""
     n = 32
-    X, Y, B = grid(n)
-    pal = [(18, 6, 40), (36, 14, 74), (58, 24, 112), (84, 38, 152), (114, 58, 192), (148, 88, 228), (186, 132, 250),
-           (222, 190, 255), (22, 58, 120), (26, 108, 182), (44, 168, 232), (112, 230, 255), (212, 252, 255),
-           (255, 255, 255), (198, 70, 212), (130, 40, 170)]
-    rng = np.random.RandomState(223)
-    seeds = [(rng.uniform(0, n), rng.uniform(0, n), rng.uniform(0, TAU), 1 if k in (2, 6) else 0) for k in range(9)]
-    d1 = np.full((n, n), 99.0)
-    d2 = np.full((n, n), 99.0)
-    val = np.zeros((n, n))
-    kind = np.zeros((n, n), int)
-    for sx, sy, ang, kd in seeds:
-        px, py = wrapv(X + 0.5, sx, n), wrapv(Y + 0.5, sy, n)
-        d = np.hypot(px, py)
-        g = 0.5 + 0.5 * (np.cos(ang) * px + np.sin(ang) * py) / 8.0
-        closer = d < d1
-        d2 = np.where(closer, d1, np.minimum(d2, d))
-        val = np.where(closer, g, val)
-        kind = np.where(closer, kd, kind)
-        d1 = np.where(closer, d, d1)
-    val = np.clip(val + 0.12 * (fbm(n, 5) - 0.5), 0, 1)
-    img = np.where(kind == 0, ramp(val, [1, 2, 15, 3, 4, 14, 5, 6], B), ramp(val, [8, 9, 3, 10, 11], B))
-    edge = d2 - d1
-    img = np.where(edge < 0.85, np.where(val > 0.5, 7, 6), img)                    # lit facet edges
-    img = np.where((edge >= 0.85) & (edge < 1.5) & (val < 0.35), 0, img)          # dark facet shadows
-    # one jagged periodic energy vein (cyan glow, white-hot core) plus a faint secondary hairline
-    cy = 20.0 + 3.0 * np.sin(TAU * (X + 0.5) / n + 0.7) + 1.4 * np.sign(np.sin(TAU * 3 * (X + 0.5) / n))
-    dv = np.abs(wrapv(Y + 0.5, cy, n))
-    img = np.where(dv < 1.3 + 0.5 * B, 10, img)
-    img = np.where(dv < 0.7, np.where((X % 3) == 0, 13, 12), img)
-    cy2 = 6.0 + 2.0 * np.sin(TAU * 2 * (X + 0.5) / n + 2.1)
-    dv2 = np.abs(wrapv(Y + 0.5, cy2, n))
-    img = np.where((dv2 < 0.55) & (B > -0.25), 11, img)
+    X, Y, _ = grid(n)
+    pal = [(14, 8, 38),        # 0 dark outline
+           (38, 22, 100),      # 1 deep indigo shadow facet
+           (70, 46, 150),      # 2 indigo ridge
+           (132, 72, 228),     # 3 vivid violet mid facet
+           (200, 156, 255),    # 4 lavender ridge
+           (40, 176, 240),     # 5 electric cyan lit facet
+           (120, 228, 255),    # 6 bright cyan hot facet
+           (242, 252, 255)]    # 7 specular white ridge
+    pal += [pal[0]] * (16 - len(pal))
+    styles = [(2, 1), (4, 3), (7, 5), (7, 6)]           # (ridge, fill) of shadow, mid, lit, hot
+    img = np.zeros((n, n), int)
+    for k, (ridge, fill) in enumerate(styles):
+        lx = X - 8 * k
+        strip = (lx >= 0) & (lx < 8)
+        img = np.where(strip, np.where(lx == 0, 0, np.where(lx == 1, ridge, fill)), img)
     return img, pal
 
 
@@ -182,38 +180,56 @@ def tex_pillar():
 
 
 # ---------------------------------------------------------------------------------------------------------------
-# r223_chain: shard-chain links, rune band, rift cracks (c0 = 1)
+# r223_chain: chunky crystal-iron chain links, rune band, rift cracks (c0 = 1)
 # ---------------------------------------------------------------------------------------------------------------
+
+def outline_of(mask, wrap_x=False):
+    """Pixels of `mask` with a 4-neighbour outside it (rows never wrap; columns wrap when wrap_x)."""
+    m = mask.astype(bool)
+    up = np.vstack([np.zeros((1, m.shape[1]), bool), m[:-1]])
+    dn = np.vstack([m[1:], np.zeros((1, m.shape[1]), bool)])
+    if wrap_x:
+        lf, rt = np.roll(m, 1, axis=1), np.roll(m, -1, axis=1)
+    else:
+        lf = np.hstack([np.zeros((m.shape[0], 1), bool), m[:, :-1]])
+        rt = np.hstack([m[:, 1:], np.zeros((m.shape[0], 1), bool)])
+    return m & ~(up & dn & lf & rt)
+
 
 def tex_chain():
     n = 32
     X, Y, B = grid(n)
-    pal = [(255, 0, 255), (16, 6, 34), (52, 20, 96), (90, 40, 160), (136, 76, 220), (184, 130, 250),
-           (230, 200, 255), (56, 146, 230), (120, 226, 255), (232, 255, 255), (255, 120, 220), (40, 12, 70),
-           (96, 196, 250), (255, 255, 255), (150, 50, 190), (200, 170, 255)]
+    pal = [(255, 0, 255), (16, 6, 34), (72, 62, 104), (90, 40, 160), (120, 112, 158), (172, 166, 212),
+           (150, 88, 236), (56, 146, 230), (120, 226, 255), (232, 255, 255), (212, 178, 255), (40, 12, 70),
+           (96, 196, 250), (250, 252, 255), (150, 50, 190), (220, 216, 244)]
     img = np.zeros((n, n), int)
-    # rows 0..11: links. Link A (face-on ellipse ring) centred at u 8, link B (edge-on bar) centred at u 24.
+    # rows 0..11: one repeat = a face-on iron oval link A (u 1..18) and an edge-on crystal link B threaded
+    # through it (u 12..38, wrapping): chunky 3-texel bodies with crisp 1-texel dark outlines.
+    rows = Y < 12
     cy = 6.0
-    cx = 9.0
-    ex = (X + 0.5 - cx) / 9.4
-    ey = (Y + 0.5 - cy) / 5.4
-    r = np.hypot(ex, ey)
-    ring = (r <= 1.0) & (np.hypot((X + 0.5 - cx) / 6.0, (Y + 0.5 - cy) / 2.2) > 1.0) & (Y < 12)
-    lit = np.clip(0.55 - 0.45 * ey - 0.15 * ex, 0, 1)
-    img = np.where(ring, ramp(lit, [2, 3, 4, 5, 6], B), img)
-    img = np.where(ring & (r > 0.88), 1, img)                                        # dark outline
-    img = np.where(ring & (ey < -0.6) & (np.abs(ex) < 0.35), 8, img)                 # cyan glint on top
-    bu = wrapv(X + 0.5, 25.0, n)
-    bar = (np.abs(bu) <= 8.2) & (np.abs(Y + 0.5 - cy) <= 1.9) & ~((np.abs(bu) > 6.0) & ring)
-    barlit = np.clip(0.75 - 0.4 * (Y + 0.5 - cy), 0, 1)
-    img = np.where(bar, ramp(barlit, [3, 4, 5, 15], B), img)
-    img = np.where(bar & ((np.abs(Y + 0.5 - cy) > 1.4) | (np.abs(bu) > 7.7)), 1, img)
-    # shattered: a fracture through the bar with a bright fissure, and a chip broken out of the ring's crown
-    img = np.where((X == 27) & (np.abs(Y + 0.5 - cy) <= 2.0), 0, img)
-    img = np.where((X == 26) & bar, 9, img)
-    img = np.where((X == 28) & bar, 8, img)
-    img = np.where((X >= 11) & (X <= 12) & (Y <= 2), 0, img)
-    img = np.where(((X == 10) | (X == 13)) & (Y <= 2) & ring, 9, img)
+    ax, ay = X + 0.5 - 9.5, Y + 0.5 - cy
+    ring = rows & ((ax / 8.7) ** 2 + (ay / 5.95) ** 2 <= 1.0) & ~((ax / 4.6) ** 2 + (ay / 2.3) ** 2 <= 1.0)
+    bu = (X + 0.5 - 12.0) % n
+    bar = rows & (bu <= 26.0) & (Y >= 3) & (Y <= 8)
+    behind = bar & (X <= 6)                       # B's far end passes behind A's left side, into its hole
+    front = bar & (X >= 12)                       # B's near end passes in front of A's right side
+
+    def paint_bar(img, m):
+        o = outline_of(bar, wrap_x=True) & m
+        body = m & ~o
+        img = np.where(body & (Y == 4), np.where((X % 7) == 3, 13, 15), img)     # lit crystal edge + glints
+        img = np.where(body & (Y == 5), 10, img)                                 # lavender crystal face
+        img = np.where(body & (Y >= 6), 6, img)                                  # violet underside
+        return np.where(o, 1, img)
+    img = paint_bar(img, behind)
+    o = outline_of(ring)
+    body = ring & ~o
+    shade_a = np.where(ay < -2.0, np.where(ay < -3.6, 15, 5), np.where(ay > 2.0, 2, 4))
+    img = np.where(body, shade_a, img)
+    img = np.where(body & (ay < -3.0) & (ax > -5.5) & (ax < -2.5), 13, img)       # specular highlight top-left
+    img = np.where(body & (np.abs(ay) < 1.5) & (ax < -5.5), 8, img)               # cyan glint on the left flank
+    img = np.where(o, 1, img)
+    img = paint_bar(img, front)
     # rows 12..19: rune band (tiles along u: 4 glyphs per repeat), thin borders top and bottom
     band = (Y >= 12) & (Y < 20)
     img = np.where(band & ((Y == 12) | (Y == 19)) & ((X % 4) != 3), 3, img)
@@ -251,89 +267,147 @@ def tex_chain():
 
 
 # ---------------------------------------------------------------------------------------------------------------
-# r223_seal: the Rift Resonance Seal (64 x 64, c0 = 1)
+# r223_foam: dithered white sea-foam lapping strips (c0 = 1)
 # ---------------------------------------------------------------------------------------------------------------
 
-def tex_seal():
-    n = 64
+def tex_foam():
+    """FOAM_V: rows 0..7 and 8..15 are two phases of one lapping-foam strip (v 0 = against the stone: a scalloped
+    solid white crest, then Bayer-dithered foam flecks thinning out to clear water by row 7). Tiles along u."""
+    n = 32
     X, Y, B = grid(n)
-    pal = [(255, 0, 255), (24, 8, 48), (70, 30, 132), (120, 64, 200), (170, 120, 246), (226, 202, 255),
-           (60, 118, 232), (130, 200, 255), (232, 250, 255), (200, 50, 140), (255, 130, 212), (255, 220, 246),
-           (196, 136, 40), (255, 212, 100), (60, 200, 230), (255, 255, 255)]
-    px, py = X + 0.5 - 32, Y + 0.5 - 32
-    r = np.hypot(px, py)
-    th = np.arctan2(px, -py)                  # 0 at the top (north), clockwise
+    pal = [(255, 0, 255), (168, 174, 210), (214, 222, 246), (250, 252, 255)]
+    pal += [pal[1]] * (16 - len(pal))
     img = np.zeros((n, n), int)
-    # outer ring r 28..31 with 24 rune ticks
-    outer = (r >= 28.0) & (r < 31.0)
-    tick = (np.abs(((th / TAU * 24) % 1.0) - 0.5) > 0.38)
-    img = np.where(outer, np.where(tick, 1, ramp(1 - np.abs(r - 29.5) / 1.6, [2, 3, 4, 5], B)), img)
-    img = np.where(outer & (np.abs(r - 29.5) < 0.5) & ~tick, 7, img)
-    # glyph band r 23..27: 12 cells alternating diamond (sapphire) / pearl (rose)
-    band = (r >= 23.0) & (r < 27.0)
-    cell = np.floor((th % TAU) / TAU * 12).astype(int)
-    cu = ((th % TAU) / TAU * 12) % 1.0 - 0.5          # -0.5..0.5 across the cell
-    cv = r - 25.0
-    gx, gy = cu * 2 * np.pi * 25.0 / 12, cv
-    dia = np.abs(gx) + np.abs(gy)
-    pearl = np.hypot(gx, gy)
-    even = cell % 2 == 0
-    img = np.where(band & (np.abs(cv) > 1.7), 2, img)
-    img = np.where(band & even & (dia < 1.9), np.where(dia < 0.9, 8, 6), img)
-    img = np.where(band & ~even & (pearl < 1.8), np.where(pearl < 0.8, 11, 10), img)
-    img = np.where(band & (np.abs(cu) > 0.47) & (np.abs(cv) <= 1.7), 3, img)
-    # inner ring r 19.5..21
-    img = np.where((r >= 19.5) & (r < 21.0), ramp(1 - np.abs(r - 20.25) / 0.9, [3, 4, 5], B), img)
-    # three converging nodes at r 13 (120 degrees apart), spokes to the centre and the triangle between them
-    nodes = [(0.0, "dialga"), (TAU / 3, "palkia"), (2 * TAU / 3, "giratina")]
-    npos = [(13.0 * np.sin(a), -13.0 * np.cos(a)) for a, _ in nodes]
-
-    def seg_dist(ax, ay, bx, by):
-        vx, vy = bx - ax, by - ay
-        t = np.clip(((px - ax) * vx + (py - ay) * vy) / (vx * vx + vy * vy), 0, 1)
-        return np.hypot(px - ax - t * vx, py - ay - t * vy)
-    inside = r < 19.5
-    for i in range(3):
-        ax, ay = npos[i]
-        bx, by = npos[(i + 1) % 3]
-        dtri = seg_dist(ax, ay, bx, by)
-        img = np.where(inside & (dtri < 1.25 + 0.3 * B), 3, img)
-        img = np.where(inside & (dtri < 0.6), 14, img)
-    # inner resonance ring around the tear
-    img = np.where((r >= 7.6) & (r < 8.6), np.where(((th / TAU * 16) % 1.0) < 0.75, 4, 1), img)
-    for (ax, ay), (_, who) in zip(npos, nodes):
-        dx, dy = px - ax, py - ay
-        if who == "dialga":
-            s = np.abs(dx) + np.abs(dy)
-            img = np.where(s < 4.6, 1, img)
-            img = np.where(s < 3.8, ramp(1 - s / 3.8 + 0.2 * (-dy / 4), [6, 7, 8], B), img)
-            img = np.where(s < 1.2, 15, img)
-        elif who == "palkia":
-            s = np.hypot(dx, dy)
-            img = np.where(s < 4.4, 1, img)
-            img = np.where(s < 3.6, ramp(1 - s / 3.6 + 0.2 * (-dy / 4), [9, 10, 11], B), img)
-            img = np.where(s < 1.1, 15, img)
-        else:
-            # Giratina: a downward gold chevron (wings) with a dark core
-            ang = np.arctan2(-ax, -ay)
-            ux = dx * np.cos(ang) - dy * np.sin(ang)
-            uy = dx * np.sin(ang) + dy * np.cos(ang)
-            chev = np.abs(uy - (2.2 - 0.9 * np.abs(ux)))
-            body = (np.abs(ux) < 4.4) & (chev < 1.7)
-            img = np.where(body, np.where(chev < 0.8, 13, 12), img)
-            img = np.where(np.hypot(dx, dy) < 1.2, 1, img)
-            img = np.where(np.hypot(dx, dy) < 0.6, 13, img)
-    # central rift tear: a vertical jagged lens, violet rim, white-hot core
-    lens = np.abs(px) / (2.6 * np.sqrt(np.clip(1 - (py / 6.2) ** 2, 0, 1)) + 1e-6) + 0.15 * np.sin(py * 2.3)
-    img = np.where((lens < 1.4) & (np.abs(py) < 6.4), 1, img)
-    img = np.where((lens < 1.0) & (np.abs(py) < 6.0), 4, img)
-    img = np.where((lens < 0.62) & (np.abs(py) < 5.2), 7, img)
-    img = np.where((lens < 0.3) & (np.abs(py) < 4.4), np.where(B > 0, 15, 8), img)
-    img = np.where(r >= 31.0, 0, img)
+    for k, ph in ((0, 0.0), (1, 2.3)):
+        ly = Y - 8 * k
+        strip = (ly >= 0) & (ly < 8)
+        u = X + 0.5
+        crest = 1.7 + 0.9 * np.sin(TAU * u / 16 + ph) + 0.5 * np.sin(TAU * 3 * u / 32 + 1.1 + ph)
+        y = ly + 0.5
+        img = np.where(strip & (y < crest - 0.7), 3, img)
+        img = np.where(strip & (y >= crest - 0.7) & (y < crest + 0.2), 2, img)
+        clump = 0.55 + 0.45 * np.sin(TAU * 2 * u / 32 + 0.7 + 1.7 * ph)
+        dens = np.clip(1.0 - (y - crest) / 4.6, 0, 1) * clump
+        fleck = strip & (y >= crest + 0.2) & (B + 0.5 < dens * 0.75)
+        img = np.where(fleck, np.where((X + ly) % 3 == 0, 1, 2), img)
     return img, pal
 
 
-TEXTURES = [("r223_rift", tex_rift), ("r223_pillar", tex_pillar), ("r223_chain", tex_chain), ("r223_seal", tex_seal)]
+# ---------------------------------------------------------------------------------------------------------------
+# r223_pave: carved basalt flagstones (2 x 2 tiles per repeat, running bond, opaque)
+# ---------------------------------------------------------------------------------------------------------------
+
+PAVE_PAL = [(40, 38, 50), (58, 56, 68), (80, 78, 92), (100, 98, 112), (126, 124, 138), (140, 138, 152),
+            (164, 162, 176), (198, 196, 208), (100, 110, 104), (88, 58, 150), (178, 128, 248), (226, 200, 255),
+            (116, 114, 128), (134, 132, 146), (40, 38, 50), (40, 38, 50)]
+
+
+def tex_pave():
+    """Carved basalt flagstones, one 16 x 16 texel slab per tile (2 x 2 slabs per repeat), each one flat tone with
+    a 1-texel dark joint, a lit bevel along its top/left edges, a shadowed bottom/right edge and a chiselled inset
+    border; two of the four slabs carry an engraved glyph (Palkia ring / Dialga diamond) with a faint violet inlay."""
+    n = 32
+    X, Y, _ = grid(n)
+    X, Y = X.astype(int), Y.astype(int)
+    sx, sy = X % 16, Y % 16
+    slab = (X // 16) + 2 * (Y // 16)
+    img = np.array([4, 13, 12, 5])[slab]
+    img = np.where(sy == 15, 2, img)                                       # shadowed bottom edge
+    img = np.where(sx == 15, 3, img)                                       # shadowed right edge
+    img = np.where((sy == 1) & (sx >= 1), 6, img)                          # lit top bevel
+    img = np.where((sx == 1) & (sy >= 1), 6, img)
+    # chiselled inset border: groove (dark) with a lit lower/right lip
+    inset = (np.maximum(np.abs(sx - 7.5), np.abs(sy - 7.5)) == 4.5)
+    img = np.where(inset, 2, img)
+    lip = (np.maximum(np.abs(sx - 7.5), np.abs(sy - 7.5)) == 3.5) & ((sy > 7) | (sx > 7))
+    img = np.where(lip, 6, img)
+    img = np.where((sy == 0) | (sx == 0), 0, img)                          # joints
+    cx, cy = sx + 0.5 - 8.0, sy + 0.5 - 8.0
+    ring = (slab == 0) & (np.hypot(cx, cy) >= 1.6) & (np.hypot(cx, cy) < 2.6)
+    dia = (slab == 3) & (np.abs(cx) + np.abs(cy) >= 1.4) & (np.abs(cx) + np.abs(cy) < 2.5)
+    img = np.where(ring | dia, 9, img)
+    img = np.where(((slab == 0) & (np.hypot(cx, cy) < 0.8)) | ((slab == 3) & (np.abs(cx) + np.abs(cy) < 0.6)), 10,
+                   img)
+    return img, list(PAVE_PAL)
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# r223_terrace: carved wall frieze, rune inlay band and riser blocks (full-width row bands, opaque)
+# ---------------------------------------------------------------------------------------------------------------
+
+KEY_CELL = ["XXXXXXX.",
+            "X.....X.",
+            "X.XXX.X.",
+            "X.X.X.X.",
+            "X.X...X.",
+            "X.XXXXX.",
+            "X......."]
+GLYPHS = [["..XX....", ".X..X...", ".X..X...", "..XX...."],      # Palkia pearl
+          ["...X....", "..XXX...", "..XXX...", "...X...."],      # Dialga diamond
+          [".X...X..", "..X.X...", "...X....", "...X...."],      # Giratina chevron
+          ["..X.X...", "..X.X...", "..X.X...", "..X.X..."]]      # twin bars
+
+
+def tex_terrace():
+    """TERRACE_V row bands (each tiles along u, 32 texels = 2 tiles):
+      rows 0..15  W carved wall: lit lip, a Greek-key meander frieze between two chisel grooves, block face with
+                  joints every tile and a sea-darkened foot (dais / pier walls, parapets' big faces)
+      rows 16..23 R rune inlay: bevelled stone lips around a dark channel of glowing glyphs (the Rift Resonance
+                  ring top, inlay strips)
+      rows 24..31 S riser blocks: lit lip, block face with joints, wet foot (steps, low walls, ring rim sides)"""
+    n = 32
+    X, Y, _ = grid(n)
+    pal = [(36, 34, 46), (58, 56, 68), (78, 76, 90), (98, 96, 110), (120, 118, 132), (144, 142, 156),
+           (168, 166, 180), (200, 198, 210), (46, 48, 62), (60, 32, 108), (164, 100, 246), (214, 180, 255),
+           (120, 226, 255), (244, 252, 255), (100, 110, 104), (110, 108, 122)]
+    img = np.full((n, n), 4)
+    # W: rows 0..15
+    img = np.where(Y == 0, 7, img)
+    img = np.where(Y == 1, 6, img)
+    img = np.where(Y == 2, 4, img)
+    img = np.where((Y == 3) | (Y == 11), 1, img)
+    key = np.array([[c == "X" for c in r] for r in KEY_CELL])
+    for y in range(7):
+        for x in range(n):
+            if key[y, x % 8]:
+                img[4 + y, x] = 0
+            elif y > 0 and key[y - 1, x % 8]:
+                img[4 + y, x] = 6                             # lit lip below each groove
+            else:
+                img[4 + y, x] = 3
+    img = np.where(Y == 12, 6, img)
+    img = np.where((Y >= 13) & (Y <= 14), np.where(Y == 13, 15, 4), img)
+    img = np.where((Y >= 12) & (Y <= 14) & (X % 16 == 0), 0, img)
+    img = np.where((Y >= 13) & (Y <= 14) & (X % 16 == 1), 5, img)
+    img = np.where(Y == 15, 8, img)
+    # R: rows 16..23
+    img = np.where(Y == 16, 7, img)
+    img = np.where(Y == 17, 2, img)
+    img = np.where((Y >= 18) & (Y <= 21), 9, img)
+    for k, g in enumerate(GLYPHS * 2):
+        for y in range(4):
+            for x in range(8):
+                if g[y][x] == "X":
+                    img[18 + y, 8 * (k % 4) + x] = 12 if k % 4 == 1 else 11
+        img[19, 8 * (k % 4) + 7] = 10
+        img[20, 8 * (k % 4) + 7] = 10
+    img[19, 3] = img[20, 3] = 13                              # white-hot glyph cores
+    img[19:21, 11] = 13
+    img = np.where(Y == 22, 6, img)
+    img = np.where(Y == 23, 0, img)
+    # S: rows 24..31
+    img = np.where(Y == 24, 7, img)
+    img = np.where(Y == 25, 5, img)
+    img = np.where((Y >= 26) & (Y <= 29), np.where(Y <= 27, 4, 15), img)
+    img = np.where((Y >= 25) & (Y <= 29) & (X % 16 == 8), 0, img)
+    img = np.where((Y >= 26) & (Y <= 29) & (X % 16 == 9), 6, img)
+    img = np.where(Y == 30, 2, img)
+    img = np.where(Y == 31, 8, img)
+    return img, pal
+
+
+TEXTURES = [("r223_rift", tex_rift), ("r223_pillar", tex_pillar), ("r223_chain", tex_chain), ("r223_foam", tex_foam),
+            ("r223_pave", tex_pave), ("r223_terrace", tex_terrace)]
 
 
 def pal_name(tex):

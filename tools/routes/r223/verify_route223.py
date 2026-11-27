@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
-"""Headless verification for Route 223 (Rift Sea Route & Waterfall Summit): showcase screenshots by day and night,
-the two new BG events (Route223_KingdraRift, Route223_SummitPillar) read from every reading tile, and every
-existing Route 223 object still present where events.json puts it.
+"""Headless verification for Route 223 (Rift Sea Route & Waterfall Summit): showcase screenshots by day, evening and
+night from the dry carved-stone landings (the player's BDHC height checked = 16 on each), a step from the open
+water onto every landing (permissions + the raised BDHC plate), the BG events (Route223_KingdraRift,
+Route223_SummitPillar, Route223_SummitTerrace) read from every reading tile, and every existing Route 223 trainer
+still present where events.json puts it.
 
 Standard library only; reuses the lockstep client of tools/everspring/verify_route218.py (SIM_CONTROL=stdio).
 
@@ -27,18 +29,48 @@ RTC = {"day": "2026-01-02T12:00:00", "evening": "2026-01-02T17:30:00", "night": 
 
 # showcase viewpoints: (name, x, z, facing)
 VIEWPOINTS = [
-    ("01_waterfall_summit_gate", 847, 614, "DIR_NORTH"),
-    ("02_kingdra_rift_rock", 853, 698, "DIR_NORTH"),
-    ("03_south_sea_approach", 846, 724, "DIR_NORTH"),
-    ("04_mid_route_cluster", 846, 657, "DIR_NORTH"),
+    ("01_summit_west_pier", 845, 610, "DIR_NORTH"),
+    ("02_summit_east_pier", 849, 616, "DIR_NORTH"),
+    ("03_kingdra_rift_landing", 852, 698, "DIR_NORTH"),
+    ("04_south_sea_landing", 850, 726, "DIR_NORTH"),
+    ("05_mid_route_cluster", 846, 657, "DIR_NORTH"),
 ]
+LAND_Y = 16 * 4096               # BDHC height of the carved stone landings (the sea is 8)
+DRY = {(845, 610), (849, 616), (852, 698), (850, 726), (845, 611), (849, 615), (851, 698), (850, 727)}
 # BG events: (label, reading tile x, z, facing)
 INTERACTIONS = [
     ("summit_pillar_west", 845, 611, "DIR_WEST"),
     ("summit_pillar_east", 848, 612, "DIR_EAST"),
+    ("summit_terrace_west", 845, 610, "DIR_WEST"),
+    ("summit_terrace_east", 849, 615, "DIR_NORTH"),
     ("kingdra_rift_a", 851, 698, "DIR_NORTH"),
     ("kingdra_rift_b", 852, 698, "DIR_NORTH"),
 ]
+# steps from open water onto each landing: (label, water x, z, key, landing x, z)
+LANDING_STEPS = [
+    ("west_pier", 846, 611, "LEFT", 845, 611),
+    ("east_pier", 848, 616, "RIGHT", 849, 616),
+    ("kingdra_landing", 852, 699, "UP", 852, 698),
+    ("south_landing", 851, 727, "LEFT", 850, 727),
+]
+
+
+def height(st):
+    return ((st.get("player") or {}).get("pos_fx") or [None, None])[1]
+
+
+def step_onto(game, label, wx, wz, key, lx, lz, results):
+    V.warp(game, wx, wz, "DIR_NORTH", results, mapname=ROUTE_223)
+    try:
+        V.walk_one(game, key)
+    except V.Failure as e:
+        V.expect(False, f"{label}: {e}", results)
+        return
+    game.cmd({"cmd": "step", "frames": 20})
+    st = game.state()
+    m, pos = V.where(st)
+    V.expect(m == ROUTE_223 and pos == (lx, lz) and height(st) == LAND_Y,
+             f"{label}: stepped from water ({wx}, {wz}) onto the landing {pos}, height {height(st)}", results)
 
 
 def read_bg(game, out_dir, run, label, x, z, facing, results, shots):
@@ -80,8 +112,13 @@ def run_one(build_dir, out_dir, run, save, results, shots, interactions):
             if name == VIEWPOINTS[0][0]:
                 objs = game.cmd({"cmd": "objects"})
                 log.write("## objects " + json.dumps(objs) + "\n")
+            if (x, z) in DRY:
+                h = height(game.state())
+                V.expect(h == LAND_Y, f"{name}: player stands on the dry stone landing (height {h})", results)
             V.shoot(game, out_dir, f"{run}_{name}", shots, results)
         if interactions:
+            for args in LANDING_STEPS:
+                step_onto(game, *args, results)
             for label, x, z, facing in INTERACTIONS:
                 read_bg(game, out_dir, run, label, x, z, facing, results, shots)
             # every stock object still spawns at its events.json tile (those in the loaded area)

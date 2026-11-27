@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Route 223 stock survey: permissions, BDHC heights, model materials and props of map_data_092..095 (read from git
-HEAD, never the work tree), with the route's events overlaid. Standard library only.
+STOCK_REV, the routes-wave2 contract commit before any Route 223 art, never the work tree), with the route's events
+overlaid. Standard library only.
 
 Usage:
   python3 tools/routes/r223/dump_stock.py              permission/height grids + events for all four chunks
@@ -23,6 +24,7 @@ import mapdata  # noqa: E402
 import nsbmd  # noqa: E402
 
 CHUNKS = {92: (26, 19), 93: (26, 20), 94: (26, 21), 95: (26, 22)}
+STOCK_REV = "406c75f6a8dfbd4cd2165be59e1fe0edb77e7398"   # = textures.STOCK_REV
 EVENTS = os.path.join(ROOT, "res/field/maps/route_223/events.json")
 
 
@@ -56,7 +58,7 @@ def main():
         marks[(b["x"], b["z"])] = "H" if "hidden_item" in b else "B"
     for n, (cx, cz) in CHUNKS.items():
         rel = f"res/field/mapmodels/data/map_data_{n:03d}.bin"
-        raw = C.git_file("HEAD", rel)
+        raw = C.git_file(STOCK_REV, rel)
         sec = mapdata.unpack(raw)
         perm = mapdata.read_permissions(sec["permissions"])
         b = mapdata.read_bdhc(sec["bdhc"])
@@ -77,7 +79,7 @@ def main():
             print(f"  {cz*32+z:3d} {row}  {''.join(hs)}")
         if "--models" in sys.argv:
             m = nsbmd.parse_bmd(sec["model"])["models"][0]
-            e = C.ChunkEdit(rel, (cx, cz), "HEAD")
+            e = C.ChunkEdit(rel, (cx, cz), STOCK_REV)
             for si, tex, pal in e.iter_shapes():
                 tris, quads = e._faces(si)
                 pts = [e.tile(v["pos"]) for f in tris + quads for v in f]
