@@ -280,8 +280,8 @@ static void FollowMon_PositionEmoteAboveFollower(FieldSystem *fieldSystem)
 
     VecFx32 pos;
     ov5_021ECDA0(followerObj, &pos);
-    pos.y += (FollowMon_IsLarge() ? 30 : 22) * FX32_ONE;
-    pos.z += 8 * FX32_ONE;
+    pos.y += (FollowMon_IsLarge() ? 40 : 30) * FX32_ONE;
+    pos.z -= 2 * FX32_ONE;
     Billboard_SetPos(sEmote.billboard, &pos);
 }
 
@@ -329,7 +329,7 @@ static void FollowMon_SpawnEmote(FieldSystem *fieldSystem, FollowMonEmoteKind em
     NNSG3dResMdlSet *mdlSet = NNS_G3dGetMdlSet(modelBuf);
     NNSG3dResTex *tex = NNS_G3dGetTex(texBuf);
     u32 seqCount = *((u32 *)seqBuf);
-    if (mdlSet == NULL || tex == NULL || tex->dict.numEntry == 0 || tex->dictPltt.numEntry == 0
+    if (mdlSet == NULL || tex == NULL || tex->dict.numEntry == 0 || tex->plttInfo.ofsDict == 0 || ((const NNSG3dResDict *)((const u8 *)tex + tex->plttInfo.ofsDict))->numEntry == 0
         || seqCount == 0 || seqCount > 128 || seqSize < (4u + seqCount * 4u)) {
         Heap_Free(modelBuf);
         Heap_Free(texBuf);
@@ -346,7 +346,7 @@ static void FollowMon_SpawnEmote(FieldSystem *fieldSystem, FollowMonEmoteKind em
     u8 *texArr = (u8 *)sEmote.gfxSequence.textureIdx;
     u8 *plttArr = (u8 *)sEmote.gfxSequence.plttIdx;
     int texEntries = (int)tex->dict.numEntry;
-    int plttEntries = (int)tex->dictPltt.numEntry;
+    int plttEntries = (int)((const NNSG3dResDict *)((const u8 *)tex + tex->plttInfo.ofsDict))->numEntry;
     for (u32 i = 0; i < seqCount; i++) {
         if ((int)texArr[i] >= texEntries) {
             texArr[i] = (u8)(texArr[i] % (u32)texEntries);
@@ -389,7 +389,7 @@ static void FollowMon_SpawnEmote(FieldSystem *fieldSystem, FollowMonEmoteKind em
     }
 
     sEmote.billboard = bb;
-    sEmote.timer = SIM_Config_prj_DoubleStep() ? 90 : 45;
+    sEmote.timer = SIM_Config_prj_DoubleStep() ? 140 : 70;
     Billboard_SetDrawFlag(bb, 1);
     Billboard_SetAnimNum(bb, 0);
     Billboard_SetAnimFrameNum(bb, 0);

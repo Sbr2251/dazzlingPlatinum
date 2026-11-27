@@ -487,7 +487,7 @@ static void FollowMon_FreeBillboardBuffers(void)
 static BOOL FollowMon_BuildGfxSequence(const NNSG3dResTex *tex, BOOL isShiny)
 {
     int texCount = (tex != NULL) ? (int)tex->dict.numEntry : 0;
-    int plttCount = (tex != NULL) ? (int)tex->dictPltt.numEntry : 0;
+    int plttCount = (tex != NULL && tex->plttInfo.ofsDict != 0) ? (int)((const NNSG3dResDict *)((const u8 *)tex + tex->plttInfo.ofsDict))->numEntry : 0;
     if (texCount <= 0 || plttCount <= 0) {
         return FALSE;
     }
@@ -618,7 +618,7 @@ Billboard *FollowMon_CreateBillboard(MapObject *mapObj, BillboardList *list, Res
     }
 
     NNSG3dResTex *tex = NNS_G3dGetTex(btxBuf);
-    if (tex == NULL || tex->dict.numEntry == 0 || tex->dictPltt.numEntry == 0) {
+    if (tex == NULL || tex->dict.numEntry == 0 || tex->plttInfo.ofsDict == 0 || ((const NNSG3dResDict *)((const u8 *)tex + tex->plttInfo.ofsDict))->numEntry == 0) {
         Heap_Free(btxBuf);
         return NULL;
     }
