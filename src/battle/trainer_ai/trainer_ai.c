@@ -3220,6 +3220,7 @@ static int TrainerAI_MoveType(BattleSystem *battleSys, BattleContext *battleCtx,
         break;
 
     case MOVE_WEATHER_BALL:
+        result = TYPE_NORMAL;
         if (NO_CLOUD_NINE && (battleCtx->fieldConditionsMask & FIELD_CONDITION_WEATHER)) {
             if (WEATHER_IS_RAIN) {
                 result = TYPE_WATER;

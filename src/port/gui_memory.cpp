@@ -10,9 +10,9 @@
 
 #include "sim_gui_prj.hpp"
 
-// heap.h / vram_stats.h cannot be included in this C++ TU: heap.h pulls in
-// <nnsys.h> under the caller's linkage. Declare the C ABI here instead;
-// the structs must match include/heap.h and include/vram_stats.h.
+// heap.h cannot be included in this C++ TU: it pulls in <nnsys.h> under the
+// caller's linkage. Declare the HeapStats C ABI here (must match include/heap.h),
+// and include vram_stats.h directly for the full VramStats layout + OOM counters.
 extern "C" {
 typedef struct HeapStats {
     u32 id;
@@ -25,15 +25,7 @@ typedef struct HeapStats {
 } HeapStats;
 BOOL Heap_GetStats(u32 heapID, HeapStats *out);
 u32 Heap_GetNumHeaps(void);
-typedef struct VramStats {
-    const char *texKind;
-    u32 texTotal;
-    u32 texFree;
-    const char *plttKind;
-    u32 plttTotal;
-    u32 plttFree;
-} VramStats;
-void VramStats_Get(VramStats *out);
+#include "vram_stats.h"
 }
 
 namespace SIM::GUI {
@@ -58,16 +50,43 @@ void MemoryMain(bool *openState) {
     ImGui::Text("Peak is peak-ever used bytes per heap since boot; Used counts direct NNS allocations too.");
 
     VramStats vram;
-    VramStats_Get(&vram);
+    VramStats_GetFull(&vram);
     char b1[32], b2[32], b3[32], b4[32];
+    bool texKnown = (vram.texTotal != 0xFFFFFFFFu && vram.texFree != 0xFFFFFFFFu);
+    u32 texUsed = (texKnown && vram.texTotal >= vram.texFree) ? (vram.texTotal - vram.texFree) : 0;
     ImGui::Text("VRAM tex: %s total %s free %s (used %s)", vram.texKind,
         FmtBytes(b1, sizeof(b1), vram.texTotal), FmtBytes(b2, sizeof(b2), vram.texFree),
-        (vram.texTotal == 0xFFFFFFFFu || vram.texFree == 0xFFFFFFFFu) ? "--"
-            : FmtBytes(b3, sizeof(b3), vram.texTotal - vram.texFree));
+        texKnown ? FmtBytes(b3, sizeof(b3), texUsed) : "--");
+    if (vram.texTotal != 0xFFFFFFFFu && vram.texFree != 0xFFFFFFFFu && vram.texTotal > 0) {
+        float frac = (float)texUsed / (float)vram.texTotal;
+        if (frac < 0.0f) frac = 0.0f;
+        if (frac > 1.0f) frac = 1.0f;
+        char overlay[64];
+        snprintf(overlay, sizeof(overlay), "tex %.1f%% (%s / %s)",
+            100.0f * frac, FmtBytes(b1, sizeof(b1), texUsed), FmtBytes(b2, sizeof(b2), vram.texTotal));
+        ImGui::ProgressBar(frac, ImVec2(-1.0f, 0.0f), overlay);
+    }
+
+    bool plttKnown = (vram.plttTotal != 0xFFFFFFFFu && vram.plttFree != 0xFFFFFFFFu);
+    u32 plttUsed = (plttKnown && vram.plttTotal >= vram.plttFree) ? (vram.plttTotal - vram.plttFree) : 0;
     ImGui::Text("VRAM pltt: %s total %s free %s (used %s)", vram.plttKind,
         FmtBytes(b1, sizeof(b1), vram.plttTotal), FmtBytes(b2, sizeof(b2), vram.plttFree),
-        (vram.plttTotal == 0xFFFFFFFFu || vram.plttFree == 0xFFFFFFFFu) ? "--"
-            : FmtBytes(b4, sizeof(b4), vram.plttTotal - vram.plttFree));
+        plttKnown ? FmtBytes(b4, sizeof(b4), plttUsed) : "--");
+    if (vram.plttTotal != 0xFFFFFFFFu && vram.plttFree != 0xFFFFFFFFu && vram.plttTotal > 0) {
+        float frac = (float)plttUsed / (float)vram.plttTotal;
+        if (frac < 0.0f) frac = 0.0f;
+        if (frac > 1.0f) frac = 1.0f;
+        char overlay[64];
+        snprintf(overlay, sizeof(overlay), "pltt %.1f%% (%s / %s)",
+            100.0f * frac, FmtBytes(b1, sizeof(b1), plttUsed), FmtBytes(b2, sizeof(b2), vram.plttTotal));
+        ImGui::ProgressBar(frac, ImVec2(-1.0f, 0.0f), overlay);
+    }
+
+    bool anyOom = (vram.texOomCount > 0 || vram.plttOomCount > 0 || vram.poolOomCount > 0);
+    ImVec4 oomCol = anyOom ? ImVec4(1.0f, 0.3f, 0.3f, 1.0f) : ImVec4(0.65f, 0.65f, 0.65f, 1.0f);
+    ImGui::TextColored(oomCol, "OOM: tex %u  pltt %u  pool %u",
+        vram.texOomCount, vram.plttOomCount, vram.poolOomCount);
+
     ImGui::Text("VRAM is NOT enlarged: sizes are DS hardware limits (see g3d_pipeline.c).");
 
     if (ImGui::BeginTable("heaps", 6, ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders | ImGuiTableFlags_ScrollY)) {

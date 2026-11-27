@@ -1937,8 +1937,8 @@ JubilifeCity_Arc1Rally:
     ApplyFreeCameraMovement JubilifeCity_Arc1Movement_CameraUpToScreen
     WaitMovement
     StopMusic
-    PlayFanfare SEQ_SE_DP_TV_NOISE_sseq
-    WaitFanfare
+    PlaySE SEQ_SE_DP_TV_NOISE_sseq
+    WaitSE SEQ_SE_DP_TV_NOISE_sseq
     FadeScreenOut FADE_SCREEN_SPEED_FAST, COLOR_WHITE
     WaitFadeScreen
     FadeScreenIn FADE_SCREEN_SPEED_FAST, COLOR_WHITE
@@ -1953,7 +1953,7 @@ JubilifeCity_Arc1Rally:
     CloseMessage
     // The broadcast cuts out
     StopMusic
-    PlayFanfare SEQ_SE_DP_TV_NOISE_sseq
+    PlaySE SEQ_SE_DP_TV_NOISE_sseq
     WaitTime 6, VAR_RESULT
     FadeScreenOut FADE_SCREEN_SPEED_FAST, COLOR_WHITE
     WaitFadeScreen

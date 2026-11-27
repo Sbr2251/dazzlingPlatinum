@@ -105,7 +105,7 @@ DWLostTower_Fall:
     LockAll
     ApplyMovement LOCALID_PLAYER, DWLostTower_Movement_PlayerFall
     WaitMovement
-    PlayFanfare SEQ_SE_PL_SYUWA_sseq
+    PlaySE SEQ_SE_PL_SYUWA_sseq
     FadeScreenOut
     WaitFadeScreen
     ApplyMovement LOCALID_PLAYER, DWLostTower_Movement_SetVisible
@@ -133,8 +133,8 @@ DWLostTower_Memory:
 // The Resonator glows: its chime, the totem's surge line (TEXT_BANK_ARC2_COMMON, in VAR_0x8007) and the cut-in with
 // the totem's ghost (VAR_0x8004 = its RESONATOR_SLOT).
 DWLostTower_ResonatorGlows:
-    PlayFanfare SEQ_SE_PL_KIRAKIRA_sseq
-    WaitFanfare
+    PlaySE SEQ_SE_PL_KIRAKIRA_sseq
+    WaitSE SEQ_SE_PL_KIRAKIRA_sseq
     MessageFromBank TEXT_BANK_ARC2_COMMON, VAR_0x8007
     WaitButton
     CloseMessage
@@ -171,7 +171,7 @@ DWLostTower_ActHitmonlee:
     WaitCry
     ApplyMovement LOCALID_GHOST_HITMONLEE, DWLostTower_Movement_HitmonleeLeap
     WaitMovement
-    PlayFanfare SEQ_SE_DP_WALL_HIT2_sseq
+    PlaySE SEQ_SE_DP_WALL_HIT2_sseq
     SetVar VAR_MAP_LOCAL_0x01, 1
     SetFlag FLAG_ARC2_RESONATOR_B
     ShakeCamera 12, 3
@@ -208,7 +208,7 @@ DWLostTower_ActVespiquen:
     Call DWLostTower_GhostFadeIn
     PlayCry SPECIES_VESPIQUEN
     WaitCry
-    PlayFanfare SEQ_SE_DP_KIRAKIRA_sseq
+    PlaySE SEQ_SE_DP_KIRAKIRA_sseq
     SetVar VAR_MAP_LOCAL_0x01, 2
     SetFlag FLAG_ARC2_CELESTIC_B
     ApplyMovement LOCALID_GHOST_VESPIQUEN, DWLostTower_Movement_VespiquenAlongSeam
@@ -237,7 +237,7 @@ DWLostTower_Vein:
     SetVar VAR_MAP_LOCAL_0x04, 1
     GoToIfSet FLAG_ARC2_RIFTB_E, DWLostTower_End
     LockAll
-    PlayFanfare SEQ_SE_DP_KIRAKIRA_sseq
+    PlaySE SEQ_SE_DP_KIRAKIRA_sseq
     Message DWLostTower_Text_VioletCrystals
     WaitFanfare
     WaitButton
@@ -257,7 +257,7 @@ DWLostTower_ShadowWall:
     Message DWLostTower_Text_WallOfShadow
     WaitButton
     CloseMessage
-    PlayFanfare SEQ_SE_PL_SYUWA_sseq
+    PlaySE SEQ_SE_PL_SYUWA_sseq
     FadeScreenOut
     WaitFadeScreen
     DoDWWarp
@@ -280,7 +280,7 @@ DWLostTower_ShadowParts:
     StartDistortionWorldGiratinaShadowEvent 3
     WaitTime 42, VAR_RESULT
     FinishDistortionWorldGiratinaShadowEvent
-    PlayFanfare SEQ_SE_PL_SYUWA_sseq
+    PlaySE SEQ_SE_PL_SYUWA_sseq
     DeleteDistortionWorldMapObject LOCALID_SHADOW
     SetFlag FLAG_ARC2_RIFTB_D
     WaitTime 20, VAR_RESULT
@@ -308,7 +308,7 @@ DWLostTower_ActLapras:
     WaitMovement
     PlayCry SPECIES_LAPRAS
     WaitCry
-    PlayFanfare SEQ_SE_DP_NAMI_sseq
+    PlaySE SEQ_SE_DP_NAMI_sseq
     SetVar VAR_MAP_LOCAL_0x07, 1
     SetFlag FLAG_ARC2_CELESTIC_C
     WaitTime 40, VAR_RESULT
@@ -358,7 +358,7 @@ DWLostTower_SkarmoryCarry:
     WaitMovement
     WaitCry
     // Skarmory takes hold from above; the player is lifted and carried east over the void (5 tiles) to (37,22).
-    PlayFanfare SEQ_SE_DP_PYUU2_sseq
+    PlaySE SEQ_SE_DP_PYUU2_sseq
     ApplyMovement LOCALID_PLAYER, DWLostTower_Movement_PlayerCarried
     ApplyMovement LOCALID_GHOST_SKARMORY, DWLostTower_Movement_SkarmoryCarry
     WaitMovement
@@ -421,12 +421,12 @@ DWLostTower_FindCyrusBattle:
     SetFlag FLAG_TOTEM_SPIRITOMB_DEFEATED
     SetFlag FLAG_HIDE_TOTEM_SPIRITOMB
     // The aura drains and it sinks into the floor
-    PlayFanfare SEQ_SE_PL_SYUWA_sseq
+    PlaySE SEQ_SE_PL_SYUWA_sseq
     DeleteDistortionWorldMapObject LOCALID_SPIRITOMB
     WaitTime 20, VAR_RESULT
     // A sound effect, not PlayFanfare SEQ_FANFA4_sseq (that pauses the music and the exit Warp then hangs)
     BufferPlayerName 0
-    PlayFanfare SEQ_SE_DP_KIRAKIRA_sseq
+    PlaySE SEQ_SE_DP_KIRAKIRA_sseq
     Message DWLostTower_Text_GotCalmShard
     WaitFanfare
     WaitButton
@@ -436,7 +436,7 @@ DWLostTower_FindCyrusBattle:
     WaitButton
     CloseMessage
     SetVar VAR_ARC2_PROGRESS, 95
-    PlayFanfare SEQ_SE_PL_SYUWA_sseq
+    PlaySE SEQ_SE_PL_SYUWA_sseq
     FadeScreenOut
     WaitFadeScreen
     DoDWWarp
@@ -588,7 +588,7 @@ DWLostTower_PadCarry:
     ApplyMovement LOCALID_GHOST_SKARMORY, DWLostTower_Movement_SkarmorySwoop
     WaitMovement
     WaitCry
-    PlayFanfare SEQ_SE_DP_PYUU2_sseq
+    PlaySE SEQ_SE_DP_PYUU2_sseq
     ApplyMovement LOCALID_PLAYER, DWLostTower_Movement_PlayerCarried
     ApplyMovement LOCALID_GHOST_SKARMORY, DWLostTower_Movement_SkarmoryCarry
     WaitMovement

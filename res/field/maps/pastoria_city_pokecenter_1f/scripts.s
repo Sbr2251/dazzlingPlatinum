@@ -152,13 +152,13 @@ PastoriaPC_Arc2ProofShown:
     ApplyMovement LOCALID_ARC2_PROOF_CYRUS, PastoriaPC_Arc2Movement_CyrusOut
     WaitMovement
     RemoveObject LOCALID_ARC2_PROOF_CYRUS
-    PlayFanfare SEQ_SE_DP_KAIDAN2_sseq
-    WaitFanfare
+    PlaySE SEQ_SE_DP_KAIDAN2_sseq
+    WaitSE SEQ_SE_DP_KAIDAN2_sseq
     ApplyMovement LOCALID_ARC2_PROOF_RUTH, PastoriaPC_Arc2Movement_RuthOut
     WaitMovement
     RemoveObject LOCALID_ARC2_PROOF_RUTH
-    PlayFanfare SEQ_SE_DP_KAIDAN2_sseq
-    WaitFanfare
+    PlaySE SEQ_SE_DP_KAIDAN2_sseq
+    WaitSE SEQ_SE_DP_KAIDAN2_sseq
     // Polish #3: with Cyrus gone, Rowan's doubt, then the Calm Shard in the Resonator turns him
     ApplyMovement LOCALID_ARC2_ROWAN, PastoriaPC_Arc2Movement_FaceSouth
     ApplyMovement LOCALID_PLAYER, PastoriaPC_Arc2Movement_FaceNorth

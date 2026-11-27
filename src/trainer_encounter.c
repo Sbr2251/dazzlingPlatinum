@@ -138,6 +138,9 @@ static BOOL FindUndefeatedTrainerInSight(FieldSystem *fieldSystem, MapObjectMana
     int distance = DISTANCE_INVALID;
 
     while (MapObjectMan_FindObjectWithStatus(mapObjMan, &trainerMapObj, &startIdx, MAP_OBJ_STATUS_0)) {
+        if (sub_02062E94(trainerMapObj) == TRUE || MapObject_HasNoScript(trainerMapObj) == TRUE) {
+            continue;
+        }
         if (knownTrainer == NULL || knownTrainer != trainerMapObj) {
             distance = GetTrainerDistToPlayer(trainerMapObj, playerAvatar, &direction);
 

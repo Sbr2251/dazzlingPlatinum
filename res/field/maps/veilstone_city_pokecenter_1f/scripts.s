@@ -104,8 +104,8 @@ VeilstonePC_Arc2DawnPlan:
     ApplyMovement LOCALID_ARC2_GARIUS, VeilstonePC_Arc2Movement_GariusOut
     WaitMovement
     RemoveObject LOCALID_ARC2_GARIUS
-    PlayFanfare SEQ_SE_DP_DOOR_OPEN_sseq
-    WaitFanfare
+    PlaySE SEQ_SE_DP_DOOR_OPEN_sseq
+    WaitSE SEQ_SE_DP_DOOR_OPEN_sseq
     // Night passes
     FadeScreenOut
     WaitFadeScreen
@@ -127,8 +127,8 @@ VeilstonePC_Arc2DawnPlan:
     WaitMovement
     RemoveObject LOCALID_ARC2_RUTH
     RemoveObject LOCALID_ARC2_CYRUS
-    PlayFanfare SEQ_SE_DP_DOOR_OPEN_sseq
-    WaitFanfare
+    PlaySE SEQ_SE_DP_DOOR_OPEN_sseq
+    WaitSE SEQ_SE_DP_DOOR_OPEN_sseq
     ReleaseAll
     End
 

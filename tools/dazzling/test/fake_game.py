@@ -139,6 +139,21 @@ class Fake:
             self.message_waiting, self.script = True, {"archive": 1, "offset": 64}
             self.dialogue_queue = ["Everyone has lost someone.", "Just a flyer."]
             return {"ok": True}, False
+        if cmd == "memory":
+            if os.environ.get("FAKE_NO_MEMORY") == "1":
+                return {"ok": False, "error": "unknown cmd memory"}, False
+            return {
+                "ok": True,
+                "memory": {
+                    "vram": {
+                        "tex_free": int(os.environ.get("FAKE_TEX_FREE", "262144")),
+                        "pltt_free": int(os.environ.get("FAKE_PLTT_FREE", "65536")),
+                        "tex_oom": int(os.environ.get("FAKE_TEX_OOM", "0")),
+                        "pltt_oom": int(os.environ.get("FAKE_PLTT_OOM", "0")),
+                        "pool_oom": int(os.environ.get("FAKE_POOL_OOM", "0")),
+                    }
+                },
+            }, False
         if cmd == "inspect":
             what = req.get("what")
             if what == "text":
@@ -153,6 +168,14 @@ class Fake:
                     "active": True, "position_fx": [0, 0, 0], "target_fx": [0, 0, 0],
                     "distance": 1000, "angle": [0, 0, 0], "fov_y": 1400, "projection": 0,
                     "tracking_target": True}}, False
+            if what == "billboards":
+                if os.environ.get("FAKE_NO_BILLBOARDS") == "1":
+                    return {"ok": False, "error": "unknown inspect target billboards"}, False
+                return {"ok": True, "frame": self.frame, "what": "billboards", "data": {
+                    "count": 1, "drawn": 1,
+                    "oob_count": int(os.environ.get("FAKE_BB_OOB", "0")),
+                    "zero_tex_count": int(os.environ.get("FAKE_BB_ZERO_TEX", "0")),
+                    "billboards": []}}, False
             return {"ok": False, "error": f"unknown inspect target {what}"}, False
         return {"ok": False, "error": f"unknown cmd {cmd}"}, False
 

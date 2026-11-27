@@ -82,7 +82,7 @@ DWRavagedPath_Fall:
     LockAll
     ApplyMovement LOCALID_PLAYER, DWRavagedPath_Movement_PlayerFall
     WaitMovement
-    PlayFanfare SEQ_SE_PL_SYUWA_sseq
+    PlaySE SEQ_SE_PL_SYUWA_sseq
     FadeScreenOut
     WaitFadeScreen
     ApplyMovement LOCALID_PLAYER, DWRavagedPath_Movement_SetVisible
@@ -148,7 +148,7 @@ DWRavagedPath_Totem:
     ApplyMovement LOCALID_PLAYER, DWRavagedPath_Movement_FaceEast
     WaitMovement
     // Cyrus folds the space between and steps out beside the player, as in Arc 1
-    PlayFanfare SEQ_SE_PL_SYUWA_sseq
+    PlaySE SEQ_SE_PL_SYUWA_sseq
     DeleteDistortionWorldMapObject LOCALID_CYRUS_ENTRY
     AddDistortionWorldMapObject LOCALID_CYRUS_TOTEM
     WaitTime 20, VAR_RESULT
@@ -170,7 +170,7 @@ DWRavagedPath_Totem:
     // The overlay objects persist through the battle: the violet totem fades out and the calm one fades in (the aura
     // drains). FLAG_MAP_LOCAL_HIDE_OBSTACLE_18 keeps the violet one away if the map is ever rebuilt instead.
     AddDistortionWorldMapObject LOCALID_CYRUS_TOTEM
-    PlayFanfare SEQ_SE_PL_SYUWA_sseq
+    PlaySE SEQ_SE_PL_SYUWA_sseq
     DeleteDistortionWorldMapObject LOCALID_TOTEM
     AddDistortionWorldMapObject LOCALID_TOTEM_CALM
     WaitTime 30, VAR_RESULT
@@ -183,7 +183,7 @@ DWRavagedPath_Totem:
     ApplyMovement LOCALID_TOTEM_CALM, DWRavagedPath_Movement_TotemNudge
     WaitMovement
     BufferPlayerName 0
-    PlayFanfare SEQ_SE_PL_KIRAKIRA_sseq
+    PlaySE SEQ_SE_PL_KIRAKIRA_sseq
     Message DWRavagedPath_Text_GotCalmShard
     WaitFanfare
     WaitButton
@@ -191,7 +191,7 @@ DWRavagedPath_Totem:
     // It bows and bounds off into the dark
     ApplyMovement LOCALID_TOTEM_CALM, DWRavagedPath_Movement_TotemBowAndGo
     WaitMovement
-    PlayFanfare SEQ_SE_PL_SYUWA_sseq
+    PlaySE SEQ_SE_PL_SYUWA_sseq
     DeleteDistortionWorldMapObject LOCALID_TOTEM_CALM
     WaitTime 30, VAR_RESULT
     ApplyMovement LOCALID_PLAYER, DWRavagedPath_Movement_FaceNorth
@@ -204,7 +204,7 @@ DWRavagedPath_Totem:
     SetFlag FLAG_TOTEM_HITMONLEE_DEFEATED
     SetFlag FLAG_HIDE_TOTEM_HITMONLEE
     SetVar VAR_ARC2_PROGRESS, 15
-    PlayFanfare SEQ_SE_PL_SYUWA_sseq
+    PlaySE SEQ_SE_PL_SYUWA_sseq
     FadeScreenOut
     WaitFadeScreen
     DoDWWarp

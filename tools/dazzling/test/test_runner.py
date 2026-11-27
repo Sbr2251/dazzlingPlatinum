@@ -284,6 +284,82 @@ class TestRunnerEndToEnd(unittest.TestCase):
             self.assertIn("stderr_tail", item)
             self.assertEqual(item["failure_step"], 0)
 
+    def test_health_checks_pass_when_counters_zero(self):
+        with tempfile.TemporaryDirectory() as d:
+            ok, msg = self.run_one(d, {
+                "name": "healthy_field",
+                "steps": [{"step": 35}],
+                "assertions": [{"app": "field"}],
+            })
+            self.assertTrue(ok, msg)
+
+    def test_health_checks_fail_on_vram_oom(self):
+        with tempfile.TemporaryDirectory() as d:
+            for env_key, label in (
+                ("FAKE_TEX_OOM", "tex_oom=1"),
+                ("FAKE_PLTT_OOM", "pltt_oom=1"),
+                ("FAKE_POOL_OOM", "pool_oom=1"),
+            ):
+                ok, msg = self.run_one(d, {
+                    "name": "oom_" + env_key.lower(),
+                    "env": {env_key: "1"},
+                    "steps": [{"step": 35}],
+                })
+                self.assertFalse(ok, f"expected failure for {env_key}")
+                self.assertIn("VRAM/pool OOM detected", msg)
+                self.assertIn(label, msg)
+
+    def test_health_checks_fail_on_corrupt_billboards_in_field(self):
+        with tempfile.TemporaryDirectory() as d:
+            for env_key, label in (
+                ("FAKE_BB_OOB", "oob_count=1"),
+                ("FAKE_BB_ZERO_TEX", "zero_tex_count=1"),
+            ):
+                ok, msg = self.run_one(d, {
+                    "name": "bb_" + env_key.lower(),
+                    "env": {env_key: "1"},
+                    "steps": [{"step": 35}],
+                })
+                self.assertFalse(ok, f"expected failure for {env_key}")
+                self.assertIn("Corrupt billboard(s) detected", msg)
+                self.assertIn(label, msg)
+
+    def test_health_checks_skip_billboards_outside_field(self):
+        with tempfile.TemporaryDirectory() as d:
+            ok, msg = self.run_one(d, {
+                "name": "battle_bb_ignored",
+                "env": {"FAKE_BB_OOB": "2"},
+                "steps": [{"start_battle": {"spec": "nope.json"}}],
+                "assertions": [{"app": "battle"}],
+            })
+            self.assertTrue(ok, msg)
+
+    def test_health_checks_can_be_skipped_per_scenario_or_cli(self):
+        with tempfile.TemporaryDirectory() as d:
+            ok, msg = self.run_one(d, {
+                "name": "skip_json",
+                "skip_health_checks": True,
+                "env": {"FAKE_TEX_OOM": "1", "FAKE_BB_OOB": "1"},
+                "steps": [{"step": 35}],
+            })
+            self.assertTrue(ok, msg)
+            pth = write_scenario(d, "skip_cli", {
+                "name": "skip_cli",
+                "env": {"FAKE_TEX_OOM": "1", "FAKE_BB_OOB": "1"},
+                "steps": [{"step": 35}],
+            })
+            self.assertEqual(runner.main(["--mock", "-j", "1", pth]), 1)
+            self.assertEqual(runner.main(["--mock", "--no-health-checks", "-j", "1", pth]), 0)
+
+    def test_health_checks_graceful_on_older_binaries(self):
+        with tempfile.TemporaryDirectory() as d:
+            ok, msg = self.run_one(d, {
+                "name": "legacy_binary",
+                "env": {"FAKE_NO_MEMORY": "1", "FAKE_NO_BILLBOARDS": "1"},
+                "steps": [{"step": 35}],
+            })
+            self.assertTrue(ok, msg)
+
 
 class TestGateMapping(unittest.TestCase):
     def test_changed_path_mapping(self):
@@ -292,10 +368,57 @@ class TestGateMapping(unittest.TestCase):
         self.assertEqual(mapped["tags"], ["battle", "menu", "visual"])
         self.assertTrue(mapped["battle"])
         self.assertTrue(mapped["compare_backends_note"])
+        self.assertTrue(mapped["seams"])
         self.assertEqual(gate.map_changed_paths(["README.md"])["tags"], ["smoke"])
+        self.assertFalse(gate.map_changed_paths(["README.md"])["seams"])
+        self.assertFalse(gate.map_changed_paths(["src/battle/foo.c"])["seams"])
         release = gate.map_changed_paths(["src/meson.build"])
         self.assertEqual(release["tags"], ["smoke"])
         self.assertTrue(release["release"])
+        self.assertTrue(release["seams"])
+        for pth in (
+            "src/overlay005/field_camera.c",
+            "src/billboard_vram_transfer.c",
+            "res/field/maps/solaceon_town/scripts.s",
+            "tools/dazzling/test/check_seams.py",
+        ):
+            self.assertTrue(gate.map_changed_paths([pth])["seams"], pth)
+
+    def test_gate_runs_and_skips_seams_step(self):
+        calls = []
+
+        def fake_run_step(name, command, results):
+            calls.append((name, command))
+            results.append({"name": name, "ok": True, "returncode": 0, "elapsed_sec": 0.0, "command": command})
+            return True
+
+        with mock.patch.object(gate, "run_step", side_effect=fake_run_step), \
+             mock.patch.object(gate, "resolve_seams_build_dir", return_value="build_macos"):
+            rc = gate.main(["--tier", "smoke", "--skip-static", "--skip-patches"])
+            self.assertEqual(rc, 0)
+            names = [n for n, _ in calls]
+            self.assertIn("seams", names)
+            seams_cmd = dict(calls)["seams"]
+            self.assertIn("--build", seams_cmd)
+            self.assertIn("build_macos", seams_cmd)
+            self.assertIn("--cine", seams_cmd)
+
+            calls.clear()
+            rc = gate.main(["--tier", "smoke", "--skip-static", "--skip-patches", "--skip-seams"])
+            self.assertEqual(rc, 0)
+            self.assertNotIn("seams", [n for n, _ in calls])
+
+            calls.clear()
+            with mock.patch.object(gate, "capture_changed_paths", return_value=["src/battle/foo.c"]):
+                rc = gate.main(["--changed", "--skip-static", "--skip-patches", "--skip-battle"])
+                self.assertEqual(rc, 0)
+                self.assertNotIn("seams", [n for n, _ in calls])
+
+            calls.clear()
+            with mock.patch.object(gate, "capture_changed_paths", return_value=["src/billboard.c"]):
+                rc = gate.main(["--changed", "--skip-static", "--skip-patches"])
+                self.assertEqual(rc, 0)
+                self.assertIn("seams", [n for n, _ in calls])
 
     def test_walk_to_advance_dialogue_and_inspect(self):
         sc = {

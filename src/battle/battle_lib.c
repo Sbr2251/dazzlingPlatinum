@@ -8032,6 +8032,7 @@ static int CalcMoveType(BattleSystem *battleSys, BattleContext *battleCtx, int i
         break;
 
     case MOVE_WEATHER_BALL:
+        type = TYPE_NORMAL;
         if (NO_CLOUD_NINE
             && battleCtx->fieldConditionsMask & FIELD_CONDITION_WEATHER) {
             if (WEATHER_IS_RAIN) {
@@ -8314,6 +8315,7 @@ int Move_CalcVariableType(BattleSystem *battleSys, BattleContext *battleCtx, Pok
         break;
 
     case MOVE_WEATHER_BALL:
+        type = TYPE_NORMAL;
         if (NO_CLOUD_NINE) {
             if (battleCtx->fieldConditionsMask & FIELD_CONDITION_WEATHER) {
                 if (WEATHER_IS_RAIN) {

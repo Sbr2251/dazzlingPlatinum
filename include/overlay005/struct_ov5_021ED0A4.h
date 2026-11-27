@@ -18,8 +18,8 @@ typedef struct UnkStruct_ov5_021ED0A4_t {
     int unk_14;
     int unk_18;
     int unk_1C;
-    int unk_20[8];
-    int unk_40[8];
+    int unk_20[64];
+    int unk_40[64];
     int unk_60[64];
     BillboardList *unk_E0;
     BillboardResources *unk_E4;

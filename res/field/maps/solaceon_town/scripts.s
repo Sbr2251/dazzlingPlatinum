@@ -1113,8 +1113,8 @@ SolaceonTown_SeizureNoRoom:
     Message SolaceonTown_Text_SolSeizure_4
     WaitABPadPress
     CloseMessage
-    PlayFanfare SEQ_SE_DP_BEEP_sseq
-    WaitFanfare
+    PlaySE SEQ_SE_DP_BEEP_sseq
+    WaitSE SEQ_SE_DP_BEEP_sseq
     Message SolaceonTown_Text_SolSeizure_5
     WaitABPadPress
     Message SolaceonTown_Text_SolSeizure_6

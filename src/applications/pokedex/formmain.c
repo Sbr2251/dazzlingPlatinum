@@ -1043,6 +1043,7 @@ static int SpeciesGenderMessage(FormMainGraphics *formMainGraphics, const FormMa
         break;
     default:
         GF_ASSERT(FALSE);
+        entryID = pl_msg_pokedex_blank;
         break;
     }
 
@@ -1196,6 +1197,7 @@ static int FormMessageID(FormMainGraphics *formMainGraphics, const FormMainData 
         entryID = RotomFormMessage(formMainGraphics, formMainData, formIndex);
         break;
     default:
+        entryID = pl_msg_pokedex_blank;
         break;
     }
 

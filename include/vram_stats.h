@@ -23,6 +23,9 @@ typedef struct VramStats {
     const char *plttKind;
     u32 plttTotal;
     u32 plttFree;
+    u32 texOomCount;
+    u32 plttOomCount;
+    u32 poolOomCount;
 } VramStats;
 
 void VramStats_NoteTexLnk(u32 totalBytes);
@@ -30,6 +33,16 @@ void VramStats_NotePlttLnk(u32 totalBytes);
 void VramStats_NoteTexFrm(void);
 void VramStats_NotePlttFrm(void);
 void VramStats_NoteFrm(void); // both managers switched to frame type
+void VramStats_NoteShutdown(void); // active G3D pipeline buffers freed
+void VramStats_NoteTexOom(const char *site, u32 requestedBytes, BOOL is4x4);
+void VramStats_NotePlttOom(const char *site, u32 requestedBytes, BOOL is4Pltt);
+void VramStats_NotePoolOom(const char *site, int id, int capacity);
 void VramStats_Get(VramStats *out);
+void VramStats_GetFull(VramStats *out);
+
+// Preserve binary compatibility with C++ TUs (e.g. gui_memory.cpp) that
+// forward-declare the original 6-field VramStats layout without including
+// this header, while C callers including vram_stats.h receive all fields.
+#define VramStats_Get(out) VramStats_GetFull(out)
 
 #endif // POKEPLATINUM_VRAM_STATS_H

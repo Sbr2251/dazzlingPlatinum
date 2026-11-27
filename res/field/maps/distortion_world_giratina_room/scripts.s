@@ -252,11 +252,11 @@ DistortionWorldGiratinaRoom_Arc1Flashback:
     CloseMessage
     StartDistortionWorldGiratinaShadowEvent 2
     WaitTime 2, VAR_RESULT
-    PlayFanfare SEQ_SE_DP_WALL_HIT2_sseq
+    PlaySE SEQ_SE_DP_WALL_HIT2_sseq
     ApplyMovement 130, DistortionWorldGiratinaRoom_Arc1CyrusKnockedBack
     ShakeCamera 16, 4
     WaitMovement
-    PlayFanfare SEQ_SE_PL_SYUWA_sseq
+    PlaySE SEQ_SE_PL_SYUWA_sseq
     FadeScreenOut FADE_SCREEN_SPEED_FAST, COLOR_WHITE
     WaitFadeScreen
     DeleteDistortionWorldMapObject 130

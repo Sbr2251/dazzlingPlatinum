@@ -505,7 +505,7 @@ EternaForest_Arc2Rift:
     ShowYesNoMenu VAR_RESULT
     GoToIfEq VAR_RESULT, MENU_NO, EternaForest_Arc2RiftStayOut
     CloseMessage
-    PlayFanfare SEQ_SE_PL_SYUWA_sseq
+    PlaySE SEQ_SE_PL_SYUWA_sseq
     FadeScreenOut
     WaitFadeScreen
     DoDWWarp

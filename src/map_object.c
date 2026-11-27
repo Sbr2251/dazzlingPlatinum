@@ -169,8 +169,43 @@ void MapObjectMan_Delete(MapObjectManager *mapObjMan)
     Heap_FreeExplicit(HEAP_ID_FIELD2, mapObjMan);
 }
 
+#define AUTO_BORDER_CLONE_RETAIN_DX 24
+#define AUTO_BORDER_CLONE_RETAIN_DZ 20
+#define AUTO_BORDER_CLONE_PRUNE_DX  28
+#define AUTO_BORDER_CLONE_PRUNE_DZ  24
+
+static BOOL MapObject_IsNearPlayer(const MapObject *mapObj, const FieldSystem *fieldSystem, int maxDx, int maxDz)
+{
+    if (fieldSystem == NULL || fieldSystem->location == NULL) {
+        return FALSE;
+    }
+
+    int dx = MapObject_GetX(mapObj) - fieldSystem->location->x;
+    int dz = MapObject_GetZ(mapObj) - fieldSystem->location->z;
+    if (dx < 0) {
+        dx = -dx;
+    }
+    if (dz < 0) {
+        dz = -dz;
+    }
+
+    return (dx <= maxDx && dz <= maxDz) ? TRUE : FALSE;
+}
+
+static const ObjectEvent *MapObject_FindMatchingZoneEvent(const MapObject *mapObj, int objEventCount, const ObjectEvent *objectEvent)
+{
+    int localID = MapObject_GetLocalID(mapObj);
+    for (int i = 0; i < objEventCount; i++) {
+        if (ObjectEvent_GetLocalID(&objectEvent[i]) == localID && ObjectEvent_HasNoScript(&objectEvent[i]) == FALSE) {
+            return &objectEvent[i];
+        }
+    }
+    return NULL;
+}
+
 void sub_0206184C(MapObjectManager *mapObjMan, enum MapHeaderID oldMapHeaderID, enum MapHeaderID newMapHeaderID, int objEventCount, const ObjectEvent *objectEvent)
 {
+    FieldSystem *fieldSystem = MapObjectMan_FieldSystem(mapObjMan);
     int maxObjects = MapObjectMan_GetMaxObjects(mapObjMan);
     MapObject *mapObj = MapObjectMan_GetMapObject(mapObjMan);
 
@@ -181,10 +216,35 @@ void sub_0206184C(MapObjectManager *mapObjMan, enum MapHeaderID oldMapHeaderID, 
             switch (v0) {
             case 0:
                 if (MapObject_GetMapHeaderID(mapObj) != newMapHeaderID && !MapObject_CheckStatusFlag(mapObj, MAP_OBJ_STATUS_PERSISTENT)) {
-                    MapObject_Delete(mapObj);
+                    BOOL keepClone = !MapObject_CheckStatusFlag(mapObj, MAP_OBJ_STATUS_HIDE)
+                        && MapObject_IsNearPlayer(mapObj, fieldSystem, AUTO_BORDER_CLONE_RETAIN_DX, AUTO_BORDER_CLONE_RETAIN_DZ);
+                    if (keepClone == TRUE && sub_02062E94(mapObj) == TRUE && sub_02062C18(mapObj) == newMapHeaderID) {
+                        keepClone = FALSE;
+                    }
+                    if (keepClone == TRUE) {
+                        if (sub_02062E94(mapObj) == FALSE) {
+                            enum MapHeaderID originMap = MapObject_GetMapHeaderID(mapObj);
+                            sub_02062E78(mapObj, TRUE);
+                            MapObject_SetScript(mapObj, 0xffff);
+                            MapObject_SetFlag(mapObj, originMap);
+                        }
+                        MapObject_SetStatusFlagOn(mapObj, MAP_OBJ_STATUS_AUTO_BORDER_CLONE);
+                        MapObject_SetMapHeaderID(mapObj, newMapHeaderID);
+                    } else {
+                        MapObject_Delete(mapObj);
+                    }
                 }
                 break;
             case 2:
+                if (MapObject_CheckStatusFlag(mapObj, MAP_OBJ_STATUS_AUTO_BORDER_CLONE) && sub_02062E94(mapObj) == TRUE && sub_02062C18(mapObj) == newMapHeaderID) {
+                    const ObjectEvent *matched = MapObject_FindMatchingZoneEvent(mapObj, objEventCount, objectEvent);
+                    if (matched == NULL
+                        || FieldSystem_CheckFlag(fieldSystem, ObjectEvent_GetHiddenFlag(matched)) == TRUE
+                        || ObjectEvent_GetX(matched) != MapObject_GetXInitial(mapObj)
+                        || ObjectEvent_GetZ(matched) != MapObject_GetZInitial(mapObj)) {
+                        MapObject_Delete(mapObj);
+                    }
+                }
                 break;
             case 1:
                 break;
@@ -428,6 +488,9 @@ void MapObjectMan_SaveAll(FieldSystem *fieldSystem, const MapObjectManager *mapO
     MapObject *mapObj;
 
     while (MapObjectMan_FindObjectWithStatus(mapObjMan, &mapObj, &v0, MAP_OBJ_STATUS_0)) {
+        if (MapObject_CheckStatusFlag(mapObj, MAP_OBJ_STATUS_AUTO_BORDER_CLONE)) {
+            continue;
+        }
         MapObject_Save(fieldSystem, mapObj, mapObjSave);
         mapObjSave++;
         param3--;
@@ -955,9 +1018,11 @@ static void sub_020626D0(MapObject *mapObj, const ObjectEvent *objectEvent, enum
     GF_ASSERT(sub_02062E94(mapObj) == TRUE);
 
     sub_02062E78(mapObj, 0);
+    MapObject_SetStatusFlagOff(mapObj, MAP_OBJ_STATUS_AUTO_BORDER_CLONE);
     MapObject_SetMapHeaderID(mapObj, mapHeaderID);
     MapObject_SetScript(mapObj, ObjectEvent_GetScript(objectEvent));
     MapObject_SetFlag(mapObj, ObjectEvent_GetHiddenFlag(objectEvent));
+    MapObject_SetTrainerType(mapObj, ObjectEvent_GetTrainerType(objectEvent));
 }
 
 static void sub_02062714(MapObject *mapObj, enum MapHeaderID mapHeaderID, const ObjectEvent *objectEvent)
@@ -965,6 +1030,7 @@ static void sub_02062714(MapObject *mapObj, enum MapHeaderID mapHeaderID, const 
     GF_ASSERT(ObjectEvent_HasNoScript(objectEvent) == TRUE);
 
     sub_02062E78(mapObj, 1);
+    MapObject_SetStatusFlagOff(mapObj, MAP_OBJ_STATUS_AUTO_BORDER_CLONE);
     MapObject_SetScript(mapObj, ObjectEvent_GetScript(objectEvent));
     MapObject_SetFlag(mapObj, ObjectEvent_GetHiddenFlagNoScript(objectEvent));
     MapObject_SetMapHeaderID(mapObj, mapHeaderID);
@@ -1019,6 +1085,12 @@ int sub_020627B4(const MapObject *mapObj, int param1, int param2, enum MapHeader
 static void MapObjectTask_Move(SysTask *task, void *_mapObject)
 {
     MapObject *mapObj = (MapObject *)_mapObject;
+
+    if (MapObject_CheckStatusFlag(mapObj, MAP_OBJ_STATUS_AUTO_BORDER_CLONE)
+        && MapObject_IsNearPlayer(mapObj, MapObject_FieldSystem(mapObj), AUTO_BORDER_CLONE_PRUNE_DX, AUTO_BORDER_CLONE_PRUNE_DZ) == FALSE) {
+        MapObject_Delete(mapObj);
+        return;
+    }
 
     MapObject_Move(mapObj);
 

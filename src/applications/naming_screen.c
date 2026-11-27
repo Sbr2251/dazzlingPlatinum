@@ -1345,7 +1345,7 @@ static void NamingScreen_UseDefaultName(NamingScreen *namingScreen, NamingScreen
             string = MessageLoader_GetNewString(
                 namingScreen->genericNamesMsgLoader,
                 RANDOM_NAME(GenericNames_PlayerMale));
-        } else if (namingScreen->playerGenderOrMonSpecies == GENDER_FEMALE) {
+        } else {
             string = MessageLoader_GetNewString(
                 namingScreen->genericNamesMsgLoader,
                 RANDOM_NAME(GenericNames_PlayerFemale));

@@ -26,10 +26,10 @@ OreburghMineSideTunnel_OnTransitionEnd:
 OreburghMineSideTunnel_BuzzLouder:
     LockAll
     SetVar VAR_MAP_LOCAL_0x00, 2
-    PlayFanfare SEQ_SE_DP_BEEP_sseq
-    WaitFanfare
-    PlayFanfare SEQ_SE_DP_BEEP_sseq
-    WaitFanfare
+    PlaySE SEQ_SE_DP_BEEP_sseq
+    WaitSE SEQ_SE_DP_BEEP_sseq
+    PlaySE SEQ_SE_DP_BEEP_sseq
+    WaitSE SEQ_SE_DP_BEEP_sseq
     Message OreburghMineSideTunnel_Text_BuzzLouder
     WaitButton
     CloseMessage
@@ -47,12 +47,12 @@ OreburghMineSideTunnel_BuzzWild:
     End
 
 OreburghMineSideTunnel_BuzzThrice:
-    PlayFanfare SEQ_SE_DP_BEEP_sseq
-    WaitFanfare
-    PlayFanfare SEQ_SE_DP_BEEP_sseq
-    WaitFanfare
-    PlayFanfare SEQ_SE_DP_BEEP_sseq
-    WaitFanfare
+    PlaySE SEQ_SE_DP_BEEP_sseq
+    WaitSE SEQ_SE_DP_BEEP_sseq
+    PlaySE SEQ_SE_DP_BEEP_sseq
+    WaitSE SEQ_SE_DP_BEEP_sseq
+    PlaySE SEQ_SE_DP_BEEP_sseq
+    WaitSE SEQ_SE_DP_BEEP_sseq
     Return
 
 // Coord x8 (rows 6-8) or talking to the Machop. Scripted calming beat (no battle, so the miner's Machop can't
@@ -76,7 +76,7 @@ OreburghMineSideTunnel_CalmMachop:
     CloseMessage
     ApplyMovement LOCALID_HUM_MACHOP, OreburghMineSideTunnel_Movement_MachopLunge
     WaitMovement
-    PlayFanfare SEQ_SE_DP_WALL_HIT2_sseq
+    PlaySE SEQ_SE_DP_WALL_HIT2_sseq
     ShakeCamera 10, 2
     PlayCry SPECIES_MACHOP
     WaitCry
@@ -108,7 +108,7 @@ OreburghMineSideTunnel_Calmed:
     Message OreburghMineSideTunnel_Text_LeanedIn
     CloseMessage
     WaitTime 20, VAR_RESULT
-    PlayFanfare SEQ_SE_DP_KIRAKIRA_sseq
+    PlaySE SEQ_SE_DP_KIRAKIRA_sseq
     FadeScreenOut FADE_SCREEN_SPEED_FAST, COLOR_WHITE
     WaitFadeScreen
     FadeScreenIn FADE_SCREEN_SPEED_MEDIUM, COLOR_WHITE

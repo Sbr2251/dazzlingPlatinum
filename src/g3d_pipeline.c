@@ -67,6 +67,7 @@ G3DPipelineBuffers *G3DPipeline_InitEx(enum HeapID heapID, enum VramManagerType 
 
 void G3DPipelineBuffers_Free(G3DPipelineBuffers *state)
 {
+    VramStats_NoteShutdown();
     Heap_Free(state->paletteBuffer);
     Heap_Free(state->textureBuffer);
     Heap_Free(state);
