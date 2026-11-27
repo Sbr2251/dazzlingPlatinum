@@ -1222,14 +1222,14 @@ static void BdspSpriteOffset(int index, fx32 *outDx, fx32 *outDy)
     type = BattleSystem_GetBattlerType(sStageSprites.battleSys, index);
     switch (type) {
     case BATTLER_TYPE_SOLO_PLAYER:
-        // bdsp-fix: right of the bottom-left card, feet just above card top edge (~y=150)
+        // bdsp-fix: right of the bottom-left card, feet just above card top edge (~y=154)
         // so the full body (~45% height at 1.7m) is completely in frame.
         *outDx = (sizing ? 24 : 38) * FX32_ONE;
-        *outDy = (sizing ? -18 : 2) * FX32_ONE;
+        *outDy = (sizing ? 0 : 2) * FX32_ONE;
         break;
     case BATTLER_TYPE_SOLO_ENEMY:
         *outDx = (sizing ? -22 : -16) * FX32_ONE;
-        *outDy = (sizing ? 10 : 14) * FX32_ONE;
+        *outDy = (sizing ? 0 : 14) * FX32_ONE;
         break;
     case BATTLER_TYPE_PLAYER_SIDE_SLOT_1:
     case BATTLER_TYPE_PLAYER_SIDE_SLOT_2:
@@ -1341,24 +1341,61 @@ static u32 DrawHook(PokemonSpriteManager *monSpriteMan, int index, const Pokemon
 
     if (BattleStageSprites_IsHeightSizingEnabled()) {
         float spScale = BattleStageSprites_GetSpeciesScale(index);
-        fx32 footY = centreY + (fx32)((height * FX32_ONE) / 2);
-        if (sprite->shadow.height > 0 && sStageSprites.battleSys != NULL) {
-            int btype = BattleSystem_GetBattlerType(sStageSprites.battleSys, index);
-            if (btype == BATTLER_TYPE_SOLO_ENEMY || btype == BATTLER_TYPE_ENEMY_SIDE_SLOT_1 || btype == BATTLER_TYPE_ENEMY_SIDE_SLOT_2) {
-                // Keep hovering/tall enemy sprites (e.g. Steelix) anchored near the ground plane
-                int drop = sprite->shadow.height > 14 ? 14 : sprite->shadow.height;
-                footY += drop * FX32_ONE;
+        int topRow = 0;
+        int botRow = MON_SPRITE_FRAME_HEIGHT - 1;
+        int texH = MON_SPRITE_FRAME_HEIGHT;
+        float emptyBottomFrac;
+        float opaqueFrac;
+        int btype = (sStageSprites.battleSys != NULL) ? BattleSystem_GetBattlerType(sStageSprites.battleSys, index) : -1;
+
+        if (!streamed || !BattleStageStream_GetOpaqueBounds(index, &topRow, &botRow, &texH)) {
+            if (sprite->opaqueBottom >= sprite->opaqueTop && sprite->opaqueBottom < MON_SPRITE_FRAME_HEIGHT) {
+                topRow = sprite->opaqueTop;
+                botRow = sprite->opaqueBottom;
+                texH = MON_SPRITE_FRAME_HEIGHT;
             }
         }
-        width = (int)lroundf((float)width * spScale);
-        height = (int)lroundf((float)height * spScale);
-        if (width == 0) {
-            width = 1;
+        if (texH <= 0) {
+            texH = MON_SPRITE_FRAME_HEIGHT;
         }
-        if (height == 0) {
-            height = 1;
+        emptyBottomFrac = (float)(texH - 1 - botRow) / (float)texH;
+        opaqueFrac = (float)(botRow - topRow + 1) / (float)texH;
+        if (opaqueFrac < 0.10f) {
+            opaqueFrac = 0.10f;
         }
-        centreY = footY - (fx32)((height * FX32_ONE) / 2);
+
+        if (btype == BATTLER_TYPE_SOLO_ENEMY || btype == BATTLER_TYPE_ENEMY_SIDE_SLOT_1 || btype == BATTLER_TYPE_ENEMY_SIDE_SLOT_2) {
+            float targetFootY = (btype == BATTLER_TYPE_SOLO_ENEMY) ? 104.0f : 100.0f;
+            float maxOpaquePx = 62.0f; // keep top below enemy card bottom (~y=36)
+            float curOpaquePx = (float)height * spScale * opaqueFrac;
+            if (curOpaquePx > maxOpaquePx && curOpaquePx > 0.01f) {
+                spScale *= (maxOpaquePx / curOpaquePx);
+            }
+            width = (int)lroundf((float)width * spScale);
+            height = (int)lroundf((float)height * spScale);
+            if (width == 0) width = 1;
+            if (height == 0) height = 1;
+            centreY = (fx32)lroundf((targetFootY - (float)height * (0.5f - emptyBottomFrac)) * (float)FX32_ONE);
+        } else if (btype == BATTLER_TYPE_SOLO_PLAYER || btype == BATTLER_TYPE_PLAYER_SIDE_SLOT_1 || btype == BATTLER_TYPE_PLAYER_SIDE_SLOT_2) {
+            float targetFootY = (btype == BATTLER_TYPE_SOLO_PLAYER) ? 154.0f : 152.0f;
+            float maxOpaquePx = 94.0f;
+            float curOpaquePx = (float)height * spScale * opaqueFrac;
+            if (curOpaquePx > maxOpaquePx && curOpaquePx > 0.01f) {
+                spScale *= (maxOpaquePx / curOpaquePx);
+            }
+            width = (int)lroundf((float)width * spScale);
+            height = (int)lroundf((float)height * spScale);
+            if (width == 0) width = 1;
+            if (height == 0) height = 1;
+            centreY = (fx32)lroundf((targetFootY - (float)height * (0.5f - emptyBottomFrac)) * (float)FX32_ONE);
+        } else {
+            fx32 footY = centreY + (fx32)((height * FX32_ONE) / 2);
+            width = (int)lroundf((float)width * spScale);
+            height = (int)lroundf((float)height * spScale);
+            if (width == 0) width = 1;
+            if (height == 0) height = 1;
+            centreY = footY - (fx32)((height * FX32_ONE) / 2);
+        }
     }
 
     if (monSpriteMan->excludeIdentity == TRUE

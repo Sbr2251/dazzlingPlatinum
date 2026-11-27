@@ -1406,6 +1406,36 @@ static void BufferPokemonSpriteCharData(PokemonSpriteManager *monSpriteMan)
             PokemonSpriteStream_Invalidate(monSpriteMan, i);
 
             monSpriteMan->sprites[i].cut = FALSE;
+            monSpriteMan->sprites[i].opaqueTop = 0;
+            monSpriteMan->sprites[i].opaqueBottom = MON_SPRITE_FRAME_HEIGHT - 1;
+
+            {
+                int minY = MON_SPRITE_FRAME_HEIGHT;
+                int maxY = -1;
+                int sy;
+                for (sy = 0; sy < MON_SPRITE_FRAME_HEIGHT; sy++) {
+                    for (x = 0; x < MON_SPRITE_FRAME_WIDTH / 2; x++) {
+                        if (rawCharData[sy * NCGR_Y_OFFSET + x] != 0) {
+                            if (sy < minY) {
+                                minY = sy;
+                            }
+                            if (sy > maxY) {
+                                maxY = sy;
+                            }
+                            break;
+                        }
+                    }
+                }
+                if (maxY >= minY) {
+                    if (monSpriteMan->sprites[i].transforms.flipV) {
+                        monSpriteMan->sprites[i].opaqueTop = (u8)(MON_SPRITE_FRAME_HEIGHT - 1 - maxY);
+                        monSpriteMan->sprites[i].opaqueBottom = (u8)(MON_SPRITE_FRAME_HEIGHT - 1 - minY);
+                    } else {
+                        monSpriteMan->sprites[i].opaqueTop = (u8)minY;
+                        monSpriteMan->sprites[i].opaqueBottom = (u8)maxY;
+                    }
+                }
+            }
 
             if (!monSpriteMan->sprites[i].transforms.flipV) {
                 for (x = 0; x < MON_SPRITE_FRAME_WIDTH / 2; x++) {

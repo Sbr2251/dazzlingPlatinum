@@ -46,6 +46,9 @@ typedef struct BattlerStream {
     u16 shown; // frame in VRAM, STREAM_NO_FRAME when it has to be sent whole
     u16 queued; // frame queued for the next VBlank, STREAM_NO_FRAME if none
     u8 *texture; // STREAM_TEX_BYTES, what the VRAM block holds; zero outside the box
+    u8 opaqueScanned;
+    u8 opaqueTop;
+    u8 opaqueBottom;
 } BattlerStream;
 
 typedef struct StageStream {
@@ -109,6 +112,7 @@ void BattleStageStream_Init(PokemonSpriteManager *monSpriteMan)
 
     for (i = 0; i < MAX_MON_SPRITES; i++) {
         sStageStream.battlers[i].texFrame = STREAM_NO_FRAME;
+        sStageStream.battlers[i].opaqueScanned = 0;
         sStageStream.battlers[i].shown = STREAM_NO_FRAME;
         sStageStream.battlers[i].queued = STREAM_NO_FRAME;
         sStageStream.rate[i] = STREAM_RATE_ONE;
@@ -159,6 +163,7 @@ static void Unload(int index)
     sSpriteStreamStats.streamBytes -= stream->size;
     stream->size = 0;
     stream->texFrame = STREAM_NO_FRAME;
+    stream->opaqueScanned = 0;
     stream->shown = STREAM_NO_FRAME;
     stream->queued = STREAM_NO_FRAME;
     sSpriteStreamStats.loadedMask &= ~(1 << index);
@@ -337,6 +342,35 @@ static BOOL DecodeFrame(int index, u16 frame)
 
     for (row = 0; row < data->height; row++) {
         memcpy(stream->texture + (data->top + row) * STREAM_ROW_BYTES + data->left, sFrameBuffer + row * data->width, data->width);
+    }
+
+    if (!stream->opaqueScanned) {
+        int minY = STREAM_CANVAS_HEIGHT;
+        int maxY = -1;
+        int sy, sx;
+        for (sy = 0; sy < data->height; sy++) {
+            int y = data->top + sy;
+            const u8 *p = stream->texture + y * STREAM_ROW_BYTES + data->left;
+            for (sx = 0; sx < data->width; sx++) {
+                if (p[sx] != 0) {
+                    if (y < minY) {
+                        minY = y;
+                    }
+                    if (y > maxY) {
+                        maxY = y;
+                    }
+                    break;
+                }
+            }
+        }
+        if (maxY >= minY) {
+            stream->opaqueTop = (u8)minY;
+            stream->opaqueBottom = (u8)maxY;
+        } else {
+            stream->opaqueTop = 0;
+            stream->opaqueBottom = STREAM_CANVAS_HEIGHT - 1;
+        }
+        stream->opaqueScanned = 1;
     }
 
     stream->texFrame = frame;
@@ -519,6 +553,22 @@ int BattleStageStream_GetScale(int index)
     }
 
     return MonStream_Scale(sStageStream.battlers[index].data);
+}
+
+BOOL BattleStageStream_GetOpaqueBounds(int index, int *outTop, int *outBottom, int *outTexHeight)
+{
+    const BattlerStream *stream;
+    if (index < 0 || index >= MAX_MON_SPRITES) {
+        return FALSE;
+    }
+    stream = &sStageStream.battlers[index];
+    if (stream->data == NULL || !stream->opaqueScanned) {
+        return FALSE;
+    }
+    *outTop = stream->opaqueTop;
+    *outBottom = stream->opaqueBottom;
+    *outTexHeight = STREAM_CANVAS_HEIGHT;
+    return TRUE;
 }
 
 void BattleStageStream_CanvasRect(int index, const PokemonSpriteTransforms *transforms, const PokemonSpriteDrawRect *rect, BattleStageStreamRect *out)

@@ -373,20 +373,27 @@ def build_forest() -> ArenaScene:
         return hill
 
     def cfn(x: float, z: float, r: float, y: float):
+        # Distance to the battle corridor between player (-2.95, 1.35) and enemy (6.95, -7.80)
+        ax, az = -2.95, 1.35
+        bx, bz = 6.95, -7.80
+        abx, abz = bx - ax, bz - az
+        t_seg = _clamp01(((x - ax) * abx + (z - az) * abz) / (abx * abx + abz * abz))
+        d_corr = math.hypot(x - (ax + t_seg * abx), z - (az + t_seg * abz))
+
         n = 0.5 + 0.5 * math.sin(x * 0.36 + z * 0.31) * math.cos(z * 0.41 - x * 0.24)
         n2 = 0.5 + 0.5 * math.sin(x * 0.72 - z * 0.58)
-        clearing = (0.68, 0.72, 0.46, 1.0)
-        grass = (0.40, 0.68, 0.38, 1.0)
-        moss = (0.24, 0.52, 0.34, 1.0)
-        deep = (0.14, 0.34, 0.24, 1.0)
-        rw = r + (n - 0.5) * 1.8
-        if rw < 5.8:
-            col = _lerp4(clearing, grass, _smoothstep(2.0, 5.8, rw))
-        elif rw < 13.5:
-            col = _lerp4(grass, moss, _smoothstep(5.8, 13.5, rw))
+        clearing = (0.82, 0.76, 0.54, 1.0)
+        soft_grass = (0.42, 0.68, 0.40, 1.0)
+        teal_grass = (0.24, 0.52, 0.36, 1.0)
+        deep_edge = (0.12, 0.30, 0.22, 1.0)
+        dw = d_corr + (n - 0.5) * 1.4
+        if dw < 4.6:
+            col = _lerp4(clearing, soft_grass, _smoothstep(1.8, 4.6, dw))
+        elif dw < 8.8:
+            col = _lerp4(soft_grass, teal_grass, _smoothstep(4.6, 8.8, dw))
         else:
-            col = _lerp4(moss, deep, _smoothstep(13.5, 26.0, rw))
-        v = 0.92 + 0.14 * n2
+            col = _lerp4(teal_grass, deep_edge, _smoothstep(8.8, 16.0, dw))
+        v = 0.90 + 0.18 * n2
         return (_clamp01(col[0] * v), _clamp01(col[1] * v), _clamp01(col[2] * v), 1.0)
 
     add_radial_ground(ground_sm, [0.0, 1.8, 3.6, 5.5, 7.4, 9.2, 11.8, 15.0, 19.5, 25.0, 32.0, 39.0], 44, hfn, cfn, 0.20)
