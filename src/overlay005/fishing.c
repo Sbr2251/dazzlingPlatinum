@@ -9,6 +9,7 @@
 
 #include "field/field_system.h"
 #include "overlay005/field_phenomena.h"
+#include "overlay005/follow_mon.h"
 #include "overlay005/ov5_021DFB54.h"
 #include "overlay005/ov5_021F5A10.h"
 #include "overlay006/wild_encounters.h"
@@ -130,6 +131,12 @@ BOOL FieldTask_Fishing(FieldTask *taskMan)
             fishingContext->isFishEncountered = TRUE;
         } else {
             fishingContext->isFishEncountered = WildEncounters_TryFishingEncounter(fieldSystem, fishingContext->rodType, &fishingContext->fishEncounterDTO);
+            if (fishingContext->isFishEncountered == FALSE) {
+                int followBonus = FollowMon_GetFishingBonus(fieldSystem);
+                if (followBonus > 0 && (int)(LCRNG_Next() % 100u) < followBonus) {
+                    fishingContext->isFishEncountered = WildEncounters_TryFishingEncounter(fieldSystem, fishingContext->rodType, &fishingContext->fishEncounterDTO);
+                }
+            }
         }
         fishingContext->sysTask = StartFishingTask(fieldSystem, fishingContext->rodType, fishingContext->isFishEncountered);
         fishingContext->state++;
@@ -257,7 +264,7 @@ static BOOL FishingTask_CastRod(FishingTask *fishingTask, PlayerAvatar *playerAv
 static BOOL FishingTask_SetFishWait(FishingTask *fishingTask, PlayerAvatar *playerAvatar, MapObject *playerMapObject)
 {
     fishingTask->fishDelayCounter = ((LCRNG_Next() % 4) + 1) * 30;
-    fishingTask->fishHookedCounter = sRodTypeHookTimingWindow[fishingTask->rodType];
+    fishingTask->fishHookedCounter = sRodTypeHookTimingWindow[fishingTask->rodType] + (FollowMon_GetFishingBonus(fishingTask->fieldSystem) / 5);
     fishingTask->fishingTask = FUNC_FishingTask_WaitForFish;
 
     return TRUE;

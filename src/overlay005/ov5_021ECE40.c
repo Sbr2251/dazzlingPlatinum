@@ -11,6 +11,7 @@
 
 #include "overlay005/area_light.h"
 #include "overlay005/field_effect_manager.h"
+#include "overlay005/follow_mon.h"
 #include "overlay005/funcptr_ov5_021EE454.h"
 #include "overlay005/object_event_gfx_data.h"
 #include "overlay005/ov5_021EB1A0.h"
@@ -188,6 +189,12 @@ int ov5_021ECEB4(MapObject *param0, Billboard **param1, int param2)
     *param1 = NULL;
 
     v1 = ov5_021EDEA8(param0);
+
+    if (FollowMon_IsFollowerObject(param0) || param2 == OBJ_EVENT_GFX_FOLLOW_MON) {
+        *param1 = FollowMon_CreateBillboard(param0, ov5_021EDC8C(v1), v1->unk_F8);
+        return 1;
+    }
+
     v0 = ov5_021ED82C(v1, param2);
 
     if (v0 == 0) {
@@ -238,6 +245,11 @@ void ov5_021ECF70(const MapObject *param0, Billboard **param1, int param2)
 {
     int v0;
 
+    if (FollowMon_IsFollowerObject(param0) || param2 == OBJ_EVENT_GFX_FOLLOW_MON) {
+        FollowMon_DestroyBillboard((MapObject *)param0, param1);
+        return;
+    }
+
     Billboard_Delete(*param1);
     *param1 = NULL;
 
@@ -250,6 +262,11 @@ void ov5_021ECF70(const MapObject *param0, Billboard **param1, int param2)
 
 void ov5_021ECFA4(const MapObject *param0, Billboard **param1)
 {
+    if (FollowMon_IsFollowerObject(param0)) {
+        FollowMon_DestroyBillboard((MapObject *)param0, param1);
+        return;
+    }
+
     ov5_021ED094(param0);
 
     if ((*param1) != NULL) {
@@ -266,6 +283,11 @@ void ov5_021ECFA4(const MapObject *param0, Billboard **param1)
 void ov5_021ECFD8(const MapObject *param0, Billboard **param1, int param2)
 {
     int v0;
+
+    if (FollowMon_IsFollowerObject(param0) || param2 == OBJ_EVENT_GFX_FOLLOW_MON) {
+        FollowMon_DestroyBillboard((MapObject *)param0, param1);
+        return;
+    }
 
     ov5_021ED094(param0);
 
@@ -1036,6 +1058,7 @@ static void ov5_021ED8B8(MapObjectManager *param0, UnkStruct_ov5_021ED0A4 *param
 
         if (v1 != 0xffff) {
             if (v1 != OBJ_EVENT_GFX_PLAYER_M && v1 != OBJ_EVENT_GFX_PLAYER_F && v1 != playerGfx
+                && v1 != OBJ_EVENT_GFX_FOLLOW_MON
                 && ov5_021EDA54(param0, v1, NULL) == 0) {
                 TextureResourceManager_RemoveTextureWithID(v3, v1);
                 ov5_021EDFBC(param1, v1);
@@ -1148,6 +1171,9 @@ static int ov5_021EDA54(const MapObjectManager *param0, int param1, const MapObj
         if ((param2 != NULL) && (param2 == v2)) {
             continue;
         }
+        if (FollowMon_IsFollowerObject(v2)) {
+            continue;
+        }
 
         v1 = MapObject_GetGraphicsID(v2);
 
@@ -1170,6 +1196,9 @@ static int ov5_021EDAB4(const MapObjectManager *param0, int param1, const MapObj
 
     while (MapObjectMan_FindObjectWithStatus(param0, &v2, &v1, MAP_OBJ_STATUS_0) == 1) {
         if ((param2 != NULL) && (param2 == v2)) {
+            continue;
+        }
+        if (FollowMon_IsFollowerObject(v2)) {
             continue;
         }
 
@@ -1210,6 +1239,9 @@ static int ov5_021EDB3C(const MapObjectManager *param0, int param1, const MapObj
         if ((param2 != NULL) && (v2 == param2)) {
             continue;
         }
+        if (FollowMon_IsFollowerObject(v2)) {
+            continue;
+        }
 
         v0 = MapObject_GetGraphicsID(v2);
 
@@ -1243,6 +1275,10 @@ void ov5_021EDBC4(const MapObjectManager *param0, int param1, MapObject *param2)
 {
     int v0;
     UnkStruct_ov5_021ED0A4 *v1 = sub_0206285C(param0);
+
+    if (param1 == OBJ_EVENT_GFX_FOLLOW_MON || FollowMon_IsFollowerObject(param2)) {
+        return;
+    }
 
     v0 = ov5_021EDD2C(param1);
 

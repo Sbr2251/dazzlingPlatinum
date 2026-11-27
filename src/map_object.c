@@ -13,6 +13,7 @@
 #include "functypes/funcptr_020EDF0C.h"
 #include "functypes/funcptr_020EDF0C_1.h"
 #include "functypes/funcptr_020EDF0C_2.h"
+#include "overlay005/follow_mon.h"
 #include "overlay005/object_event_gfx_data.h"
 #include "overlay005/ov5_021ECC20.h"
 #include "overlay005/ov5_021ECE40.h"
@@ -211,6 +212,11 @@ void sub_0206184C(MapObjectManager *mapObjMan, enum MapHeaderID oldMapHeaderID, 
 
     while (maxObjects) {
         if (sub_02062CF8(mapObj) == TRUE) {
+            if (FollowMon_IsFollowerObject(mapObj)) {
+                mapObj++;
+                maxObjects--;
+                continue;
+            }
             int v0 = sub_0206244C(mapObj, newMapHeaderID, objEventCount, objectEvent);
 
             switch (v0) {
@@ -488,7 +494,8 @@ void MapObjectMan_SaveAll(FieldSystem *fieldSystem, const MapObjectManager *mapO
     MapObject *mapObj;
 
     while (MapObjectMan_FindObjectWithStatus(mapObjMan, &mapObj, &v0, MAP_OBJ_STATUS_0)) {
-        if (MapObject_CheckStatusFlag(mapObj, MAP_OBJ_STATUS_AUTO_BORDER_CLONE)) {
+        if (MapObject_CheckStatusFlag(mapObj, MAP_OBJ_STATUS_AUTO_BORDER_CLONE)
+            || FollowMon_IsFollowerObject(mapObj)) {
             continue;
         }
         MapObject_Save(fieldSystem, mapObj, mapObjSave);
@@ -815,6 +822,11 @@ static void sub_020623D4(MapObject *mapObj)
     const UnkStruct_ov5_021FB0F0 *v0;
     u32 v1 = MapObject_GetGraphicsID(mapObj);
 
+    if (v1 == OBJ_EVENT_GFX_FOLLOW_MON) {
+        FollowMon_BindObjectRenderer(mapObj);
+        return;
+    }
+
     if (v1 == 0x2000) {
         v0 = &gInvisibleObjectEventGfxRenderer;
     } else {
@@ -1087,6 +1099,7 @@ static void MapObjectTask_Move(SysTask *task, void *_mapObject)
     MapObject *mapObj = (MapObject *)_mapObject;
 
     if (MapObject_CheckStatusFlag(mapObj, MAP_OBJ_STATUS_AUTO_BORDER_CLONE)
+        && !FollowMon_IsFollowerObject(mapObj)
         && MapObject_IsNearPlayer(mapObj, MapObject_FieldSystem(mapObj), AUTO_BORDER_CLONE_PRUNE_DX, AUTO_BORDER_CLONE_PRUNE_DZ) == FALSE) {
         MapObject_Delete(mapObj);
         return;
@@ -1885,6 +1898,10 @@ int sub_02062DFC(const MapObject *mapObj)
 {
     const MapObjectManager *mapObjMan = MapObject_MapObjectManager(mapObj);
 
+    if (FollowMon_IsFollowerObject(mapObj)) {
+        return FALSE;
+    }
+
     if (MapObjectMan_IsDrawInitialized(mapObjMan) == FALSE) {
         return FALSE;
     }
@@ -2478,7 +2495,7 @@ MapObject *sub_0206326C(const MapObjectManager *mapObjMan, int x, int z, int par
     MapObject *mapObj = MapObjectMan_GetMapObject(mapObjMan);
 
     do {
-        if (MapObject_CheckStatus(mapObj, MAP_OBJ_STATUS_0)) {
+        if (MapObject_CheckStatus(mapObj, MAP_OBJ_STATUS_0) && !FollowMon_IsFollowerObject(mapObj)) {
             if (param3 && MapObject_GetXPrev(mapObj) == x && MapObject_GetZPrev(mapObj) == z) {
                 return mapObj;
             }

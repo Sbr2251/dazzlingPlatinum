@@ -21,6 +21,7 @@
 #include "overlay005/field_effect_renderer.h"
 #include "overlay005/field_phenomena.h"
 #include "overlay005/fog_manager.h"
+#include "overlay005/follow_mon.h"
 #include "overlay005/hblank_system.h"
 #include "overlay005/honey_tree.h"
 #include "overlay005/land_data.h"
@@ -259,6 +260,7 @@ static BOOL FieldMap_Init(ApplicationManager *appMan, int *state)
         fieldSystem->unk_04->hBlankSystem = HBlankSystem_New(HEAP_ID_FIELD1);
         HBlankSystem_Start(fieldSystem->unk_04->hBlankSystem);
         fieldSystem->unk_04->unk_20 = ov5_021EF4BC(HEAP_ID_FIELD1, fieldSystem->unk_04->hBlankSystem);
+        FollowMon_OnFieldInit(fieldSystem);
         break;
     case FIELD_MAP_INIT_STATE_BOTTOM_SCREEN:
         FieldSystem_InitBottomScreen(fieldSystem);
@@ -300,6 +302,7 @@ static BOOL FieldMap_Main(ApplicationManager *appMan, int *param1)
 
     FieldPhenomena_Update(fieldSystem);
     ov5_021D134C(fieldSystem, fieldSystem->unk_C0);
+    FollowMon_Update(fieldSystem);
 
     if (fieldSystem->runningFieldMap) {
         return FALSE;
@@ -344,6 +347,7 @@ static BOOL FieldMap_Exit(ApplicationManager *appMan, int *param1)
 
         fieldSystem->unk_04->unk_10 = NULL;
 
+        FollowMon_OnFieldExit(fieldSystem);
         sub_02061BF0(fieldSystem->mapObjMan);
         ov5_021ECC78(fieldSystem->mapObjMan);
 
@@ -480,6 +484,7 @@ static BOOL FieldMap_ChangeZone(FieldSystem *fieldSystem)
     const ObjectEvent *objEventList = MapHeaderData_GetObjectEvents(fieldSystem);
 
     sub_0206184C(fieldSystem->mapObjMan, oldMapHeaderID, newMapHeaderID, objEventCount, objEventList);
+    FollowMon_OnZoneChange(fieldSystem);
 
     RadarChain_Clear(fieldSystem->chain);
     FieldPhenomena_OnZoneChange(fieldSystem);
@@ -520,6 +525,7 @@ void FieldMap_ChangeZoneDistortionWorld(FieldSystem *fieldSystem, enum MapHeader
     const ObjectEvent *objEventList = MapHeaderData_GetObjectEvents(fieldSystem);
 
     sub_0206184C(fieldSystem->mapObjMan, oldMapHeaderID, mapHeaderID, objEventCount, objEventList);
+    FollowMon_OnZoneChange(fieldSystem);
 
     FieldBGM_TryFadeOut(fieldSystem, FieldBGM_GetEffective(fieldSystem, fieldSystem->location->mapHeaderID), 1);
     sub_0203A418(fieldSystem);

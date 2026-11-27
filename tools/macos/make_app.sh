@@ -29,6 +29,13 @@ for f in header.bin firmware.bin language.csv; do cp "$BUILDDIR/$f" "$C/Resource
 [ -d "$ROOT/res/battle3d" ] && cp -R "$ROOT/res/battle3d" "$C/Resources/game/battle3d"
 # BDSP HD battle HUD font assets (OFL)
 [ -d "$ROOT/res/hudhd" ] && cp -R "$ROOT/res/hudhd" "$C/Resources/game/hudhd"
+# Following Pokemon archive (optional; built from user HGSS ROM + Gen 5 icons)
+if [ -f "$ROOT/tools/follow_mon/build_follow_mon.py" ]; then
+  python3 "$ROOT/tools/follow_mon/build_follow_mon.py" --optional --if-stale --out "$BUILDDIR/follow_mon.narc"
+fi
+if [ -f "$BUILDDIR/follow_mon.narc" ]; then
+  cp "$BUILDDIR/follow_mon.narc" "$C/Resources/game/follow_mon.narc"
+fi
 
 # The executable and the SDL3 it links (Homebrew), relinked to the bundle's copy
 cp "$BUILDDIR/main" "$C/MacOS/pokeplatinum"
