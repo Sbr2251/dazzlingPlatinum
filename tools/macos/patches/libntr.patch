@@ -2949,6 +2949,171 @@ index 0000000..240e2b0
 +void Poll();
 +
 +}  // namespace SIM::Helpers
+diff --git a/include/simulator/sim_hud_hd.h b/include/simulator/sim_hud_hd.h
+new file mode 100644
+index 0000000..1e84c4d
+--- /dev/null
++++ b/include/simulator/sim_hud_hd.h
+@@ -0,0 +1,159 @@
++#ifndef SIMULATOR_SIM_HUD_HD_H
++#define SIMULATOR_SIM_HUD_HD_H
++
++// HD battle HUD (BDSP parity, 2026-11-26). The game describes the battle HUD
++// once per frame (cards, party ball strips, action buttons, move cards); the
++// GPU backend draws it at display resolution after the 2D composite and
++// before the touch-controls overlay: smooth rounded cards, gradients, icons
++// and a TrueType font, instead of the pixel-art HUD on the 342x192 canvas.
++//
++// Coordinates are in HUD canvas units: the wide battle 2D canvas, 342 x 192,
++// origin top-left (the same space the pixel-art corner HUD and touch hit
++// tests use). The renderer maps it onto the game view. C header, no nitro.h;
++// booleans are int. Strings are UTF-8, NUL-terminated.
++//
++// Contract:
++// - SIM_HudHD_Submit copies the frame; call it from the game thread every
++//   frame the battle is drawn (active = 0, or not calling it for a frame,
++//   draws nothing). The renderer keeps the last frame for at most 2 frames.
++// - The renderer owns animation that does not change game state: HP bar
++//   easing towards hpFrac, selection bracket pulse, card slide-in when a
++//   card/button becomes visible.
++// - Everything is a no-op under Renderer=gl and on builds without the GPU
++//   backend (SIM_HudHD_IsSupported returns 0).
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++#define SIM_HUDHD_MAX_CARDS 4
++#define SIM_HUDHD_MAX_BUTTONS 8
++#define SIM_HUDHD_MAX_MOVES 4
++#define SIM_HUDHD_NAME_LEN 24
++
++typedef struct SIM_HudHD_Rect {
++    float x, y, w, h;
++} SIM_HudHD_Rect;
++
++typedef enum SIM_HudHD_Gender {
++    SIM_HUDHD_GENDER_NONE = 0,
++    SIM_HUDHD_GENDER_MALE,
++    SIM_HUDHD_GENDER_FEMALE,
++} SIM_HudHD_Gender;
++
++typedef enum SIM_HudHD_Status {
++    SIM_HUDHD_STATUS_NONE = 0,
++    SIM_HUDHD_STATUS_PSN,
++    SIM_HUDHD_STATUS_TOX,
++    SIM_HUDHD_STATUS_BRN,
++    SIM_HUDHD_STATUS_PAR,
++    SIM_HUDHD_STATUS_SLP,
++    SIM_HUDHD_STATUS_FRZ,
++    SIM_HUDHD_STATUS_FNT,
++} SIM_HudHD_Status;
++
++typedef enum SIM_HudHD_BallState {
++    SIM_HUDHD_BALL_EMPTY = 0, // no Pokemon in that slot
++    SIM_HUDHD_BALL_OK,
++    SIM_HUDHD_BALL_STATUS,    // has a status condition
++    SIM_HUDHD_BALL_FAINTED,
++} SIM_HudHD_BallState;
++
++// Name/level/HP card. Player cards show HP numbers and the EXP bar (BDSP
++// bottom-left); enemy cards show name/level/HP bar and the caught icon.
++typedef struct SIM_HudHD_Card {
++    int visible;
++    int isPlayer;
++    SIM_HudHD_Rect rect;            // card bounds
++    char name[SIM_HUDHD_NAME_LEN];
++    int gender;                     // SIM_HudHD_Gender
++    int level;
++    float hpFrac;                   // 0..1, target value (renderer eases)
++    int hp, maxHp;                  // drawn when showHpNumbers
++    int showHpNumbers;
++    float expFrac;                  // 0..1, drawn when showExp
++    int showExp;
++    int status;                     // SIM_HudHD_Status
++    int caught;                     // enemy: species already caught (ball icon)
++    float alpha;                    // 0..1 (fade during move animations)
++} SIM_HudHD_Card;
++
++// Six-ball party status strip under a card (BDSP: under the player card,
++// and next to the enemy card in trainer battles).
++typedef struct SIM_HudHD_PartyStrip {
++    int visible;
++    SIM_HudHD_Rect rect;
++    int count;                      // 0..6
++    int balls[6];                   // SIM_HudHD_BallState
++} SIM_HudHD_PartyStrip;
++
++typedef enum SIM_HudHD_ButtonStyle {
++    SIM_HUDHD_BUTTON_FIGHT = 0,     // "Battle" (crimson, burst icon)
++    SIM_HUDHD_BUTTON_POKEMON,       // emerald, Poke Ball icon
++    SIM_HUDHD_BUTTON_BAG,           // gold, bag icon
++    SIM_HUDHD_BUTTON_RUN,           // blue/slate, running icon
++    SIM_HUDHD_BUTTON_QUICK_BALL,    // compact pill: X key badge + ball icon
++    SIM_HUDHD_BUTTON_CANCEL,        // "Back"
++    SIM_HUDHD_BUTTON_MEGA,          // Mega Evolution toggle
++    SIM_HUDHD_BUTTON_YES,
++    SIM_HUDHD_BUTTON_NO,
++    SIM_HUDHD_BUTTON_GENERIC,       // label only
++} SIM_HudHD_ButtonStyle;
++
++typedef struct SIM_HudHD_Button {
++    int visible;
++    int style;                      // SIM_HudHD_ButtonStyle
++    SIM_HudHD_Rect rect;
++    char label[SIM_HUDHD_NAME_LEN];
++    int selected;                   // cursor is on it (brackets + glow)
++    int enabled;                    // 0: greyed out
++    int toggled;                    // MEGA: armed
++} SIM_HudHD_Button;
++
++typedef enum SIM_HudHD_MoveCategory {
++    SIM_HUDHD_CAT_PHYSICAL = 0,
++    SIM_HUDHD_CAT_SPECIAL,
++    SIM_HUDHD_CAT_STATUS,
++} SIM_HudHD_MoveCategory;
++
++typedef enum SIM_HudHD_Effectiveness {
++    SIM_HUDHD_EFF_UNKNOWN = 0,      // no hint (doubles, status moves)
++    SIM_HUDHD_EFF_NORMAL,
++    SIM_HUDHD_EFF_SUPER,            // "Super effective"
++    SIM_HUDHD_EFF_NOT_VERY,         // "Not very effective"
++    SIM_HUDHD_EFF_NONE,             // "No effect"
++} SIM_HudHD_Effectiveness;
++
++// Move card in the move-select menu: type colour, category icon, PP and the
++// effectiveness hint against the current target.
++typedef struct SIM_HudHD_MoveCard {
++    int visible;
++    SIM_HudHD_Rect rect;
++    char name[SIM_HUDHD_NAME_LEN];
++    int type;                       // game TYPE_* value (0..17, 9 = ???)
++    int category;                   // SIM_HudHD_MoveCategory
++    int pp, maxPp;
++    int effectiveness;              // SIM_HudHD_Effectiveness
++    int selected;
++    int enabled;                    // 0: no PP / disabled
++} SIM_HudHD_MoveCard;
++
++typedef struct SIM_HudHD_Frame {
++    int active;                     // 0: draw nothing this frame
++    float canvasW, canvasH;         // 342, 192
++    SIM_HudHD_Card cards[SIM_HUDHD_MAX_CARDS];
++    SIM_HudHD_PartyStrip partyStrips[2];   // [0] player, [1] enemy
++    int numButtons;
++    SIM_HudHD_Button buttons[SIM_HUDHD_MAX_BUTTONS];
++    int numMoves;
++    SIM_HudHD_MoveCard moves[SIM_HUDHD_MAX_MOVES];
++} SIM_HudHD_Frame;
++
++void SIM_HudHD_Submit(const SIM_HudHD_Frame *frame);
++int SIM_HudHD_IsSupported(void);
++
++#ifdef __cplusplus
++}
++#endif
++
++#endif // SIMULATOR_SIM_HUD_HD_H
 diff --git a/include/simulator/sim_layout.h b/include/simulator/sim_layout.h
 new file mode 100644
 index 0000000..fff9405
