@@ -623,12 +623,23 @@ def build_mountain_cave() -> ArenaScene:
         add_sculpted_cliff(rock_sm, rock_sm, cx, cz, -0.3, rng.uniform(5.0, 8.0), rng.uniform(4.0, 6.0), rng.uniform(4.5, 9.0), ang, rng,
                            rock_tint=(0.85, 0.86, 0.92, 1.0), cap_top_color=(0.48, 0.48, 0.54, 1.0), cap_lip_color=(0.32, 0.32, 0.38, 1.0))
 
-    for i in range(16):
-        ang = (i / 16.0) * math.tau + 0.15
-        dist = rng.uniform(9.2, 13.5)
+    for i in range(18):
+        ang = (i / 18.0) * math.tau + 0.15
+        dist = rng.uniform(9.2, 14.0)
         sx, sz = math.cos(ang) * dist, math.sin(ang) * dist
-        add_crystal_spire(crys_sm, sx, 0.0, sz, rng.uniform(0.35, 0.65), rng.uniform(1.6, 3.8), rng.uniform(-0.22, 0.22), rng.uniform(-0.22, 0.22),
+        add_crystal_spire(crys_sm, sx, 0.0, sz, rng.uniform(0.35, 0.72), rng.uniform(1.8, 4.2), rng.uniform(-0.22, 0.22), rng.uniform(-0.22, 0.22),
                           (0.30, 0.62, 0.96, 1.0), (0.82, 0.98, 1.0, 1.0))
+    # Hanging stalactites + cavern boulders
+    for i in range(16):
+        ang = (i / 16.0) * math.tau + 0.08
+        dist = rng.uniform(11.5, 19.0)
+        sx, sz = math.cos(ang) * dist, math.sin(ang) * dist
+        add_crystal_spire(rock_sm, sx, rng.uniform(8.5, 12.0), sz, rng.uniform(0.45, 0.85), rng.uniform(2.5, 5.2),
+                          rng.uniform(-0.08, 0.08), rng.uniform(-0.08, 0.08), (0.28, 0.28, 0.34, 1.0), (0.50, 0.50, 0.58, 1.0), invert_y=True)
+    for i in range(12):
+        ang = (i / 12.0) * math.tau
+        bx, bz = math.cos(ang) * rng.uniform(8.8, 11.2), math.sin(ang) * rng.uniform(8.8, 11.2)
+        add_icosphere_blob(rock_sm, bx, 0.28, bz, rng.uniform(0.5, 0.9), rng.uniform(0.35, 0.60), rng.uniform(0.45, 0.85), rng, (0.26, 0.26, 0.32, 1.0), (0.52, 0.50, 0.56, 1.0), flatten_bottom=0.4)
     return scene
 
 
