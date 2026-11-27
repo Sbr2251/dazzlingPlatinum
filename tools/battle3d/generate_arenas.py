@@ -794,14 +794,14 @@ def build_distortion_world() -> ArenaScene:
     add_radial_ground(floor_sm, [0.0, 2.5, 5.5, 8.6, 10.2], 32, lambda x, z: 0.0,
                       lambda x, z, r, y: _lerp4((0.76, 0.70, 0.88, 1.0), (0.42, 0.36, 0.60, 1.0), _smoothstep(4.0, 10.2, r)), 0.22)
 
-    for i in range(14):
-        ang = (i / 14.0) * math.tau + rng.uniform(-0.1, 0.1)
-        dist = rng.uniform(14.0, 28.0)
+    for i in range(20):
+        ang = (i / 20.0) * math.tau + rng.uniform(-0.1, 0.1)
+        dist = rng.uniform(13.0, 30.0)
         ix, iz = math.cos(ang) * dist, math.sin(ang) * dist
-        iy = rng.uniform(-1.5, 7.5)
-        add_floating_island(floor_sm, rock_sm, ix, iy, iz, rng.uniform(2.0, 4.2), rng.uniform(2.5, 5.5), rng,
+        iy = rng.uniform(-1.5, 8.5)
+        add_floating_island(floor_sm, rock_sm, ix, iy, iz, rng.uniform(2.0, 4.4), rng.uniform(2.5, 5.8), rng,
                             (0.56, 0.48, 0.74, 1.0), (0.32, 0.26, 0.48, 1.0))
-        add_crystal_spire(crys_sm, ix, iy, iz, rng.uniform(0.45, 0.85), rng.uniform(2.5, 5.5),
+        add_crystal_spire(crys_sm, ix, iy, iz, rng.uniform(0.45, 0.90), rng.uniform(2.6, 5.8),
                           rng.uniform(-0.25, 0.25), rng.uniform(-0.25, 0.25),
                           (0.52, 0.22, 0.86, 1.0), (0.96, 0.62, 1.0, 1.0), invert_y=(i % 3 == 0))
     return scene
