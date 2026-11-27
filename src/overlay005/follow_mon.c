@@ -525,8 +525,10 @@ static BOOL FollowMon_BuildGfxSequence(const NNSG3dResTex *tex, BOOL isShiny)
         }
 
         u16 maxFrame = startArr[seqCount - 1];
-        int dirSpan = 16;
-        if (maxFrame >= 48) {
+        int dirSpan = 20;
+        if (maxFrame >= 60) {
+            dirSpan = 20; // HGSS member 567: 0..19 (N), 20..39 (S), 40..59 (W), 60..79 (E)
+        } else if (maxFrame >= 48) {
             dirSpan = 16;
         } else if (maxFrame >= 24) {
             dirSpan = 8;
