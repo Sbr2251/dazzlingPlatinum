@@ -100,6 +100,12 @@ static int IniHandler(void* user, const char* section, const char* name,
     if(MATCH("General", "BattleSpriteSizing")) {
         config->battleSpriteSizingHeight = (strcmp(value, "classic") != 0 && strcmp(value, "false") != 0);
     }
+    if(MATCH("General", "FollowerEnabled")) {
+        config->followerEnabled = StringToBool(value);
+    }
+    if(MATCH("General", "PhenomenaEnabled")) {
+        config->phenomenaEnabled = StringToBool(value);
+    }
     if(MATCH("General", "DebugWideCamera")) {
         config->debugWideCamera = StringToBool(value);
     }
@@ -159,6 +165,8 @@ void SIM_Config_prj_LoadDefaults(SIM_Config_prj_type * aConfig)
   aConfig->battleHud = TRUE;
   aConfig->battleHudStyleHd = TRUE;
   aConfig->battleSpriteSizingHeight = TRUE;
+  aConfig->followerEnabled = TRUE;
+  aConfig->phenomenaEnabled = TRUE;
 
   // Cheats section
   aConfig->walkThroughWalls = FALSE;
@@ -199,6 +207,8 @@ void SIM_Config_prj_SaveConfigFile(SIM_Config_prj_type * aConfig)
     fprintf(configFile, "BattleHud=%s\n", BoolToString(aConfig->battleHud));
     fprintf(configFile, "BattleHudStyle=%s\n", aConfig->battleHudStyleHd ? "hd" : "pixel");
     fprintf(configFile, "BattleSpriteSizing=%s\n", aConfig->battleSpriteSizingHeight ? "height" : "classic");
+    fprintf(configFile, "FollowerEnabled=%s\n", BoolToString(aConfig->followerEnabled));
+    fprintf(configFile, "PhenomenaEnabled=%s\n", BoolToString(aConfig->phenomenaEnabled));
     fprintf(configFile, "\n");
 
     fprintf(configFile, "[Cheats]\n");
@@ -277,4 +287,42 @@ BOOL SIM_Config_prj_DebugWideCamera(void)
     }
 
     return s_SIM_config_prj.debugWideCamera;
+}
+
+BOOL SIM_Config_prj_FollowerEnabled(void)
+{
+    const char *env = getenv("SIM_FX_FOLLOWER");
+    if (env != NULL) {
+        if (env[0] == '0') {
+            return FALSE;
+        }
+        if (env[0] == '1') {
+            return s_SIM_config_prj.followerEnabled;
+        }
+    }
+
+    if (SIM_Config_prj_EnvIsSet("SIM_HEADLESS")) {
+        return FALSE;
+    }
+
+    return s_SIM_config_prj.followerEnabled;
+}
+
+BOOL SIM_Config_prj_PhenomenaEnabled(void)
+{
+    const char *env = getenv("SIM_FX_PHENOMENA");
+    if (env != NULL) {
+        if (env[0] == '0') {
+            return FALSE;
+        }
+        if (env[0] == '1') {
+            return s_SIM_config_prj.phenomenaEnabled;
+        }
+    }
+
+    if (SIM_Config_prj_EnvIsSet("SIM_HEADLESS")) {
+        return FALSE;
+    }
+
+    return s_SIM_config_prj.phenomenaEnabled;
 }

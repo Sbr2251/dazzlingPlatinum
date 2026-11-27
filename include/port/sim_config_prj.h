@@ -36,6 +36,8 @@ typedef struct {
     BOOL weatherFx; // Lane weather: fog/shafts/heat/rain/lightning post effects (GPU only)
     BOOL waterReflections; // Lane weather: pixelated water reflections + shoreline foam (GPU only)
     BOOL battleSpriteSizingHeight; // BDSP per-species sprite height sizing; app default TRUE (height), headless FALSE unless SIM_FX_BDSP_SIZING=1
+    BOOL followerEnabled; // Following Pokemon (HGSS): lead party Pokemon walks behind the player; app default TRUE, headless FALSE unless SIM_FX_FOLLOWER=1
+    BOOL phenomenaEnabled; // BW2 Phenomena: rustling grass, dust clouds, rippling water, flying shadows; app default TRUE, headless FALSE unless SIM_FX_PHENOMENA=1
 } SIM_Config_prj_type;
 
 // True when the game runs logic at 60 Hz AND time-based quantities must be
@@ -49,6 +51,8 @@ BOOL SIM_Config_prj_BattleFastPacing(void); // perf-game-cache hook
 // SIM_FX_WIDE_CAMERA=1 is set, so existing golden screenshots stay identical).
 int SIM_Config_prj_FieldLoadRadius(void);
 BOOL SIM_Config_prj_DebugWideCamera(void);
+BOOL SIM_Config_prj_FollowerEnabled(void);
+BOOL SIM_Config_prj_PhenomenaEnabled(void);
 void SIM_Config_prj_LoadDefaults(SIM_Config_prj_type * aConfig);
 BOOL SIM_Config_prj_LoadConfigFile(SIM_Config_prj_type * aConfig);
 void SIM_Config_prj_SaveConfigFile(SIM_Config_prj_type * aConfig);

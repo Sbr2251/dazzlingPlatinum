@@ -26,6 +26,11 @@
 /subprojects/tracy/
 /subprojects/.wraplock
 
+# Local ROMs & generated ROM-derived archives (never commit)
+ignoreRoms/
+*.nds
+follow_mon.narc
+
 # IDE / editor folders
 .idea/
 cmake-build-*

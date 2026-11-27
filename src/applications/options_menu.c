@@ -113,8 +113,8 @@ enum OptionsWideRowID {
     WIDE_ROW_BATTLE_SPEED,
     WIDE_ROW_MEGA_CUTSCENE,
     WIDE_ROW_BATTLE_HUD,
-    WIDE_ROW_HUD_STYLE,
-    WIDE_ROW_CINEMATICS,
+    WIDE_ROW_FOLLOWER,
+    WIDE_ROW_PHENOMENA,
 
     WIDE_ROW_VOLUME,
     WIDE_ROW_3D_RES,
@@ -128,6 +128,7 @@ enum OptionsWideRowID {
     WIDE_ROW_ARENA_TINT,
     WIDE_ROW_PARTICLES,
     WIDE_ROW_WATER_REFL,
+    WIDE_ROW_CINEMATICS,
 
     WIDE_ROW_CLOSE,
 };
@@ -137,8 +138,8 @@ enum OptionsWideOptIdx {
     WIDE_OPT_BATTLE_SPEED,
     WIDE_OPT_MEGA_CUTSCENE,
     WIDE_OPT_BATTLE_HUD,
-    WIDE_OPT_HUD_STYLE,
-    WIDE_OPT_CINEMATICS,
+    WIDE_OPT_FOLLOWER,
+    WIDE_OPT_PHENOMENA,
     WIDE_OPT_VOLUME,
     WIDE_OPT_3D_RES,
     WIDE_OPT_2D_FILTER,
@@ -150,6 +151,7 @@ enum OptionsWideOptIdx {
     WIDE_OPT_ARENA_TINT,
     WIDE_OPT_PARTICLES,
     WIDE_OPT_WATER_REFL,
+    WIDE_OPT_CINEMATICS,
     WIDE_OPT_COUNT,
 };
 #endif
@@ -1343,8 +1345,8 @@ static const u8 sWideTab1Rows[] = {
     WIDE_ROW_BATTLE_SPEED,
     WIDE_ROW_MEGA_CUTSCENE,
     WIDE_ROW_BATTLE_HUD,
-    WIDE_ROW_HUD_STYLE,
-    WIDE_ROW_CINEMATICS,
+    WIDE_ROW_FOLLOWER,
+    WIDE_ROW_PHENOMENA,
     WIDE_ROW_CLOSE,
 };
 
@@ -1372,6 +1374,7 @@ static const u8 sWideTab3Rows[] = {
     WIDE_ROW_ARENA_TINT,
     WIDE_ROW_PARTICLES,
     WIDE_ROW_WATER_REFL,
+    WIDE_ROW_CINEMATICS,
     WIDE_ROW_CLOSE,
 };
 
@@ -1405,19 +1408,19 @@ static const WideOptMeta sWideOptMeta[WIDE_OPT_COUNT] = {
     },
     [WIDE_OPT_BATTLE_HUD] = {
         "BATTLE HUD",
-        "Display the wide battle command HUD\ndirectly on the main screen.",
+        "Choose BDSP-style HD HUD, classic\npixel-art HUD, or touch-screen only.",
+        3,
+        { "HD", "PIXEL", "OFF", NULL, NULL },
+    },
+    [WIDE_OPT_FOLLOWER] = {
+        "FOLLOWER",
+        "Have your lead Pokemon walk behind\nyou in the overworld, or stay in ball.",
         2,
         { "ON", "OFF", NULL, NULL, NULL },
     },
-    [WIDE_OPT_HUD_STYLE] = {
-        "HUD STYLE",
-        "Choose BDSP-style HD battle HUD\nor classic pixel-art battle HUD.",
-        2,
-        { "HD", "PIXEL", NULL, NULL, NULL },
-    },
-    [WIDE_OPT_CINEMATICS] = {
-        "CINEMATICS",
-        "Enable or disable scripted camera\nmoves during overworld events.",
+    [WIDE_OPT_PHENOMENA] = {
+        "PHENOMENA",
+        "Enable BW2 rustling grass, dust\nclouds, rippling water, and shadows.",
         2,
         { "ON", "OFF", NULL, NULL, NULL },
     },
@@ -1484,6 +1487,12 @@ static const WideOptMeta sWideOptMeta[WIDE_OPT_COUNT] = {
     [WIDE_OPT_WATER_REFL] = {
         "WATER REFL",
         "Enable pixelated water reflections\nand shoreline foam effects.",
+        2,
+        { "ON", "OFF", NULL, NULL, NULL },
+    },
+    [WIDE_OPT_CINEMATICS] = {
+        "CINEMATICS",
+        "Enable or disable scripted camera\nmoves during overworld events.",
         2,
         { "ON", "OFF", NULL, NULL, NULL },
     },
@@ -1677,8 +1686,15 @@ static void WideSnapshotConfig(OptionsMenuData *menuData)
         menuData->wideInitial[WIDE_OPT_BATTLE_SPEED] = 0;
     }
     menuData->wideInitial[WIDE_OPT_MEGA_CUTSCENE] = prj->megaCinematicShort ? 1 : 0;
-    menuData->wideInitial[WIDE_OPT_BATTLE_HUD] = prj->battleHud ? 0 : 1;
-    menuData->wideInitial[WIDE_OPT_HUD_STYLE] = prj->battleHudStyleHd ? 0 : 1;
+    if (!prj->battleHud) {
+        menuData->wideInitial[WIDE_OPT_BATTLE_HUD] = 2;
+    } else if (prj->battleHudStyleHd) {
+        menuData->wideInitial[WIDE_OPT_BATTLE_HUD] = 0;
+    } else {
+        menuData->wideInitial[WIDE_OPT_BATTLE_HUD] = 1;
+    }
+    menuData->wideInitial[WIDE_OPT_FOLLOWER] = prj->followerEnabled ? 0 : 1;
+    menuData->wideInitial[WIDE_OPT_PHENOMENA] = prj->phenomenaEnabled ? 0 : 1;
     menuData->wideInitial[WIDE_OPT_CINEMATICS] = prj->overworldCinematics ? 0 : 1;
 
     menuData->wideInitial[WIDE_OPT_VOLUME] = WideVolumeToChoice(simCfg->masterVolume);
@@ -1813,11 +1829,19 @@ static void WideApplyAndSaveOrRevert(OptionsMenuData *menuData, BOOL *outLayoutC
             prjDirty = TRUE;
         }
         if (menuData->wideSelected[WIDE_OPT_BATTLE_HUD] != menuData->wideInitial[WIDE_OPT_BATTLE_HUD]) {
-            prj->battleHud = (menuData->wideSelected[WIDE_OPT_BATTLE_HUD] == 0) ? TRUE : FALSE;
+            u8 hud = menuData->wideSelected[WIDE_OPT_BATTLE_HUD];
+            prj->battleHud = (hud < 2) ? TRUE : FALSE;
+            if (hud < 2) {
+                prj->battleHudStyleHd = (hud == 0) ? TRUE : FALSE;
+            }
             prjDirty = TRUE;
         }
-        if (menuData->wideSelected[WIDE_OPT_HUD_STYLE] != menuData->wideInitial[WIDE_OPT_HUD_STYLE]) {
-            prj->battleHudStyleHd = (menuData->wideSelected[WIDE_OPT_HUD_STYLE] == 0) ? TRUE : FALSE;
+        if (menuData->wideSelected[WIDE_OPT_FOLLOWER] != menuData->wideInitial[WIDE_OPT_FOLLOWER]) {
+            prj->followerEnabled = (menuData->wideSelected[WIDE_OPT_FOLLOWER] == 0) ? TRUE : FALSE;
+            prjDirty = TRUE;
+        }
+        if (menuData->wideSelected[WIDE_OPT_PHENOMENA] != menuData->wideInitial[WIDE_OPT_PHENOMENA]) {
+            prj->phenomenaEnabled = (menuData->wideSelected[WIDE_OPT_PHENOMENA] == 0) ? TRUE : FALSE;
             prjDirty = TRUE;
         }
         if (menuData->wideSelected[WIDE_OPT_CINEMATICS] != menuData->wideInitial[WIDE_OPT_CINEMATICS]) {
