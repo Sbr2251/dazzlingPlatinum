@@ -52,12 +52,33 @@ void FxWeather_OnMapChange(int mapHeaderID, u16 weather)
     if (FxWeather_WeatherFxEnabled()) {
         // Map mood first: Eterna Forest gets canopy light shafts on a
         // clear day, Route 218 (Everspring Sanctuary) gets bioluminescent
-        // fairy spores & subtle twilight aura, Stark Mountain / ashfall
-        // areas get heat haze.
+        // fairy spores & subtle twilight aura, Routes 222/223 get the violet
+        // rift aura (kind 7), Routes 215/216 get light rain / snow motes
+        // (kind 8), Route 217 keeps only its stock blizzard, Stark Mountain /
+        // ashfall areas get heat haze.
         if (mapHeaderID == MAP_HEADER_ETERNA_FOREST || mapHeaderID == MAP_HEADER_ETERNA_FOREST_OUTSIDE) {
             kind = 4; intensity = 0.8f;
         } else if (mapHeaderID == MAP_HEADER_ROUTE_218) {
             kind = 6; intensity = 0.75f;
+        } else if (mapHeaderID == MAP_HEADER_ROUTE_223) {
+            // Violet Rift Coast & Sea-Sky Aura: full strength at the rift sea.
+            kind = 7; intensity = 0.80f;
+        } else if (mapHeaderID == MAP_HEADER_ROUTE_222) {
+            // Violet-lit coast: the rift glow cast westward, gentler.
+            kind = 7; intensity = 0.55f;
+        } else if (mapHeaderID == MAP_HEADER_ROUTE_215) {
+            // Flooded lowland: light rain streaks + gentle cool vignette,
+            // capped so the lowland stays crisp and moody, never grey-green.
+            kind = 8; intensity = 0.30f;
+        } else if (mapHeaderID == MAP_HEADER_ROUTE_216) {
+            // Teo's Memorial Ridge: very gentle snow motes so the ridge stays
+            // razor-sharp by day and night.
+            kind = 8; intensity = 0.25f;
+        } else if (mapHeaderID == MAP_HEADER_ROUTE_217) {
+            // Indra's camp: Platinum's stock heavy blizzard already runs here;
+            // stacking kind 8 on top whited the screen out. No SDL3 pass, so
+            // the dark-violet tent and lantern cut crisply through the snow.
+            kind = 0; intensity = 0.0f;
         } else if (mapHeaderID == MAP_HEADER_STARK_MOUNTAIN_OUTSIDE || mapHeaderID == MAP_HEADER_STARK_MOUNTAIN_ROOM_1
             || mapHeaderID == MAP_HEADER_STARK_MOUNTAIN_ROOM_2 || mapHeaderID == MAP_HEADER_STARK_MOUNTAIN_ROOM_3
             || weather == OVERWORLD_WEATHER_SLOW_ASHFALL) {
@@ -73,5 +94,10 @@ void FxWeather_OnMapChange(int mapHeaderID, u16 weather)
         }
     }
     SIM_Weather_Set(kind, intensity);
-    SIM_Water_Set(FxWeather_WaterReflectionsEnabled() ? 1 : 0);
+    // Dry / snow routes get no water pass: under night-indigo lighting their
+    // snow and grass satisfy the generic blue-dominant water mask and would
+    // reflect. Water routes (215, 218, 222, 223) and every other map keep it.
+    BOOL dryRoute = mapHeaderID == MAP_HEADER_ROUTE_206 || mapHeaderID == MAP_HEADER_ROUTE_207
+        || mapHeaderID == MAP_HEADER_ROUTE_216 || mapHeaderID == MAP_HEADER_ROUTE_217;
+    SIM_Water_Set((FxWeather_WaterReflectionsEnabled() && !dryRoute) ? 1 : 0);
 }
