@@ -534,16 +534,17 @@ def build_water_lake() -> ArenaScene:
     bark_tex = scene.add_texture(128, 128, make_bark_texture(128, 306), B3D_TEX_FLAG_REPEAT)
 
     sky_sm = scene.add_submesh(sky_tex, SKY_FLAGS, 1.0, 0.0)
-    mtn_sm = scene.add_submesh(rock_tex, B3D_SUBMESH_RECEIVE_SHADOW, 0.95, 1.0)
+    mtn_sm = scene.add_submesh(rock_tex, B3D_SUBMESH_RECEIVE_SHADOW, 0.95, 0.62)
     ground_sm = scene.add_submesh(ground_tex, B3D_SUBMESH_RECEIVE_SHADOW, 0.88, 0.72)
     water_sm = scene.add_submesh(water_tex, B3D_SUBMESH_RECEIVE_SHADOW, 0.25, 0.82)
     rock_sm = scene.add_submesh(rock_tex, SHADOW_BOTH, 0.85, 0.88)
     cap_sm = scene.add_submesh(ground_tex, SHADOW_BOTH, 0.85, 0.85)
     bark_sm = scene.add_submesh(bark_tex, SHADOW_BOTH, 0.92, 0.95)
     pine_sm = scene.add_submesh(pine_tex, SHADOW_BOTH, 0.85, 1.0)
+    tuft_sm = scene.add_submesh(-1, B3D_SUBMESH_RECEIVE_SHADOW | B3D_SUBMESH_DOUBLE_SIDED, 0.82, 0.84)
 
     add_sky_dome(sky_sm, 74.0)
-    add_mountain_ring(mtn_sm, rng, r_inner=42.0, r_peak=54.0, r_outer=65.0, segs=72)
+    add_mountain_ring(mtn_sm, rng, r_inner=38.0, r_peak=48.0, r_outer=62.0, segs=72, base_height=10.5, c_base=(0.24, 0.34, 0.56, 1.0), c_peak=(0.46, 0.58, 0.82, 1.0))
 
     def shore_h(x, z):
         r = math.hypot(x, z)
@@ -568,16 +569,27 @@ def build_water_lake() -> ArenaScene:
     # Distant forested lake shore / island behind the water
     for cx, cz, cw, ch in [(-14.0, -24.0, 11.0, 2.8), (2.0, -28.0, 14.0, 3.2), (17.0, -22.0, 11.0, 2.6)]:
         add_sculpted_cliff(rock_sm, cap_sm, cx, cz, -0.5, cw, 7.0, ch, rng.uniform(-0.4, 0.4), rng)
-        for k in range(5):
+        for k in range(6):
             px = cx + rng.uniform(-cw * 0.45, cw * 0.45)
             pz = cz + rng.uniform(-2.5, 2.5)
-            add_pine_tree(bark_sm, pine_sm, px, ch - 0.3, pz, rng.uniform(7.0, 10.5), rng.uniform(2.0, 2.6), rng)
+            add_pine_tree(bark_sm, pine_sm, px, ch - 0.3, pz, rng.uniform(6.5, 9.5), rng.uniform(1.9, 2.4), rng, tiers=5, lobes=8, curved=True)
 
-    for i in range(10):
-        ang = rng.uniform(-0.4, math.pi + 0.4)
+    for i in range(14):
+        ang = rng.uniform(-0.3, math.pi + 0.3)
         dist = rng.uniform(11.5, 22.0)
         px, pz = math.cos(ang) * dist, math.sin(ang) * dist
-        add_pine_tree(bark_sm, pine_sm, px, shore_h(px, pz), pz, rng.uniform(7.5, 10.5), 2.3, rng)
+        add_pine_tree(bark_sm, pine_sm, px, shore_h(px, pz), pz, rng.uniform(6.8, 9.8), 2.2, rng, tiers=5, lobes=8, curved=True)
+
+    # Shoreline pebbles, bushes, and grass tufts
+    for i in range(22):
+        ang = rng.uniform(-0.2, math.pi + 0.2)
+        dist = rng.uniform(7.2, 10.2)
+        gx, gz = math.cos(ang) * dist, math.sin(ang) * dist
+        gy = shore_h(gx, gz)
+        if gy > -0.05:
+            add_grass_tuft(tuft_sm, gx, gy, gz, rng.uniform(0.8, 1.25), rng)
+            if i % 3 == 0:
+                add_icosphere_blob(rock_sm, gx + 0.4, gy + 0.15, gz, 0.45, 0.28, 0.40, rng, (0.50, 0.48, 0.44, 1.0), (0.80, 0.76, 0.68, 1.0), flatten_bottom=0.45)
     return scene
 
 
