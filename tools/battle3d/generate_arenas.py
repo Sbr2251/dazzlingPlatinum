@@ -644,7 +644,7 @@ def build_snow() -> ArenaScene:
     bark_tex = scene.add_texture(128, 128, make_bark_texture(128, 505, (0.24, 0.20, 0.20), (0.44, 0.38, 0.36)), B3D_TEX_FLAG_REPEAT)
 
     sky_sm = scene.add_submesh(sky_tex, SKY_FLAGS, 1.0, 0.0)
-    mtn_sm = scene.add_submesh(rock_tex, B3D_SUBMESH_RECEIVE_SHADOW, 0.92, 1.0)
+    mtn_sm = scene.add_submesh(rock_tex, B3D_SUBMESH_RECEIVE_SHADOW, 0.92, 0.58)
     ground_sm = scene.add_submesh(snow_tex, B3D_SUBMESH_RECEIVE_SHADOW, 0.78, 0.78)
     rock_sm = scene.add_submesh(rock_tex, SHADOW_BOTH, 0.85, 0.88)
     cap_sm = scene.add_submesh(snow_tex, SHADOW_BOTH, 0.75, 0.85)
@@ -652,7 +652,7 @@ def build_snow() -> ArenaScene:
     pine_sm = scene.add_submesh(pine_tex, SHADOW_BOTH, 0.82, 1.0)
 
     add_sky_dome(sky_sm, 74.0)
-    add_mountain_ring(mtn_sm, rng, r_inner=40.0, r_peak=52.0, r_outer=64.0, segs=72, c_base=(0.45, 0.56, 0.74, 1.0), c_peak=(0.82, 0.90, 0.98, 1.0))
+    add_mountain_ring(mtn_sm, rng, r_inner=38.0, r_peak=48.0, r_outer=62.0, segs=72, base_height=11.0, c_base=(0.40, 0.52, 0.72, 1.0), c_peak=(0.82, 0.90, 0.99, 1.0))
 
     def hfn(x, z):
         r = math.hypot(x, z)
@@ -670,13 +670,18 @@ def build_snow() -> ArenaScene:
         add_sculpted_cliff(rock_sm, cap_sm, cx, cz, max(0.0, hfn(cx, cz) - 0.5), 6.5, 4.6, 2.4, ang, rng,
                            rock_tint=(0.9, 0.95, 1.0, 1.0), cap_top_color=(0.94, 0.97, 1.0, 1.0), cap_lip_color=(0.76, 0.86, 0.96, 1.0))
 
-    for i in range(34):
-        ang = (i / 34.0) * math.tau + rng.uniform(-0.08, 0.08)
-        if abs((ang - (-0.42) + math.pi) % math.tau - math.pi) < 0.20:
+    for i in range(36):
+        ang = (i / 36.0) * math.tau + rng.uniform(-0.08, 0.08)
+        if abs((ang - (-0.52) + math.pi) % math.tau - math.pi) < 0.24:
             continue
         dist = rng.uniform(12.5, 32.0)
         px, pz = math.cos(ang) * dist, math.sin(ang) * dist
-        add_pine_tree(bark_sm, pine_sm, px, hfn(px, pz) + 0.1, pz, rng.uniform(6.8, 10.2), rng.uniform(1.9, 2.5), rng, tiers=5, lobes=8, curved=(dist < 22.0), snow_dusted=True)
+        add_pine_tree(bark_sm, pine_sm, px, hfn(px, pz) + 0.1, pz, rng.uniform(6.8, 10.4), rng.uniform(1.9, 2.5), rng, tiers=5, lobes=8, curved=(dist < 22.0), snow_dusted=True)
+    # Frosted boulders along cliff edge
+    for i in range(12):
+        ang = (i / 12.0) * math.tau + 0.25
+        bx, bz = math.cos(ang) * 9.8, math.sin(ang) * 9.8
+        add_icosphere_blob(rock_sm, bx, hfn(bx, bz) + 0.25, bz, rng.uniform(0.5, 0.9), rng.uniform(0.35, 0.55), rng.uniform(0.45, 0.8), rng, (0.48, 0.56, 0.68, 1.0), (0.90, 0.95, 1.0, 1.0), flatten_bottom=0.45)
     return scene
 
 
