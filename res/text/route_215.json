@@ -81,6 +81,38 @@
         "An Eclipse crate. The lid has been\n",
         "pried off. It's empty."
       ]
+    },
+    {
+      "id": "Route215_Text_EclipseCrates",
+      "en_US": [
+        "Soaked Eclipse crates, strapped\n",
+        "under a tarp and caked in mud.\r",
+        "Deep twin tire ruts run from here\n",
+        "east toward Veilstone's warehouse.\r",
+        "The trucks must haul crates in\n",
+        "at night, when no one is looking."
+      ]
+    },
+    {
+      "id": "Route215_Text_DrainageSign",
+      "en_US": [
+        "FLOOD NOTICE: Boardwalks are laid\n",
+        "over the path. Keep to the boards!\r",
+        "Heavy rain runoff is pouring\n",
+        "north from the Route 214 rift.\r",
+        "Beware of heavy trucks after dark."
+      ]
+    },
+    {
+      "id": "Route215_Text_EclipseStaging",
+      "en_US": [
+        "A Team Eclipse staging yard.\n",
+        "Crates sit on pallets in the mud.\r",
+        "A work lamp hums in the rain over\n",
+        "a tarp stamped with the Eclipse ring.\r",
+        "The crates are bound for Veilstone,\n",
+        "just past the gate."
+      ]
     }
   ]
 }
