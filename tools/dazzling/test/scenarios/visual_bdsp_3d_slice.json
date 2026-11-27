@@ -1,0 +1,172 @@
+{
+ "_note": "BDSP 3D assets vertical slice: Infernape (#392) vs Bibarel (#400) in Eterna Forest with SIM_FX_BDSP_MODELS=1 + HD HUD (idle, move select, attack, hit). Skips cleanly when extracted .glb assets are absent.",
+ "config": {
+  "ScreenLayout": "wide"
+ },
+ "env": {
+  "SIM_FX_BATTLEHUD": "1",
+  "SIM_FX_BDSP_BATTLE": "1",
+  "SIM_FX_BDSP_MODELS": "1",
+  "SIM_FX_BDSP_SIZING": "1",
+  "SIM_FX_HUDHD": "1",
+  "SIM_FX_WIDE": "1",
+  "SIM_RENDERER": "gpu"
+ },
+ "name": "visual_bdsp_3d_slice",
+ "requires_exists": [
+  "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav",
+  "~/dz-team/bdsp3d-assets/mons/pm0392_00.glb",
+  "~/dz-team/bdsp3d-assets/mons/pm0400_00.glb",
+  "~/dz-team/bdsp3d-assets/arenas/forest.glb"
+ ],
+ "start": {
+  "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+ },
+ "steps": [
+  {
+   "step": 900
+  },
+  {
+   "press_until": {
+    "app": "field"
+   },
+   "keys": "A",
+   "press_frames": 10,
+   "interval_frames": 300,
+   "timeout_frames": 7200
+  },
+  {
+   "step": 180
+  },
+  {
+   "warp": {
+    "map": "MAP_HEADER_ETERNA_FOREST",
+    "x": 20,
+    "z": 20,
+    "dir": "DIR_NORTH"
+   }
+  },
+  {
+   "step": 180
+  },
+  {
+   "start_battle": {
+    "spec": "../../../battle/specs/bdsp_infernape_vs_bibarel.json"
+   }
+  },
+  {
+   "timeout_frames": 7200,
+   "wait_until": {
+    "op": "eq",
+    "path": "battle.waiting",
+    "value": true
+   }
+  },
+  {
+   "step": 90
+  },
+  {
+   "screenshot": "bdsp_3d_idle",
+   "reference": "../references/visual_mac/visual_bdsp_3d_idle.bmp",
+   "tolerance": 0.0,
+   "optional_reference": true
+  },
+  {
+   "frames": 10,
+   "press": "DOWN"
+  },
+  {
+   "step": 30
+  },
+  {
+   "frames": 10,
+   "press": "A"
+  },
+  {
+   "step": 45
+  },
+  {
+   "screenshot": "bdsp_3d_moves",
+   "reference": "../references/visual_mac/visual_bdsp_3d_moves.bmp",
+   "tolerance": 0.0,
+   "optional_reference": true
+  },
+  {
+   "frames": 10,
+   "press": "DOWN"
+  },
+  {
+   "step": 15
+  },
+  {
+   "frames": 10,
+   "press": "DOWN"
+  },
+  {
+   "step": 15
+  },
+  {
+   "frames": 10,
+   "press": "DOWN"
+  },
+  {
+   "step": 15
+  },
+  {
+   "frames": 10,
+   "press": "A"
+  },
+  {
+   "step": 75
+  },
+  {
+   "screenshot": "bdsp_3d_attack",
+   "reference": "../references/visual_mac/visual_bdsp_3d_attack.bmp",
+   "tolerance": 0.0,
+   "optional_reference": true
+  },
+  {
+   "step": 90
+  },
+  {
+   "frames": 10,
+   "press": "A"
+  },
+  {
+   "step": 60
+  },
+  {
+   "screenshot": "bdsp_3d_hit",
+   "reference": "../references/visual_mac/visual_bdsp_3d_hit.bmp",
+   "tolerance": 0.0,
+   "optional_reference": true
+  },
+  {
+   "step": 120
+  },
+  {
+   "frames": 10,
+   "press": "A"
+  },
+  {
+   "step": 180
+  },
+  {
+   "timeout_frames": 3600,
+   "wait_until": {
+    "op": "eq",
+    "path": "battle.waiting",
+    "value": true
+   }
+  },
+  {
+   "step": 45
+  },
+  {
+   "screenshot": "bdsp_3d_after_turn",
+   "reference": "../references/visual_mac/visual_bdsp_3d_after_turn.bmp",
+   "tolerance": 0.0,
+   "optional_reference": true
+  }
+ ]
+}

@@ -185,6 +185,15 @@ void BattleStage_CritKick(int battler, BOOL critical);
 // The fainting sequence of a battler started
 void BattleStage_FaintKick(int battler);
 
+// BDSP 3D model animation state machine triggers (deterministic frame-stepped
+// in battle_stage.c; no-op when out of range).
+void BattleStage_NotifyBdspCry(int battler);
+void BattleStage_NotifyBdspAttack(int battler, u16 move);
+void BattleStage_NotifyBdspHit(int battler);
+void BattleStage_NotifyBdspHitEnd(int battler);
+void BattleStage_NotifyBdspFaint(int battler);
+BOOL BattleStage_IsBattler3DModel(BattleSystem *battleSys, int battler);
+
 // Move compatibility (chunk 5; docs/living_battle_stage/compat.md). The critic reads these
 // from RAM at sBattleStage+96; they are zeroed per battle with the rest of sBattleStage.
 typedef struct BattleStageCompatFields {

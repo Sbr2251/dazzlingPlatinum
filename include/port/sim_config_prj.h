@@ -38,6 +38,7 @@ typedef struct {
     BOOL battleSpriteSizingHeight; // BDSP per-species sprite height sizing; app default TRUE (height), headless FALSE unless SIM_FX_BDSP_SIZING=1
     BOOL followerEnabled; // Following Pokemon (HGSS): lead party Pokemon walks behind the player; app default TRUE, headless FALSE unless SIM_FX_FOLLOWER=1
     BOOL phenomenaEnabled; // BW2 Phenomena: rustling grass, dust clouds, rippling water, flying shadows; app default TRUE, headless FALSE unless SIM_FX_PHENOMENA=1
+    BOOL battleModels3d; // BDSP extracted 3D Pokemon models/arenas (BattleModels3D=auto|off); app default TRUE (auto), headless FALSE unless SIM_FX_BDSP_MODELS=1
 } SIM_Config_prj_type;
 
 // True when the game runs logic at 60 Hz AND time-based quantities must be

@@ -1109,6 +1109,7 @@ void BattleDisplay_InitTaskFlickerBattler(BattleSystem *battleSys, BattlerData *
     flickerBattlerData->battler = battlerData->battler;
     flickerBattlerData->delay = 0;
 
+    BattleStage_NotifyBdspHit(battlerData->battler);
     SysTask_Start(Task_FlickerBattler, flickerBattlerData, 0);
 }
 
@@ -1211,6 +1212,7 @@ void BattleDisplay_InitTaskPlayFaintingSequence(BattleSystem *battleSys, Battler
         faintingSequenceData->moveAnim.personalities[i] = message->monPersonalities[i];
     }
 
+    BattleStage_NotifyBdspFaint(battlerData->battler);
     SysTask_Start(Task_PlayFaintingSequence, faintingSequenceData, 0);
 }
 
@@ -5273,6 +5275,7 @@ static void Task_FlickerBattler(SysTask *task, void *data)
     } else {
         hide = FALSE;
         PokemonSprite_SetAttribute(flickerBattlerData->monSprite, MON_SPRITE_HIDE, hide);
+        BattleStage_NotifyBdspHitEnd(flickerBattlerData->battler);
         BattleController_EmitClearCommand(flickerBattlerData->battleSys, flickerBattlerData->battler, BATTLE_COMMAND_FLICKER_BATTLER);
         Heap_Free(data);
         SysTask_Done(task);
@@ -7232,6 +7235,7 @@ static void BattleDisplay_PlayMoveAnimation(BattleSystem *battleSys, BattlerData
     // fx_particles hook: signature-move tuning for this move's particles.
     if (animation->animMode == 0) {
         FxParticles_SetMove(animation->move);
+        BattleStage_NotifyBdspAttack(animation->attacker, animation->move);
     }
 
     if (animation->animMode == 0) {

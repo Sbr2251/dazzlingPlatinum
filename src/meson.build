@@ -568,6 +568,8 @@ pokeplatinum_c = files(
     'battle/mega_evolution.c',
     'battle/totem_aura.c',
     'battle/battle_stage.c',
+    'battle/battle_bdsp_cam.c',
+    'battle/battle_bdsp_trainer.c',
     'battle/battle_textbox.c',
     'battle/battle_stage_sprites.c',
     'battle/battle_stage_stream.c',

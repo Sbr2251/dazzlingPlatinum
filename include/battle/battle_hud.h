@@ -50,6 +50,14 @@ void BattleHud_Hide(BattleSubscreen *btlSubscreen);
 // Call when a menu input is confirmed: panel hides, healthboxes return.
 void BattleHud_HideOnConfirm(BattleSubscreen *btlSubscreen);
 
+// Handle BDSP overlay keys (Y toggles move detail / battle status card, B
+// closes an open card) in HD HUD mode. Returns TRUE when consumed.
+BOOL BattleHud_HandleOverlayKeys(BattleSubscreen *btlSubscreen);
+
+// TRUE when the last button index returned by BattleHud_Update came from a
+// keyboard/gamepad shortcut (e.g. X Quick Ball) rather than touch.
+BOOL BattleHud_LastConfirmWasKey(void);
+
 // Main-screen click hit test (DS coords): returns the touch-array
 // button index for a click at (x, y), or -1. Clicks are routed by the
 // simulator only while the HUD has opted in (SIM_Layout main touch).

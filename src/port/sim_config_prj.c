@@ -106,6 +106,9 @@ static int IniHandler(void* user, const char* section, const char* name,
     if(MATCH("General", "PhenomenaEnabled")) {
         config->phenomenaEnabled = StringToBool(value);
     }
+    if(MATCH("General", "BattleModels3D")) {
+        config->battleModels3d = (strcmp(value, "off") != 0 && strcmp(value, "OFF") != 0 && strcmp(value, "false") != 0 && strcmp(value, "0") != 0) ? TRUE : FALSE;
+    }
     if(MATCH("General", "DebugWideCamera")) {
         config->debugWideCamera = StringToBool(value);
     }
@@ -167,6 +170,7 @@ void SIM_Config_prj_LoadDefaults(SIM_Config_prj_type * aConfig)
   aConfig->battleSpriteSizingHeight = TRUE;
   aConfig->followerEnabled = TRUE;
   aConfig->phenomenaEnabled = TRUE;
+  aConfig->battleModels3d = TRUE;
 
   // Cheats section
   aConfig->walkThroughWalls = FALSE;
@@ -209,6 +213,7 @@ void SIM_Config_prj_SaveConfigFile(SIM_Config_prj_type * aConfig)
     fprintf(configFile, "BattleSpriteSizing=%s\n", aConfig->battleSpriteSizingHeight ? "height" : "classic");
     fprintf(configFile, "FollowerEnabled=%s\n", BoolToString(aConfig->followerEnabled));
     fprintf(configFile, "PhenomenaEnabled=%s\n", BoolToString(aConfig->phenomenaEnabled));
+    fprintf(configFile, "BattleModels3D=%s\n", aConfig->battleModels3d ? "auto" : "off");
     fprintf(configFile, "\n");
 
     fprintf(configFile, "[Cheats]\n");

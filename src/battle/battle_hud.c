@@ -29,10 +29,12 @@
 #include <simulator/sim_headless.h>
 #endif
 
+#include "constants/battle/battle_script.h"
 #include "constants/battle/condition.h"
 #include "constants/battle/moves.h"
 #include "constants/charcode.h"
 #include "constants/graphics.h"
+#include "constants/items.h"
 #include "generated/pokemon_types.h"
 
 #include "battle/battle_context.h"
@@ -45,6 +47,7 @@
 #include "port/sim_hud_hd.h"
 #include "port/sim_wide.h"
 
+#include "bag.h"
 #include "bg_window.h"
 #include "message.h"
 #include "message_util.h"
@@ -53,6 +56,7 @@
 #include "party.h"
 #include "pokemon.h"
 #include "render_window.h"
+#include "sound_playback.h"
 #include "string_gf.h"
 #include "string_template.h"
 #include "system.h"
@@ -173,6 +177,13 @@ typedef struct BattleHudState {
     BattleSubscreen *activeSubscreen;
     u32 lastDumpHash;
     BOOL hasDumped;
+    int infoCardMode; // 0 = closed, 1 = move detail, 2 = battle status
+    int infoCardMenu; // activeMenuConfigIndex when infoCardMode opened
+    BOOL lastConfirmWasKey;
+    u16 cachedMoveInfoId;
+    char cachedMoveName[SIM_HUDHD_NAME_LEN];
+    char cachedMoveTypeName[24];
+    char cachedMoveDesc[160];
 } BattleHudState;
 
 static BattleHudState sHud;
@@ -400,6 +411,9 @@ static void HudHideInternal(BattleSubscreen *btlSubscreen)
 void BattleHud_Hide(BattleSubscreen *btlSubscreen)
 {
     sHud.activeSubscreen = NULL;
+    sHud.infoCardMode = 0;
+    sHud.infoCardMenu = -1;
+    sHud.lastConfirmWasKey = FALSE;
     HudHideInternal(btlSubscreen);
     SIM_Wide_SetMainTouchEnabled(0);
     if (BattleHud_IsEnabled()) {
@@ -414,6 +428,9 @@ void BattleHud_Hide(BattleSubscreen *btlSubscreen)
 void BattleHud_HideOnConfirm(BattleSubscreen *btlSubscreen)
 {
     sHud.activeSubscreen = NULL;
+    sHud.infoCardMode = 0;
+    sHud.infoCardMenu = -1;
+    sHud.lastConfirmWasKey = FALSE;
     HudHideInternal(btlSubscreen);
     SIM_Wide_SetMainTouchEnabled(0);
 }
@@ -1863,17 +1880,27 @@ static void HudStringToUtf8(const String *str, char *out, int outSize)
         return;
     }
 
-    for (i = 0; i < 64 && pos < outSize - 1; i++) {
+    for (i = 0; i < 512 && pos < outSize - 1; i++) {
         charcode_t c = data[i];
         if (c == CHAR_EOS) {
             break;
         }
-        if (c == 0xFFFE) {
+        if (c == CHAR_FORMAT_ARG) {
             // Skip format control sequence (tag, id, argc, args...)
-            if (i + 2 < 64) {
+            if (i + 2 < 512) {
                 u16 argc = data[i + 2];
                 i += 2 + argc;
             }
+            continue;
+        }
+        if (c == CHAR_CR || c == CHAR_CONTROL_CLEAR || c == CHAR_CONTROL_SCROLL) {
+            if (pos > 0 && out[pos - 1] != ' ') {
+                out[pos++] = ' ';
+            }
+            continue;
+        }
+        if (c == CHAR_CONTROL_SET_COLOR || c == CHAR_CONTROL_SET_SIZE || c == CHAR_CONTROL_MOVE) {
+            i++;
             continue;
         }
         if (c >= CHAR_0 && c <= CHAR_9) {
@@ -1882,8 +1909,11 @@ static void HudStringToUtf8(const String *str, char *out, int outSize)
             out[pos++] = (char)('A' + (c - CHAR_A));
         } else if (c >= CHAR_a && c <= CHAR_z) {
             out[pos++] = (char)('a' + (c - CHAR_a));
-        } else if (c == CHAR_SPACE || c == CHAR_WIDE_SPACE) {
-            out[pos++] = ' ';
+        } else if (c == CHAR_SPACE || c == CHAR_WIDE_SPACE || c == CHAR_NUM_SPACE
+            || (c >= CHAR_SPACE_1px && c <= CHAR_SPACE_16px)) {
+            if (pos == 0 || out[pos - 1] != ' ') {
+                out[pos++] = ' ';
+            }
         } else if (c == CHAR_EXCLAMATION) {
             out[pos++] = '!';
         } else if (c == CHAR_QUESTION) {
@@ -1900,6 +1930,8 @@ static void HudStringToUtf8(const String *str, char *out, int outSize)
             out[pos++] = '-';
         } else if (c == CHAR_COLON) {
             out[pos++] = ':';
+        } else if (c == CHAR_SEMICOLON) {
+            out[pos++] = ';';
         } else if (c == CHAR_SLASH) {
             out[pos++] = '/';
         } else if (c == CHAR_PAREN_OPEN) {
@@ -1908,8 +1940,22 @@ static void HudStringToUtf8(const String *str, char *out, int outSize)
             out[pos++] = ')';
         } else if (c == CHAR_PLUS) {
             out[pos++] = '+';
-        } else if (c == CHAR_STAR) {
+        } else if (c == CHAR_STAR || c == CHAR_ASTERISK) {
             out[pos++] = '*';
+        } else if (c == CHAR_PERCENT) {
+            out[pos++] = '%';
+        } else if (c == CHAR_AMPERSAND) {
+            out[pos++] = '&';
+        } else if (c == CHAR_TILDE) {
+            out[pos++] = '~';
+        } else if (c == CHAR_HASH) {
+            out[pos++] = '#';
+        } else if (c == CHAR_EQUALS) {
+            out[pos++] = '=';
+        } else if (c == CHAR_AT_SIGN) {
+            out[pos++] = '@';
+        } else if (c == CHAR_UNDERSCORE || c == CHAR_WIDE_UNDERSCORE) {
+            out[pos++] = '_';
         } else if (c == CHAR_ELLIPSIS) {
             if (pos + 3 < outSize) {
                 out[pos++] = '.';
@@ -1928,7 +1974,7 @@ static void HudStringToUtf8(const String *str, char *out, int outSize)
                 out[pos++] = (char)0x99;
                 out[pos++] = (char)0x80;
             }
-        } else if (c == CHAR_e_ACUTE) {
+        } else if (c == CHAR_e_ACUTE || c == CHAR_e_SUPERSCRIPT) {
             if (pos + 2 < outSize) {
                 out[pos++] = (char)0xC3;
                 out[pos++] = (char)0xA9;
@@ -1936,6 +1982,9 @@ static void HudStringToUtf8(const String *str, char *out, int outSize)
         } else {
             out[pos++] = '?';
         }
+    }
+    while (pos > 0 && out[pos - 1] == ' ') {
+        pos--;
     }
     out[pos] = '\0';
 }
@@ -1984,6 +2033,535 @@ static int HdHudEffectiveness(BattleSystem *battleSys, BattleSubscreen *btlSubsc
     return SIM_HUDHD_EFF_NORMAL;
 }
 
+static int HdHudBallPriority(u16 item)
+{
+    switch (item) {
+    case ITEM_ULTRA_BALL:
+        return 50;
+    case ITEM_QUICK_BALL:
+    case ITEM_DUSK_BALL:
+    case ITEM_TIMER_BALL:
+    case ITEM_REPEAT_BALL:
+    case ITEM_NET_BALL:
+    case ITEM_DIVE_BALL:
+    case ITEM_NEST_BALL:
+    case ITEM_HEAL_BALL:
+    case ITEM_LUXURY_BALL:
+    case ITEM_PREMIER_BALL:
+    case ITEM_CHERISH_BALL:
+        return 40;
+    case ITEM_GREAT_BALL:
+        return 30;
+    case ITEM_POKE_BALL:
+        return 20;
+    case ITEM_MASTER_BALL:
+        return 10; // only pick Master Ball automatically if no other balls exist
+    default:
+        return 15;
+    }
+}
+
+static void HdHudQuickBallInfo(BattleSystem *battleSys, u16 *outItem, int *outCount)
+{
+    Bag *bag;
+    BagCursor *bagCursor;
+    u16 bestItem = ITEM_NONE;
+    int bestQty = 0;
+    int bestPrio = -1;
+    u16 slot;
+
+    if (outItem != NULL) {
+        *outItem = ITEM_NONE;
+    }
+    if (outCount != NULL) {
+        *outCount = 0;
+    }
+    if (battleSys == NULL) {
+        return;
+    }
+
+    bag = BattleSystem_GetBag(battleSys);
+    if (bag == NULL) {
+        return;
+    }
+
+    // Prefer the last-used Poké Ball from this battle if any remain in Bag.
+    bagCursor = BattleSystem_GetBagCursor(battleSys);
+    if (bagCursor != NULL) {
+        u16 lastItem = BagCursor_GetLastUsedBattleItem(bagCursor);
+        u16 lastCat = BagCursor_GetLastUsedBattleItemCategory(bagCursor);
+        if (lastItem != ITEM_NONE && lastCat == ITEM_BATTLE_CATEGORY_POKE_BALLS) {
+            for (slot = 0; slot < POKEBALL_POCKET_SIZE; slot++) {
+                BagItem *bi = Bag_GetItemSlot(bag, POCKET_BALLS, slot);
+                if (bi != NULL && bi->item == lastItem && bi->quantity > 0) {
+                    if (outItem != NULL) {
+                        *outItem = bi->item;
+                    }
+                    if (outCount != NULL) {
+                        *outCount = (int)bi->quantity;
+                    }
+                    return;
+                }
+            }
+        }
+    }
+
+    // Otherwise pick the best available Poké Ball in the Balls pocket.
+    for (slot = 0; slot < POKEBALL_POCKET_SIZE; slot++) {
+        BagItem *bi = Bag_GetItemSlot(bag, POCKET_BALLS, slot);
+        if (bi == NULL || bi->item == ITEM_NONE || bi->quantity == 0) {
+            continue;
+        }
+        {
+            int prio = HdHudBallPriority(bi->item);
+            if (prio > bestPrio) {
+                bestPrio = prio;
+                bestItem = bi->item;
+                bestQty = (int)bi->quantity;
+            }
+        }
+    }
+
+    if (outItem != NULL) {
+        *outItem = bestItem;
+    }
+    if (outCount != NULL) {
+        *outCount = bestQty;
+    }
+}
+
+static void HdHudPrepareQuickBallBag(BattleSubscreen *btlSubscreen)
+{
+    BagCursor *bagCursor;
+
+    sHud.infoCardMode = 0;
+    sHud.infoCardMenu = -1;
+    if (btlSubscreen == NULL || btlSubscreen->battleSys == NULL) {
+        return;
+    }
+    bagCursor = BattleSystem_GetBagCursor(btlSubscreen->battleSys);
+    if (bagCursor != NULL) {
+        // Pre-focus the Poké Balls pocket in Battle Bag without altering Bag
+        // inventory or overwriting lastUsedItem.
+        BagCursor_SetBattleCurrentCategory(bagCursor, ITEM_BATTLE_CATEGORY_POKE_BALLS);
+    }
+}
+
+static void HdHudTitleCaseAscii(char *s)
+{
+    BOOL startWord = TRUE;
+    int i;
+
+    if (s == NULL) {
+        return;
+    }
+    for (i = 0; s[i] != '\0'; i++) {
+        char c = s[i];
+        if (c >= 'A' && c <= 'Z') {
+            if (!startWord) {
+                s[i] = (char)(c - 'A' + 'a');
+            }
+            startWord = FALSE;
+        } else if (c >= 'a' && c <= 'z') {
+            if (startWord) {
+                s[i] = (char)(c - 'a' + 'A');
+            }
+            startWord = FALSE;
+        } else {
+            startWord = (c == ' ' || c == '-');
+        }
+    }
+}
+
+static void HdHudLoadMoveInfoCached(u16 moveID)
+{
+    if (moveID == 0 || moveID == sHud.cachedMoveInfoId) {
+        return;
+    }
+    {
+        int moveType = (int)MoveTable_LoadParam(moveID, MOVEATTRIBUTE_TYPE);
+        String *nameStr = MessageUtil_MoveName(moveID, HEAP_ID_BATTLE);
+        MessageLoader *typeLoader = MessageLoader_Init(MSG_LOADER_LOAD_ON_DEMAND,
+            NARC_INDEX_MSGDATA__PL_MSG, TEXT_BANK_POKEMON_TYPE_NAMES, HEAP_ID_BATTLE);
+        String *typeStr = MessageLoader_GetNewString(typeLoader, (u32)moveType);
+        MessageLoader *descLoader = MessageLoader_Init(MSG_LOADER_LOAD_ON_DEMAND,
+            NARC_INDEX_MSGDATA__PL_MSG, TEXT_BANK_MOVE_DESCRIPTIONS, HEAP_ID_BATTLE);
+        String *descStr = MessageLoader_GetNewString(descLoader, (u32)moveID);
+
+        HudStringToUtf8(nameStr, sHud.cachedMoveName, sizeof(sHud.cachedMoveName));
+        HudStringToUtf8(typeStr, sHud.cachedMoveTypeName, sizeof(sHud.cachedMoveTypeName));
+        HdHudTitleCaseAscii(sHud.cachedMoveTypeName);
+        HudStringToUtf8(descStr, sHud.cachedMoveDesc, sizeof(sHud.cachedMoveDesc));
+
+        String_Free(nameStr);
+        String_Free(typeStr);
+        String_Free(descStr);
+        MessageLoader_Free(typeLoader);
+        MessageLoader_Free(descLoader);
+        sHud.cachedMoveInfoId = moveID;
+    }
+}
+
+static void HdHudFillMoveInfoCard(BattleSubscreen *btlSubscreen, SIM_HudHD_InfoCard *card)
+{
+    MoveSelectData *moveData;
+    int cx, cy, slot, i;
+    u16 moveID;
+    u32 moveClass;
+    int power, accuracy;
+    const char *catLabel;
+    char powBuf[8];
+    char accBuf[8];
+
+    if (btlSubscreen == NULL || card == NULL) {
+        return;
+    }
+    moveData = &btlSubscreen->activeMenuData.moveData;
+    cx = btlSubscreen->cursor.x;
+    cy = btlSubscreen->cursor.y;
+
+    if (cy >= 0 && cy < 2 && cx >= 0 && cx < 2) {
+        int focusIdx = cy * 2 + cx;
+        if (moveData->moveIDs[focusIdx] != 0) {
+            sHud.lastMoveSlot = focusIdx;
+        }
+    }
+    slot = sHud.lastMoveSlot;
+    if (slot < 0 || slot >= 4 || moveData->moveIDs[slot] == 0) {
+        slot = -1;
+        for (i = 0; i < 4; i++) {
+            if (moveData->moveIDs[i] != 0) {
+                slot = i;
+                break;
+            }
+        }
+    }
+    if (slot < 0) {
+        return;
+    }
+    sHud.lastMoveSlot = slot;
+    moveID = moveData->moveIDs[slot];
+
+    HdHudLoadMoveInfoCached(moveID);
+
+    moveClass = MoveTable_LoadParam(moveID, MOVEATTRIBUTE_CLASS);
+    power = (int)MoveTable_LoadParam(moveID, MOVEATTRIBUTE_POWER);
+    accuracy = (int)MoveTable_LoadParam(moveID, MOVEATTRIBUTE_ACCURACY);
+
+    card->visible = 1;
+    card->kind = 1;
+    card->rect = (SIM_HudHD_Rect){ 8.0f, 28.0f, 162.0f, 84.0f };
+    card->type = (int)MoveTable_LoadParam(moveID, MOVEATTRIBUTE_TYPE);
+    if (moveClass == CLASS_PHYSICAL) {
+        card->category = SIM_HUDHD_CAT_PHYSICAL;
+        catLabel = "Physical";
+    } else if (moveClass == CLASS_SPECIAL) {
+        card->category = SIM_HUDHD_CAT_SPECIAL;
+        catLabel = "Special";
+    } else {
+        card->category = SIM_HUDHD_CAT_STATUS;
+        catLabel = "Status";
+    }
+
+    if (power > 0) {
+        snprintf(powBuf, sizeof(powBuf), "%d", power);
+    } else {
+        snprintf(powBuf, sizeof(powBuf), "--");
+    }
+    if (accuracy > 0) {
+        snprintf(accBuf, sizeof(accBuf), "%d", accuracy);
+    } else {
+        snprintf(accBuf, sizeof(accBuf), "--");
+    }
+
+    snprintf(card->title, sizeof(card->title), "%s", sHud.cachedMoveName);
+    snprintf(card->line1, sizeof(card->line1), "Power: %s   Accuracy: %s", powBuf, accBuf);
+    snprintf(card->line2, sizeof(card->line2), "%s  |  %s", catLabel, sHud.cachedMoveTypeName);
+    snprintf(card->desc, sizeof(card->desc), "%s", sHud.cachedMoveDesc);
+}
+
+static void HdHudAppendText(char *dst, int dstSize, const char *sep, const char *text)
+{
+    int len;
+
+    if (dst == NULL || dstSize <= 1 || text == NULL || text[0] == '\0') {
+        return;
+    }
+    len = (int)strlen(dst);
+    if (len >= dstSize - 1) {
+        return;
+    }
+    if (len > 0 && sep != NULL && sep[0] != '\0') {
+        snprintf(dst + len, (size_t)(dstSize - len), "%s%s", sep, text);
+    } else {
+        snprintf(dst + len, (size_t)(dstSize - len), "%s", text);
+    }
+}
+
+static void HdHudAppendBattlerStats(BattleSystem *battleSys, BattleContext *ctx, int battler,
+    char *dst, int dstSize)
+{
+    static const char *const sStatNames[NUM_BOOSTABLE_STATS] = {
+        "HP", "Atk", "Def", "Spe", "SpA", "SpD", "Acc", "Eva"
+    };
+    const BattleMon *bmon;
+    Pokemon *partyMon;
+    char nameBuf[SIM_HUDHD_NAME_LEN];
+    char entryBuf[96];
+    BOOL anyBoost = FALSE;
+    int s;
+
+    if (ctx == NULL || battler < 0 || battler >= MAX_BATTLERS) {
+        return;
+    }
+    bmon = &ctx->battleMons[battler];
+    if (bmon->species == 0 || bmon->curHP <= 0) {
+        return;
+    }
+
+    nameBuf[0] = '\0';
+    partyMon = BattleSystem_GetPartyPokemon(battleSys, battler, ctx->selectedPartySlot[battler]);
+    if (partyMon != NULL) {
+        String *nick = String_Init(MON_NAME_LEN + 4, HEAP_ID_BATTLE);
+        Pokemon_GetValue(partyMon, MON_DATA_NICKNAME_STRING, nick);
+        HudStringToUtf8(nick, nameBuf, sizeof(nameBuf));
+        String_Free(nick);
+    }
+    if (nameBuf[0] == '\0') {
+        snprintf(nameBuf, sizeof(nameBuf), (battler % 2 == 0) ? "Ally" : "Foe");
+    }
+
+    snprintf(entryBuf, sizeof(entryBuf), "%s: ", nameBuf);
+    for (s = BATTLE_STAT_ATTACK; s < NUM_BOOSTABLE_STATS; s++) {
+        int delta = (int)bmon->statBoosts[s] - DEFAULT_STAT_STAGE;
+        if (delta != 0) {
+            char part[16];
+            snprintf(part, sizeof(part), "%s %+d", sStatNames[s], delta);
+            HdHudAppendText(entryBuf, (int)sizeof(entryBuf), anyBoost ? ", " : "", part);
+            anyBoost = TRUE;
+        }
+    }
+    if (!anyBoost) {
+        HdHudAppendText(entryBuf, (int)sizeof(entryBuf), "", "No stat changes");
+    }
+
+    HdHudAppendText(dst, dstSize, "  |  ", entryBuf);
+}
+
+static void HdHudAppendSideEffects(const BattleContext *ctx, int side, const char *sideLabel,
+    char *dst, int dstSize)
+{
+    u32 mask;
+    const SideConditions *sc;
+    char sideBuf[96];
+    BOOL any = FALSE;
+
+    if (ctx == NULL || side < 0 || side >= NUM_BATTLE_SIDES) {
+        return;
+    }
+    mask = ctx->sideConditionsMask[side];
+    sc = &ctx->sideConditions[side];
+    sideBuf[0] = '\0';
+
+    if (mask & SIDE_CONDITION_REFLECT) {
+        char tmp[24];
+        snprintf(tmp, sizeof(tmp), "Reflect (%u)", (unsigned)sc->reflectTurns);
+        HdHudAppendText(sideBuf, (int)sizeof(sideBuf), any ? ", " : "", tmp);
+        any = TRUE;
+    }
+    if (mask & SIDE_CONDITION_LIGHT_SCREEN) {
+        char tmp[28];
+        snprintf(tmp, sizeof(tmp), "Light Screen (%u)", (unsigned)sc->lightScreenTurns);
+        HdHudAppendText(sideBuf, (int)sizeof(sideBuf), any ? ", " : "", tmp);
+        any = TRUE;
+    }
+    if (mask & SIDE_CONDITION_TAILWIND) {
+        HdHudAppendText(sideBuf, (int)sizeof(sideBuf), any ? ", " : "", "Tailwind");
+        any = TRUE;
+    }
+    if (mask & SIDE_CONDITION_SAFEGUARD) {
+        HdHudAppendText(sideBuf, (int)sizeof(sideBuf), any ? ", " : "", "Safeguard");
+        any = TRUE;
+    }
+    if (mask & SIDE_CONDITION_MIST) {
+        HdHudAppendText(sideBuf, (int)sizeof(sideBuf), any ? ", " : "", "Mist");
+        any = TRUE;
+    }
+    if (mask & SIDE_CONDITION_STEALTH_ROCK) {
+        HdHudAppendText(sideBuf, (int)sizeof(sideBuf), any ? ", " : "", "Stealth Rock");
+        any = TRUE;
+    }
+    if (mask & SIDE_CONDITION_SPIKES) {
+        char tmp[20];
+        snprintf(tmp, sizeof(tmp), "Spikes x%u", (unsigned)sc->spikesLayers);
+        HdHudAppendText(sideBuf, (int)sizeof(sideBuf), any ? ", " : "", tmp);
+        any = TRUE;
+    }
+    if (mask & SIDE_CONDITION_TOXIC_SPIKES) {
+        char tmp[24];
+        snprintf(tmp, sizeof(tmp), "Toxic Spikes x%u", (unsigned)sc->toxicSpikesLayers);
+        HdHudAppendText(sideBuf, (int)sizeof(sideBuf), any ? ", " : "", tmp);
+        any = TRUE;
+    }
+
+    if (any) {
+        char labeled[112];
+        snprintf(labeled, sizeof(labeled), "%s: %s", sideLabel, sideBuf);
+        HdHudAppendText(dst, dstSize, "  |  ", labeled);
+    }
+}
+
+static void HdHudFillBattleStatusCard(BattleSystem *battleSys, SIM_HudHD_InfoCard *card)
+{
+    BattleContext *ctx;
+    u32 fieldMask;
+    int maxBattlers, i;
+
+    if (battleSys == NULL || card == NULL) {
+        return;
+    }
+    ctx = BattleSystem_GetBattleContext(battleSys);
+    if (ctx == NULL) {
+        return;
+    }
+
+    card->visible = 1;
+    card->kind = 2;
+    card->rect = (SIM_HudHD_Rect){ 8.0f, 28.0f, 220.0f, 84.0f };
+    card->type = 0;
+    card->category = 0;
+    snprintf(card->title, sizeof(card->title), "Battle Status");
+
+    // Line 1: Weather & active field conditions.
+    fieldMask = ctx->fieldConditionsMask;
+    card->line1[0] = '\0';
+    if (fieldMask & FIELD_CONDITION_RAINING) {
+        if ((fieldMask & FIELD_CONDITION_RAINING_TEMP) && ctx->fieldConditions.weatherTurns > 0) {
+            snprintf(card->line1, sizeof(card->line1), "Weather: Rain (%u)", (unsigned)ctx->fieldConditions.weatherTurns);
+        } else {
+            snprintf(card->line1, sizeof(card->line1), "Weather: Rain");
+        }
+    } else if (fieldMask & FIELD_CONDITION_SUNNY) {
+        if ((fieldMask & FIELD_CONDITION_SUNNY_TEMP) && ctx->fieldConditions.weatherTurns > 0) {
+            snprintf(card->line1, sizeof(card->line1), "Weather: Harsh Sun (%u)", (unsigned)ctx->fieldConditions.weatherTurns);
+        } else {
+            snprintf(card->line1, sizeof(card->line1), "Weather: Harsh Sun");
+        }
+    } else if (fieldMask & FIELD_CONDITION_SANDSTORM) {
+        if ((fieldMask & FIELD_CONDITION_SANDSTORM_TEMP) && ctx->fieldConditions.weatherTurns > 0) {
+            snprintf(card->line1, sizeof(card->line1), "Weather: Sandstorm (%u)", (unsigned)ctx->fieldConditions.weatherTurns);
+        } else {
+            snprintf(card->line1, sizeof(card->line1), "Weather: Sandstorm");
+        }
+    } else if (fieldMask & FIELD_CONDITION_HAILING) {
+        if ((fieldMask & FIELD_CONDITION_HAILING_TEMP) && ctx->fieldConditions.weatherTurns > 0) {
+            snprintf(card->line1, sizeof(card->line1), "Weather: Hail (%u)", (unsigned)ctx->fieldConditions.weatherTurns);
+        } else {
+            snprintf(card->line1, sizeof(card->line1), "Weather: Hail");
+        }
+    } else if (fieldMask & FIELD_CONDITION_DEEP_FOG) {
+        snprintf(card->line1, sizeof(card->line1), "Weather: Fog");
+    } else {
+        snprintf(card->line1, sizeof(card->line1), "Weather: Clear");
+    }
+
+    if (fieldMask & FIELD_CONDITION_TRICK_ROOM) {
+        unsigned trTurns = (unsigned)((fieldMask & FIELD_CONDITION_TRICK_ROOM) >> FIELD_CONDITION_TRICK_ROOM_SHIFT);
+        char trBuf[24];
+        snprintf(trBuf, sizeof(trBuf), "Trick Room (%u)", trTurns);
+        HdHudAppendText(card->line1, (int)sizeof(card->line1), "  |  ", trBuf);
+    }
+    if (fieldMask & FIELD_CONDITION_GRAVITY) {
+        unsigned grTurns = (unsigned)((fieldMask & FIELD_CONDITION_GRAVITY) >> FIELD_CONDITION_GRAVITY_SHIFT);
+        char grBuf[24];
+        snprintf(grBuf, sizeof(grBuf), "Gravity (%u)", grTurns);
+        HdHudAppendText(card->line1, (int)sizeof(card->line1), "  |  ", grBuf);
+    }
+
+    // Line 2: Player active battler(s) stat stage modifiers.
+    // Desc: Enemy active battler(s) stat stage modifiers + side conditions.
+    card->line2[0] = '\0';
+    card->desc[0] = '\0';
+    maxBattlers = BattleSystem_GetMaxBattlers(battleSys);
+    if (maxBattlers > MAX_BATTLERS) {
+        maxBattlers = MAX_BATTLERS;
+    }
+    for (i = 0; i < maxBattlers; i++) {
+        if (i % 2 == 0) {
+            HdHudAppendBattlerStats(battleSys, ctx, i, card->line2, (int)sizeof(card->line2));
+        } else {
+            HdHudAppendBattlerStats(battleSys, ctx, i, card->desc, (int)sizeof(card->desc));
+        }
+    }
+    HdHudAppendSideEffects(ctx, BATTLE_SIDE_PLAYER, "Your side", card->desc, (int)sizeof(card->desc));
+    HdHudAppendSideEffects(ctx, BATTLE_SIDE_ENEMY, "Foe side", card->desc, (int)sizeof(card->desc));
+    if (card->line2[0] == '\0') {
+        snprintf(card->line2, sizeof(card->line2), "No active stat changes");
+    }
+    if (card->desc[0] == '\0') {
+        snprintf(card->desc, sizeof(card->desc), "Field normal");
+    }
+}
+
+BOOL BattleHud_HandleOverlayKeys(BattleSubscreen *btlSubscreen)
+{
+    int menu;
+
+    if (!BattleHud_IsHdMode() || btlSubscreen == NULL || btlSubscreen->isPanelSliding) {
+        return FALSE;
+    }
+    menu = btlSubscreen->activeMenuConfigIndex;
+    if (menu == HUD_MENU_IDLE || menu < 0) {
+        sHud.infoCardMode = 0;
+        sHud.infoCardMenu = -1;
+        return FALSE;
+    }
+    if (sHud.infoCardMode != 0 && menu != sHud.infoCardMenu) {
+        sHud.infoCardMode = 0;
+        sHud.infoCardMenu = -1;
+    }
+
+    if (menu == HUD_MENU_MOVE) {
+        if (gSystem.pressedKeys & PAD_BUTTON_Y) {
+            sHud.infoCardMode = (sHud.infoCardMode == 1) ? 0 : 1;
+            sHud.infoCardMenu = menu;
+            Sound_PlayEffect(SE_CONFIRM_sseq_3);
+            return TRUE;
+        }
+        if (sHud.infoCardMode != 0 && (gSystem.pressedKeys & PAD_BUTTON_B)) {
+            sHud.infoCardMode = 0;
+            sHud.infoCardMenu = -1;
+            Sound_PlayEffect(SE_CONFIRM_sseq_3);
+            return TRUE;
+        }
+    } else if (menu >= 1 && menu <= 10) {
+        if (gSystem.pressedKeys & PAD_BUTTON_Y) {
+            sHud.infoCardMode = (sHud.infoCardMode == 2) ? 0 : 2;
+            sHud.infoCardMenu = menu;
+            Sound_PlayEffect(SE_CONFIRM_sseq_3);
+            return TRUE;
+        }
+        if (sHud.infoCardMode != 0 && (gSystem.pressedKeys & PAD_BUTTON_B)) {
+            sHud.infoCardMode = 0;
+            sHud.infoCardMenu = -1;
+            Sound_PlayEffect(SE_CONFIRM_sseq_3);
+            return TRUE;
+        }
+    } else if (sHud.infoCardMode != 0 && (gSystem.pressedKeys & (PAD_BUTTON_Y | PAD_BUTTON_B))) {
+        sHud.infoCardMode = 0;
+        sHud.infoCardMenu = -1;
+        Sound_PlayEffect(SE_CONFIRM_sseq_3);
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+BOOL BattleHud_LastConfirmWasKey(void)
+{
+    return sHud.lastConfirmWasKey;
+}
+
 static void HdHudPopulateButtonsAndMoves(BattleSubscreen *btlSubscreen, SIM_HudHD_Frame *frame,
     int *btnTouchIdx, int *moveTouchIdx)
 {
@@ -2007,6 +2585,8 @@ static void HdHudPopulateButtonsAndMoves(BattleSubscreen *btlSubscreen, SIM_HudH
     if (menu == HUD_MENU_IDLE || menu < 0) {
         return;
     }
+
+    frame->showKeyHints = SIM_Battle3D_ModelsEnabled() ? 1 : 0;
 
     if (menu >= 13 && menu <= 17) {
         String *yesStr = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_Yes);
@@ -2105,6 +2685,9 @@ static void HdHudPopulateButtonsAndMoves(BattleSubscreen *btlSubscreen, SIM_HudH
             frame->numButtons++;
             (void)cancelStr;
         }
+        if (sHud.infoCardMode == 1 && sHud.infoCardMenu == menu) {
+            HdHudFillMoveInfoCard(btlSubscreen, &frame->infoCard);
+        }
         return;
     }
 
@@ -2178,6 +2761,9 @@ static void HdHudPopulateButtonsAndMoves(BattleSubscreen *btlSubscreen, SIM_HudH
             b->enabled = 1;
             btnTouchIdx[0] = 0;
             frame->numButtons = 1;
+            if (sHud.infoCardMode == 2 && sHud.infoCardMenu == menu) {
+                HdHudFillBattleStatusCard(battleSys, &frame->infoCard);
+            }
             return;
         }
 
@@ -2202,17 +2788,25 @@ static void HdHudPopulateButtonsAndMoves(BattleSubscreen *btlSubscreen, SIM_HudH
             btnTouchIdx[1] = 1;
 
             frame->numButtons = 2;
+            if (sHud.infoCardMode == 2 && sHud.infoCardMenu == menu) {
+                HdHudFillBattleStatusCard(battleSys, &frame->infoCard);
+            }
             return;
         }
 
         if (BdspHudHasWildQuickBall(btlSubscreen, menu)) {
+            u16 qbItem = ITEM_NONE;
+            int qbCount = 0;
             SIM_HudHD_Button *qb = &frame->buttons[frame->numButtons];
+            HdHudQuickBallInfo(battleSys, &qbItem, &qbCount);
+            (void)qbItem;
+            frame->quickBallCount = qbCount;
             qb->visible = 1;
             qb->style = SIM_HUDHD_BUTTON_QUICK_BALL;
             qb->rect = (SIM_HudHD_Rect){ 248.0f, 74.0f, 86.0f, 18.0f };
             snprintf(qb->label, sizeof(qb->label), "Ball");
             qb->selected = 0;
-            qb->enabled = 1;
+            qb->enabled = (qbCount > 0 || !SIM_Battle3D_ModelsEnabled()) ? 1 : 0;
             btnTouchIdx[frame->numButtons] = 1;
             frame->numButtons++;
         }
@@ -2260,46 +2854,105 @@ static void HdHudPopulateButtonsAndMoves(BattleSubscreen *btlSubscreen, SIM_HudH
             b->enabled = 1;
             btnTouchIdx[frame->numButtons++] = 3;
         }
+        if (sHud.infoCardMode == 2 && sHud.infoCardMenu == menu) {
+            HdHudFillBattleStatusCard(battleSys, &frame->infoCard);
+        }
     }
 }
 
-static int HdHudTouchButtonIndex(BattleSubscreen *btlSubscreen, int x, int y)
+static BOOL HdHudRectContains(SIM_HudHD_Rect r, int x, int y)
+{
+    return ((float)x >= r.x && (float)x < r.x + r.w && (float)y >= r.y && (float)y < r.y + r.h) ? TRUE : FALSE;
+}
+
+static int HdHudTouchButtonIndexEx(BattleSubscreen *btlSubscreen, int x, int y,
+    BOOL *outIsQuickBall, BOOL *outIsInfoToggle)
 {
     SIM_HudHD_Frame frame;
     int btnTouchIdx[SIM_HUDHD_MAX_BUTTONS];
     int moveTouchIdx[SIM_HUDHD_MAX_MOVES];
-    int i;
+    int menu, i;
 
+    if (outIsQuickBall != NULL) {
+        *outIsQuickBall = FALSE;
+    }
+    if (outIsInfoToggle != NULL) {
+        *outIsInfoToggle = FALSE;
+    }
     if (btlSubscreen == NULL || x < 0 || x >= WIDE_HUD_WIDTH_PX || y < 0 || y >= HW_LCD_HEIGHT) {
         return -1;
     }
 
     memset(&frame, 0, sizeof(frame));
     HdHudPopulateButtonsAndMoves(btlSubscreen, &frame, btnTouchIdx, moveTouchIdx);
+    menu = btlSubscreen->activeMenuConfigIndex;
+
+    // Clicking an open info card dismisses it without activating buttons underneath.
+    if (frame.infoCard.visible && HdHudRectContains(frame.infoCard.rect, x, y)) {
+        if (outIsInfoToggle != NULL) {
+            *outIsInfoToggle = TRUE;
+        }
+        return -1;
+    }
 
     for (i = 0; i < frame.numMoves; i++) {
         if (!frame.moves[i].visible) {
             continue;
         }
-        {
-            SIM_HudHD_Rect r = frame.moves[i].rect;
-            if ((float)x >= r.x && (float)x < r.x + r.w && (float)y >= r.y && (float)y < r.y + r.h) {
-                return moveTouchIdx[i];
-            }
+        if (HdHudRectContains(frame.moves[i].rect, x, y)) {
+            return moveTouchIdx[i];
         }
     }
     for (i = 0; i < frame.numButtons; i++) {
         if (!frame.buttons[i].visible) {
             continue;
         }
-        {
-            SIM_HudHD_Rect r = frame.buttons[i].rect;
-            if ((float)x >= r.x && (float)x < r.x + r.w && (float)y >= r.y && (float)y < r.y + r.h) {
-                return btnTouchIdx[i];
+        if (HdHudRectContains(frame.buttons[i].rect, x, y)) {
+            if (frame.buttons[i].style == SIM_HUDHD_BUTTON_QUICK_BALL && outIsQuickBall != NULL) {
+                *outIsQuickBall = TRUE;
+            }
+            return btnTouchIdx[i];
+        }
+    }
+
+    // Touch-friendly Info Toggle hitboxes matching BDSP HD HUD layout:
+    // - Move Select: key-guide / info pill zone to the left of Back (or bottom key bar).
+    // - Action Menu: tapping Player/Enemy HP plates or bottom key-guide bar toggles Battle Status.
+    if (outIsInfoToggle != NULL) {
+        if (menu == HUD_MENU_MOVE) {
+            if (!btlSubscreen->activeMenuData.moveData.megaEvolutionAvailable
+                && HdHudRectContains((SIM_HudHD_Rect){ 178.0f, 168.0f, 74.0f, 18.0f }, x, y)) {
+                *outIsInfoToggle = TRUE;
+                return -1;
+            }
+            if (frame.showKeyHints && HdHudRectContains((SIM_HudHD_Rect){ 122.0f, 172.0f, 124.0f, 18.0f }, x, y)) {
+                *outIsInfoToggle = TRUE;
+                return -1;
+            }
+        } else if (menu >= 1 && menu <= 10) {
+            u32 battleType = BattleSystem_GetBattleType(btlSubscreen->battleSys);
+            SIM_HudHD_Rect playerPlate = (battleType & BATTLE_TYPE_DOUBLES)
+                ? (SIM_HudHD_Rect){ 8.0f, 118.0f, 102.0f, 60.0f }
+                : (SIM_HudHD_Rect){ 8.0f, 144.0f, 110.0f, 33.0f };
+            SIM_HudHD_Rect enemyPlate = (battleType & BATTLE_TYPE_DOUBLES)
+                ? (SIM_HudHD_Rect){ 236.0f, 6.0f, 98.0f, 44.0f }
+                : (SIM_HudHD_Rect){ 234.0f, 8.0f, 100.0f, 22.0f };
+            if (HdHudRectContains(playerPlate, x, y) || HdHudRectContains(enemyPlate, x, y)) {
+                *outIsInfoToggle = TRUE;
+                return -1;
+            }
+            if (frame.showKeyHints && HdHudRectContains((SIM_HudHD_Rect){ 122.0f, 172.0f, 122.0f, 18.0f }, x, y)) {
+                *outIsInfoToggle = TRUE;
+                return -1;
             }
         }
     }
     return -1;
+}
+
+static int HdHudTouchButtonIndex(BattleSubscreen *btlSubscreen, int x, int y)
+{
+    return HdHudTouchButtonIndexEx(btlSubscreen, x, y, NULL, NULL);
 }
 
 static int HdHudMapStatus(const HealthBox *hb, Pokemon *mon)
@@ -2518,6 +3171,32 @@ static u32 HdHudHashBytes(const void *data, size_t len)
     return h;
 }
 
+static void HdHudWriteJsonStr(FILE *f, const char *s)
+{
+    fputc('"', f);
+    if (s != NULL) {
+        const unsigned char *p = (const unsigned char *)s;
+        while (*p != '\0') {
+            if (*p == '"' || *p == '\\') {
+                fputc('\\', f);
+                fputc((int)*p, f);
+            } else if (*p == '\n') {
+                fputs("\\n", f);
+            } else if (*p == '\r') {
+                fputs("\\r", f);
+            } else if (*p == '\t') {
+                fputs("\\t", f);
+            } else if (*p < 0x20) {
+                fputc(' ', f);
+            } else {
+                fputc((int)*p, f);
+            }
+            p++;
+        }
+    }
+    fputc('"', f);
+}
+
 static void HdHudDumpFrame(const SIM_HudHD_Frame *frame)
 {
     const char *path = getenv("SIM_HUDHD_DUMP");
@@ -2585,7 +3264,18 @@ static void HdHudDumpFrame(const SIM_HudHD_Frame *frame)
         fprintf(f, "{\"visible\":%d,\"rect\":[%.0f,%.0f,%.0f,%.0f],\"name\":\"%s\",\"type\":%d,\"category\":%d,\"pp\":%d,\"maxPp\":%d,\"eff\":%d,\"selected\":%d,\"enabled\":%d}",
             m->visible, m->rect.x, m->rect.y, m->rect.w, m->rect.h, m->name, m->type, m->category, m->pp, m->maxPp, m->effectiveness, m->selected, m->enabled);
     }
-    fprintf(f, "]}\n");
+    fprintf(f, "],\"quickBallCount\":%d,\"showKeyHints\":%d,\"infoCard\":{\"visible\":%d,\"kind\":%d,\"rect\":[%.0f,%.0f,%.0f,%.0f],\"title\":",
+        frame->quickBallCount, frame->showKeyHints,
+        frame->infoCard.visible, frame->infoCard.kind,
+        frame->infoCard.rect.x, frame->infoCard.rect.y, frame->infoCard.rect.w, frame->infoCard.rect.h);
+    HdHudWriteJsonStr(f, frame->infoCard.title);
+    fprintf(f, ",\"line1\":");
+    HdHudWriteJsonStr(f, frame->infoCard.line1);
+    fprintf(f, ",\"line2\":");
+    HdHudWriteJsonStr(f, frame->infoCard.line2);
+    fprintf(f, ",\"desc\":");
+    HdHudWriteJsonStr(f, frame->infoCard.desc);
+    fprintf(f, ",\"type\":%d,\"category\":%d}}\n", frame->infoCard.type, frame->infoCard.category);
     fclose(f);
 }
 
@@ -2652,6 +3342,10 @@ void BattleHud_Reset(void)
 {
     SIM_HudHD_Frame frame;
     sHud.activeSubscreen = NULL;
+    sHud.infoCardMode = 0;
+    sHud.infoCardMenu = -1;
+    sHud.lastConfirmWasKey = FALSE;
+    sHud.cachedMoveInfoId = 0;
     if (!BattleHud_IsHdMode()) {
         return;
     }
@@ -2721,18 +3415,28 @@ int BattleHud_Update(BattleSubscreen *btlSubscreen)
     BOOL widePixel;
 
     if (!BattleHud_IsEnabled() || btlSubscreen == NULL) {
+        sHud.lastConfirmWasKey = FALSE;
         if (btlSubscreen != NULL) {
             sHud.activeSubscreen = NULL;
+            sHud.infoCardMode = 0;
+            sHud.infoCardMenu = -1;
             HudHideInternal(btlSubscreen);
         }
         return -1;
     }
 
+    sHud.lastConfirmWasKey = FALSE;
     menu = btlSubscreen->activeMenuConfigIndex;
     if (menu == HUD_MENU_IDLE || menu < 0) {
         sHud.activeSubscreen = NULL;
+        sHud.infoCardMode = 0;
+        sHud.infoCardMenu = -1;
         HudHideInternal(btlSubscreen);
         return -1;
+    }
+    if (sHud.infoCardMode != 0 && menu != sHud.infoCardMenu) {
+        sHud.infoCardMode = 0;
+        sHud.infoCardMenu = -1;
     }
 
     hdMode = BattleHud_IsHdMode();
@@ -2745,18 +3449,56 @@ int BattleHud_Update(BattleSubscreen *btlSubscreen)
     }
     SIM_Wide_SetMainTouchEnabled(1);
 
-    // Wild quick-ball shortcut: X opens Bag immediately in BDSP corner HUD.
+    // Wild quick-ball shortcut: X opens Bag focused on Poké Balls pocket cleanly.
     if ((bdsp3d || hdMode) && !btlSubscreen->isPanelSliding
         && BdspHudHasWildQuickBall(btlSubscreen, menu)
         && (gSystem.pressedKeys & PAD_BUTTON_X)) {
+        HdHudPrepareQuickBallBag(btlSubscreen);
+        sHud.lastConfirmWasKey = TRUE;
         return 1;
     }
 
-    // Main-screen click: confirm like a bottom-screen touch.
-    if (SIM_Wide_PollMainTouch(&touchX, &touchY)) {
-        int button = HudTouchButtonIndex(btlSubscreen, touchX, touchY);
-        if (button >= 0) {
-            return button;
+    // Main-screen click: confirm like a bottom-screen touch (or toggle info card).
+    if (!btlSubscreen->isPanelSliding && SIM_Wide_PollMainTouch(&touchX, &touchY)) {
+        if (hdMode) {
+            BOOL isQuickBall = FALSE;
+            BOOL isInfoToggle = FALSE;
+            int button = HdHudTouchButtonIndexEx(btlSubscreen, touchX, touchY, &isQuickBall, &isInfoToggle);
+            if (isInfoToggle) {
+                if (sHud.infoCardMode != 0) {
+                    sHud.infoCardMode = 0;
+                    sHud.infoCardMenu = -1;
+                } else if (menu == HUD_MENU_MOVE) {
+                    sHud.infoCardMode = 1;
+                    sHud.infoCardMenu = menu;
+                } else if (menu >= 1 && menu <= 10) {
+                    sHud.infoCardMode = 2;
+                    sHud.infoCardMenu = menu;
+                }
+                Sound_PlayEffect(SE_CONFIRM_sseq_3);
+                return -1;
+            }
+            if (isQuickBall) {
+                HdHudPrepareQuickBallBag(btlSubscreen);
+                return button;
+            }
+            if (button >= 0) {
+                sHud.infoCardMode = 0;
+                sHud.infoCardMenu = -1;
+                return button;
+            }
+        } else {
+            int button = HudTouchButtonIndex(btlSubscreen, touchX, touchY);
+            if (button >= 0) {
+                if (bdsp3d && BdspHudHasWildQuickBall(btlSubscreen, menu)) {
+                    int wy = BDSP_HUD_ACTION_Y * 8;
+                    int wx = BDSP_HUD_ACTION_X * 8;
+                    if (touchX >= wx + 3 && touchX < wx + 91 && touchY >= wy + 1 && touchY < wy + 19) {
+                        HdHudPrepareQuickBallBag(btlSubscreen);
+                    }
+                }
+                return button;
+            }
         }
     }
 

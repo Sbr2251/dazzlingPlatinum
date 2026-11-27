@@ -33,6 +33,14 @@ enum SIM_Battle3DWeather {
     SIM_BATTLE3D_WEATHER_FOG = 5
 };
 #define SIM_BATTLE3D_MAX_BATTLERS 4
+enum SIM_Battle3DAnimState {
+    SIM_BATTLE3D_ANIM_IDLE = 0,
+    SIM_BATTLE3D_ANIM_ATTACK_PHYS = 1,
+    SIM_BATTLE3D_ANIM_ATTACK_SPEC = 2,
+    SIM_BATTLE3D_ANIM_HIT = 3,
+    SIM_BATTLE3D_ANIM_FAINT = 4,
+    SIM_BATTLE3D_ANIM_CRY = 5
+};
 typedef struct SIM_Battle3DBattler {
     int visible;
     int isPlayer;
@@ -41,6 +49,15 @@ typedef struct SIM_Battle3DBattler {
     float worldZ;
     float shadowRadius;
     float alpha;
+    int species;
+    int form;
+    int isShiny;
+    float yawDeg;
+    float modelScale;
+    int animState;
+    float animTime;
+    int animNonce;
+    int use3dModel;
 } SIM_Battle3DBattler;
 typedef struct SIM_Battle3DFrame {
     int active;
@@ -55,7 +72,36 @@ typedef struct SIM_Battle3DFrame {
     float camFovDeg;
     float camAspect;
     SIM_Battle3DBattler battlers[SIM_BATTLE3D_MAX_BATTLERS];
+    struct SIM_Battle3DActor {
+        int visible;
+        int kind;
+        float worldX;
+        float worldY;
+        float worldZ;
+        float yawDeg;
+        float pitchDeg;
+        float rollDeg;
+        float scale;
+        float alpha;
+        int animState;
+        float animTime;
+        int animNonce;
+    } actors[4];
 } SIM_Battle3DFrame;
+#define SIM_BATTLE3D_MAX_ACTORS 4
+typedef struct SIM_Battle3DActor SIM_Battle3DActor;
+enum SIM_Battle3DActorKind {
+    SIM_BATTLE3D_ACTOR_NONE = 0,
+    SIM_BATTLE3D_ACTOR_TRAINER_LUCAS = 1,
+    SIM_BATTLE3D_ACTOR_TRAINER_DAWN = 2,
+    SIM_BATTLE3D_ACTOR_POKEBALL = 3
+};
+enum SIM_Battle3DTrainerAnim {
+    SIM_BATTLE3D_TRANIM_WAIT = 0,
+    SIM_BATTLE3D_TRANIM_THROW = 1,
+    SIM_BATTLE3D_TRANIM_ADVENT = 2,
+    SIM_BATTLE3D_TRANIM_LOSE = 3
+};
 #endif
 
 #ifdef __cplusplus
@@ -75,6 +121,19 @@ void SIM_Battle3D_Reset(void);
 
 // Map Platinum BACKGROUND_* enum to enum SIM_Battle3DBiome.
 int SIM_Battle3D_BiomeFromBackground(int background);
+
+// TRUE when extracted BDSP 3D Pokemon models/arenas are allowed to render
+// (app default ON when SIM_Battle3D_IsEnabled(); headless OFF unless SIM_FX_BDSP_MODELS=1).
+BOOL SIM_Battle3D_ModelsEnabled(void);
+
+// TRUE when a 3D .glb model is available for this species/form/shiny and models are enabled.
+BOOL SIM_Battle3D_HasModelLoaded(int species, int form, int isShiny);
+
+// TRUE when an extracted 3D .glb arena is available for this biome and models are enabled.
+BOOL SIM_Battle3D_HasArenaLoaded(int biome);
+
+// TRUE when an extracted 3D trainer/ball actor .glb is available and models are enabled.
+BOOL SIM_Battle3D_HasActorLoaded(int kind);
 
 #ifdef __cplusplus
 }

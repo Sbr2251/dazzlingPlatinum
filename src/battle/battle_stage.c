@@ -1,14 +1,19 @@
 #include "battle/battle_stage.h"
+#include "battle/battle_bdsp_cam.h"
+#include "battle/battle_bdsp_trainer.h"
 
 #include <math.h>
 #include <nitro.h>
 #include <nnsys.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "config/battle_stage.h"
 #include "constants/battle.h"
 #include "constants/graphics.h"
 #include "constants/heap.h"
+#include "constants/moves.h"
 #include "constants/narc.h"
 #include "constants/overworld_weather.h"
 
@@ -18,10 +23,12 @@
 #include "battle/battle_stage_sprites.h"
 #include "battle/battle_system.h"
 #include "battle/terrain.h"
+#include "battle_anim/ov12_022380BC.h"
 
 #include "bg_window.h"
 #include "fx_arena.h"
 #include "heap.h"
+#include "move_table.h"
 #include "narc.h"
 #include "palette.h"
 #include "pokemon_sprite.h"
@@ -183,9 +190,48 @@ static void PatchArenaAlpha(StageArena *arena, int alpha);
 static void UpdateFadeBlend(BOOL translucent);
 static void DrawCurtain(int alpha);
 static void SubmitBdspFrame(void);
+static void ResetBdspAnimState(void);
+static void BdspDumpInit(void);
+static void BdspDumpClose(void);
+
+#define BDSP_ANIM_DT         (1.0f / 60.0f)
+#define BDSP_ANIM_CRY_DUR    1.0f
+#define BDSP_ANIM_ATTACK_DUR 1.2f
+#define BDSP_ANIM_HIT_DUR    0.7f
+
+typedef struct BdspBattlerAnim {
+    int species;
+    int form;
+    int isShiny;
+    BOOL wasVisible;
+    BOOL hitFlickering;
+    BOOL justTriggered;
+    int animState;
+    float animTime;
+    float animDuration; // 0.0f = looping (IDLE) or hold end frame (FAINT)
+    int animNonce;
+} BdspBattlerAnim;
 
 static BattleStage sBattleStage;
 static StageFog sStageFog;
+static BdspBattlerAnim sBdspAnim[SIM_BATTLE3D_MAX_BATTLERS];
+
+#ifdef SDK_PORT
+typedef struct BdspDumpSlot {
+    int visible;
+    int species;
+    int form;
+    int isShiny;
+    int use3dModel;
+    int animState;
+    int animNonce;
+    int postChangeFrames;
+} BdspDumpSlot;
+
+static FILE *sBdspDumpFile;
+static BOOL sBdspDumpOpenedOnce;
+static BdspDumpSlot sBdspDumpPrev[SIM_BATTLE3D_MAX_BATTLERS];
+#endif
 
 // Without an atmosphere LIT meshes render unlit white, as in format v1
 static const BattleStageFileLighting sDefaultLighting = {
@@ -222,6 +268,8 @@ void BattleStage_Init(BattleSystem *battleSys)
     sStageFog.on = TRUE; // unknown, so FogOff writes it
     sStageFog.tableValid = FALSE;
     FogOff();
+    ResetBdspAnimState();
+    BdspDumpInit();
 
     if (BATTLE_STAGE_3D) {
         sBattleStage.arena = LoadArena(battleSys);
@@ -275,6 +323,8 @@ void BattleStage_Init(BattleSystem *battleSys)
 void BattleStage_Free(void)
 {
     SIM_Battle3D_Reset();
+    ResetBdspAnimState();
+    BdspDumpClose();
     BattleStageCamera_Free();
     BattleStageSprites_Free();
 
@@ -1708,13 +1758,268 @@ static int BdspWeather(BattleSystem *battleSys)
     }
 }
 
+static void ResetBdspAnimState(void)
+{
+    memset(sBdspAnim, 0, sizeof(sBdspAnim));
+    BattleBdspCam_Reset();
+    BattleBdspTrainer_Reset();
+}
+
+static void SetBdspAnim(int battler, int animState, float duration)
+{
+    BdspBattlerAnim *st;
+
+    if (battler < 0 || battler >= SIM_BATTLE3D_MAX_BATTLERS) {
+        return;
+    }
+
+    st = &sBdspAnim[battler];
+    st->animState = animState;
+    st->animTime = 0.0f;
+    st->animDuration = duration;
+    st->animNonce++;
+    st->justTriggered = TRUE;
+}
+
+void BattleStage_NotifyBdspCry(int battler)
+{
+    BdspBattlerAnim *st;
+
+    if (battler < 0 || battler >= SIM_BATTLE3D_MAX_BATTLERS) {
+        return;
+    }
+
+    st = &sBdspAnim[battler];
+    if (st->animState == SIM_BATTLE3D_ANIM_FAINT) {
+        return;
+    }
+    if (st->animState == SIM_BATTLE3D_ANIM_CRY && st->animTime < 0.35f) {
+        return;
+    }
+
+    SetBdspAnim(battler, SIM_BATTLE3D_ANIM_CRY, BDSP_ANIM_CRY_DUR);
+}
+
+void BattleStage_NotifyBdspAttack(int battler, u16 move)
+{
+    u32 moveClass;
+    int state;
+
+    if (battler < 0 || battler >= SIM_BATTLE3D_MAX_BATTLERS || move == MOVE_NONE) {
+        return;
+    }
+    if (sBdspAnim[battler].animState == SIM_BATTLE3D_ANIM_FAINT) {
+        return;
+    }
+
+    moveClass = MoveTable_LoadParam(move, MOVEATTRIBUTE_CLASS);
+    state = (moveClass == CLASS_PHYSICAL) ? SIM_BATTLE3D_ANIM_ATTACK_PHYS : SIM_BATTLE3D_ANIM_ATTACK_SPEC;
+    SetBdspAnim(battler, state, BDSP_ANIM_ATTACK_DUR);
+    BattleBdspCam_NotifyAttack(battler, move);
+}
+
+void BattleStage_NotifyBdspHit(int battler)
+{
+    if (battler < 0 || battler >= SIM_BATTLE3D_MAX_BATTLERS) {
+        return;
+    }
+    if (sBdspAnim[battler].animState == SIM_BATTLE3D_ANIM_FAINT) {
+        return;
+    }
+
+    sBdspAnim[battler].hitFlickering = TRUE;
+    SetBdspAnim(battler, SIM_BATTLE3D_ANIM_HIT, BDSP_ANIM_HIT_DUR);
+    BattleBdspCam_NotifyHit(battler);
+}
+
+void BattleStage_NotifyBdspHitEnd(int battler)
+{
+    if (battler < 0 || battler >= SIM_BATTLE3D_MAX_BATTLERS) {
+        return;
+    }
+
+    sBdspAnim[battler].hitFlickering = FALSE;
+}
+
+void BattleStage_NotifyBdspFaint(int battler)
+{
+    if (battler < 0 || battler >= SIM_BATTLE3D_MAX_BATTLERS) {
+        return;
+    }
+
+    sBdspAnim[battler].hitFlickering = FALSE;
+    SetBdspAnim(battler, SIM_BATTLE3D_ANIM_FAINT, 0.0f);
+    BattleBdspCam_NotifyFaint(battler);
+}
+
+BOOL BattleStage_IsBattler3DModel(BattleSystem *battleSys, int battler)
+{
+    BattleContext *ctx;
+
+    if (battleSys == NULL || battler < 0 || battler >= SIM_BATTLE3D_MAX_BATTLERS) {
+        return FALSE;
+    }
+    if (!SIM_Battle3D_ModelsEnabled()) {
+        return FALSE;
+    }
+    ctx = BattleSystem_GetBattleContext(battleSys);
+    if (ctx == NULL) {
+        return FALSE;
+    }
+    return SIM_Battle3D_HasModelLoaded(
+        ctx->battleMons[battler].species,
+        ctx->battleMons[battler].formNum,
+        ctx->battleMons[battler].isShiny
+    );
+}
+
+static const char *BdspAnimStateName(int state)
+{
+    switch (state) {
+    case SIM_BATTLE3D_ANIM_IDLE:
+        return "IDLE";
+    case SIM_BATTLE3D_ANIM_ATTACK_PHYS:
+        return "ATTACK_PHYS";
+    case SIM_BATTLE3D_ANIM_ATTACK_SPEC:
+        return "ATTACK_SPEC";
+    case SIM_BATTLE3D_ANIM_HIT:
+        return "HIT";
+    case SIM_BATTLE3D_ANIM_FAINT:
+        return "FAINT";
+    case SIM_BATTLE3D_ANIM_CRY:
+        return "CRY";
+    default:
+        return "UNKNOWN";
+    }
+}
+
+static void BdspDumpInit(void)
+{
+#ifdef SDK_PORT
+    const char *path = getenv("SIM_BATTLE3D_DUMP");
+    int i;
+
+    if (sBdspDumpFile != NULL) {
+        fclose(sBdspDumpFile);
+        sBdspDumpFile = NULL;
+    }
+
+    for (i = 0; i < SIM_BATTLE3D_MAX_BATTLERS; i++) {
+        sBdspDumpPrev[i].visible = -1;
+        sBdspDumpPrev[i].species = -1;
+        sBdspDumpPrev[i].form = -1;
+        sBdspDumpPrev[i].isShiny = -1;
+        sBdspDumpPrev[i].use3dModel = -1;
+        sBdspDumpPrev[i].animState = -1;
+        sBdspDumpPrev[i].animNonce = -1;
+        sBdspDumpPrev[i].postChangeFrames = 0;
+    }
+
+    if (path != NULL && path[0] != '\0') {
+        sBdspDumpFile = fopen(path, sBdspDumpOpenedOnce ? "a" : "w");
+        if (sBdspDumpFile != NULL) {
+            sBdspDumpOpenedOnce = TRUE;
+            fprintf(sBdspDumpFile, "# battle_init\n");
+            fflush(sBdspDumpFile);
+        }
+    }
+#endif
+}
+
+static void BdspDumpClose(void)
+{
+#ifdef SDK_PORT
+    if (sBdspDumpFile != NULL) {
+        fprintf(sBdspDumpFile, "# battle_free\n");
+        fclose(sBdspDumpFile);
+        sBdspDumpFile = NULL;
+    }
+#endif
+}
+
+static void BdspDumpFrame(u32 frameNum, const SIM_Battle3DFrame *frame, BattleSystem *battleSys, int maxBattlers)
+{
+#ifdef SDK_PORT
+    int i;
+
+    if (sBdspDumpFile == NULL || frame == NULL) {
+        return;
+    }
+
+    for (i = 0; i < maxBattlers && i < SIM_BATTLE3D_MAX_BATTLERS; i++) {
+        const SIM_Battle3DBattler *b = &frame->battlers[i];
+        BdspDumpSlot *prev = &sBdspDumpPrev[i];
+        BOOL changed = (prev->visible != b->visible
+            || prev->species != b->species
+            || prev->form != b->form
+            || prev->isShiny != b->isShiny
+            || prev->use3dModel != b->use3dModel
+            || prev->animState != b->animState
+            || prev->animNonce != b->animNonce);
+
+        if (changed || prev->postChangeFrames > 0) {
+            int btype = BattleSystem_GetBattlerType(battleSys, i);
+            fprintf(sBdspDumpFile,
+                "frame=%u time=%.4f biome=%d slot=%d btype=%d vis=%d species=%d form=%d shiny=%d use3d=%d pos=(%.2f,%.2f,%.2f) yaw=%.1f scale=%.2f anim=%s(%d) animTime=%.4f nonce=%d\n",
+                (unsigned)frameNum,
+                frame->timeSec,
+                frame->biome,
+                i,
+                btype,
+                b->visible,
+                b->species,
+                b->form,
+                b->isShiny,
+                b->use3dModel,
+                b->worldX,
+                b->worldY,
+                b->worldZ,
+                b->yawDeg,
+                b->modelScale,
+                BdspAnimStateName(b->animState),
+                b->animState,
+                b->animTime,
+                b->animNonce);
+            fflush(sBdspDumpFile);
+
+            if (changed) {
+                prev->visible = b->visible;
+                prev->species = b->species;
+                prev->form = b->form;
+                prev->isShiny = b->isShiny;
+                prev->use3dModel = b->use3dModel;
+                prev->animState = b->animState;
+                prev->animNonce = b->animNonce;
+                prev->postChangeFrames = b->visible ? 1 : 0;
+            } else {
+                prev->postChangeFrames--;
+            }
+        }
+    }
+#else
+    (void)frameNum;
+    (void)frame;
+    (void)battleSys;
+    (void)maxBattlers;
+#endif
+}
+
+static BOOL BdspIsSubstituteDoll(const PokemonSprite *spr)
+{
+    return spr != NULL && spr->active
+        && spr->template.narcID == NARC_INDEX_POKETOOL__POKEGRA__PL_OTHERPOKE
+        && (spr->template.character == SUBSTITUTE_BACK_NCGR || spr->template.character == SUBSTITUTE_FRONT_NCGR);
+}
+
 static void SubmitBdspFrame(void)
 {
     BattleSystem *battleSys = sBattleStage.battleSys;
+    BattleContext *battleCtx;
     StageArena *arena = sBattleStage.arena;
     SIM_Battle3DFrame frame;
     float alpha;
     float timeSec;
+    u32 frameNum;
     float yawDeg = 0.0f;
     float pitchDeg = 0.0f;
     float distScale = 1.0f;
@@ -1727,6 +2032,11 @@ static void SubmitBdspFrame(void)
     float baseTarget[3] = { 0.5f, 1.35f, -1.8f };
     float baseFov = 36.0f;
     BOOL heightSizing = BattleStageSprites_IsHeightSizingEnabled();
+    BOOL slotHas3d[SIM_BATTLE3D_MAX_BATTLERS];
+    int slotSpecies[SIM_BATTLE3D_MAX_BATTLERS];
+    int slotForm[SIM_BATTLE3D_MAX_BATTLERS];
+    int slotShiny[SIM_BATTLE3D_MAX_BATTLERS];
+    BOOL any3dModel = FALSE;
     float off[3];
     float target[3];
     float eye[3];
@@ -1749,8 +2059,37 @@ static void SubmitBdspFrame(void)
         alpha = 1.0f;
     }
 
+    battleCtx = BattleSystem_GetBattleContext(battleSys);
+    monSpriteMan = BattleSystem_GetPokemonSpriteManager(battleSys);
+    maxBattlers = BattleSystem_GetMaxBattlers(battleSys);
+    if (maxBattlers > SIM_BATTLE3D_MAX_BATTLERS) {
+        maxBattlers = SIM_BATTLE3D_MAX_BATTLERS;
+    }
+
+    for (i = 0; i < SIM_BATTLE3D_MAX_BATTLERS; i++) {
+        slotHas3d[i] = FALSE;
+        slotSpecies[i] = 0;
+        slotForm[i] = 0;
+        slotShiny[i] = 0;
+    }
+
+    for (i = 0; i < maxBattlers; i++) {
+        const PokemonSprite *spr = (monSpriteMan != NULL && i < MAX_MON_SPRITES) ? &monSpriteMan->sprites[i] : NULL;
+        if (battleCtx != NULL) {
+            slotSpecies[i] = battleCtx->battleMons[i].species;
+            slotForm[i] = battleCtx->battleMons[i].formNum;
+            slotShiny[i] = battleCtx->battleMons[i].isShiny;
+        }
+        if (slotSpecies[i] > 0 && !BdspIsSubstituteDoll(spr)
+            && SIM_Battle3D_HasModelLoaded(slotSpecies[i], slotForm[i], slotShiny[i])) {
+            slotHas3d[i] = TRUE;
+            any3dModel = TRUE;
+        }
+    }
+
     memset(&frame, 0, sizeof(frame));
-    timeSec = (float)arena->frame / 60.0f;
+    frameNum = arena->frame;
+    timeSec = (float)frameNum / 60.0f;
     arena->frame++;
 
     br = sBattleStage.brightness;
@@ -1766,7 +2105,7 @@ static void SubmitBdspFrame(void)
     frame.timeSec = timeSec;
     frame.brightness = (float)br / 16.0f;
 
-    if (heightSizing) {
+    if (heightSizing || any3dModel) {
         baseEye[0] = -3.6f;
         baseEye[1] = 2.55f;
         baseEye[2] = 8.8f;
@@ -1881,60 +2220,134 @@ static void SubmitBdspFrame(void)
     }
     frame.camAspect = 16.0f / 9.0f;
 
-    monSpriteMan = BattleSystem_GetPokemonSpriteManager(battleSys);
-    maxBattlers = BattleSystem_GetMaxBattlers(battleSys);
-    if (maxBattlers > SIM_BATTLE3D_MAX_BATTLERS) {
-        maxBattlers = SIM_BATTLE3D_MAX_BATTLERS;
-    }
-
     for (i = 0; i < maxBattlers; i++) {
         int btype = BattleSystem_GetBattlerType(battleSys, i);
         SIM_Battle3DBattler *dst = &frame.battlers[i];
+        BdspBattlerAnim *anim = &sBdspAnim[i];
+        BOOL has3d = slotHas3d[i];
+        int species = slotSpecies[i];
+        int form = slotForm[i];
+        int isShiny = slotShiny[i];
         float wx = 0.0f;
         float wz = 0.0f;
+        float oppX = 0.0f;
+        float oppZ = 0.0f;
         float radius = 0.9f;
+        float modelScale = 1.0f;
+        float battlerYawDeg;
         int isPlayer = 0;
         int homeX = 128;
 
+        // Reset per-battler anim state on switch-in / species or form change
+        if (species != anim->species || form != anim->form || isShiny != anim->isShiny) {
+            int prevNonce = anim->animNonce;
+            memset(anim, 0, sizeof(*anim));
+            anim->species = species;
+            anim->form = form;
+            anim->isShiny = isShiny;
+            anim->animState = SIM_BATTLE3D_ANIM_IDLE;
+            anim->animNonce = prevNonce;
+        }
+
         switch (btype) {
         case BATTLER_TYPE_SOLO_PLAYER:
-            wx = -2.95f;
-            wz = 1.35f;
+            if (has3d) {
+                wx = -2.15f;
+                wz = 2.25f;
+                oppX = 2.35f;
+                oppZ = -2.15f;
+                modelScale = 1.40f;
+            } else {
+                wx = -2.95f;
+                wz = 1.35f;
+                oppX = 6.95f;
+                oppZ = -7.80f;
+            }
             radius = 1.25f;
             isPlayer = 1;
             homeX = 64;
             break;
         case BATTLER_TYPE_SOLO_ENEMY:
-            wx = 6.95f;
-            wz = -7.80f;
+            if (has3d) {
+                wx = 2.35f;
+                wz = -2.15f;
+                oppX = -2.15f;
+                oppZ = 2.25f;
+                modelScale = 1.40f;
+            } else {
+                wx = 6.95f;
+                wz = -7.80f;
+                oppX = -2.95f;
+                oppZ = 1.35f;
+            }
             radius = 1.45f;
             isPlayer = 0;
             homeX = 192;
             break;
         case BATTLER_TYPE_PLAYER_SIDE_SLOT_1:
-            wx = -3.35f;
-            wz = 0.70f;
+            if (has3d) {
+                wx = -2.75f;
+                wz = 1.75f;
+                oppX = 2.275f;
+                oppZ = -2.85f;
+                modelScale = 1.25f;
+            } else {
+                wx = -3.35f;
+                wz = 0.70f;
+                oppX = 8.825f;
+                oppZ = -9.55f;
+            }
             radius = 1.15f;
             isPlayer = 1;
             homeX = 40;
             break;
         case BATTLER_TYPE_PLAYER_SIDE_SLOT_2:
-            wx = -2.25f;
-            wz = 1.90f;
+            if (has3d) {
+                wx = -1.55f;
+                wz = 2.65f;
+                oppX = 2.275f;
+                oppZ = -2.85f;
+                modelScale = 1.25f;
+            } else {
+                wx = -2.25f;
+                wz = 1.90f;
+                oppX = 8.825f;
+                oppZ = -9.55f;
+            }
             radius = 1.15f;
             isPlayer = 1;
             homeX = 80;
             break;
         case BATTLER_TYPE_ENEMY_SIDE_SLOT_1:
-            wx = 9.90f;
-            wz = -7.75f;
+            if (has3d) {
+                wx = 3.10f;
+                wz = -2.35f;
+                oppX = -2.15f;
+                oppZ = 2.20f;
+                modelScale = 1.25f;
+            } else {
+                wx = 9.90f;
+                wz = -7.75f;
+                oppX = -2.80f;
+                oppZ = 1.30f;
+            }
             radius = 1.35f;
             isPlayer = 0;
             homeX = 216;
             break;
         case BATTLER_TYPE_ENEMY_SIDE_SLOT_2:
-            wx = 7.75f;
-            wz = -11.35f;
+            if (has3d) {
+                wx = 1.45f;
+                wz = -3.35f;
+                oppX = -2.15f;
+                oppZ = 2.20f;
+                modelScale = 1.25f;
+            } else {
+                wx = 7.75f;
+                wz = -11.35f;
+                oppX = -2.80f;
+                oppZ = 1.30f;
+            }
             radius = 1.35f;
             isPlayer = 0;
             homeX = 176;
@@ -1943,6 +2356,9 @@ static void SubmitBdspFrame(void)
             continue;
         }
 
+        // Right-handed Y-up (+Z forward): yaw = atan2(dx, dz) turns +Z toward opponent
+        battlerYawDeg = atan2f(oppX - wx, oppZ - wz) * (180.0f / 3.14159265f);
+
         dst->isPlayer = isPlayer;
         dst->worldX = wx;
         dst->worldY = 0.0f;
@@ -1950,49 +2366,100 @@ static void SubmitBdspFrame(void)
         dst->shadowRadius = radius;
         dst->alpha = 0.0f;
         dst->visible = 0;
+        dst->species = species;
+        dst->form = form;
+        dst->isShiny = isShiny;
+        dst->yawDeg = battlerYawDeg;
+        dst->modelScale = modelScale;
+        dst->use3dModel = has3d ? 1 : 0;
 
         if (monSpriteMan != NULL && i < MAX_MON_SPRITES) {
             const PokemonSprite *spr = &monSpriteMan->sprites[i];
             const PokemonSpriteTransforms *tr = &spr->transforms;
-            if (spr->active && !tr->hide && !tr->hide2 && tr->alpha > 0) {
-                int dxPx = (tr->xCenter + tr->xOffset) - homeX;
-                int sc = tr->scaleX < 0 ? -tr->scaleX : tr->scaleX;
-                float elev = spr->shadow.height > 0 ? (float)spr->shadow.height * 0.04f : 0.0f;
-
-                if (dxPx < -96) {
-                    dxPx = -96;
-                } else if (dxPx > 96) {
-                    dxPx = 96;
+            if (!spr->active) {
+                anim->wasVisible = FALSE;
+                anim->hitFlickering = FALSE;
+                if (anim->animState == SIM_BATTLE3D_ANIM_FAINT) {
+                    anim->animState = SIM_BATTLE3D_ANIM_IDLE;
+                    anim->animTime = 0.0f;
+                    anim->animDuration = 0.0f;
                 }
+            } else {
+                BOOL hidden = (tr->hide && !(has3d && anim->hitFlickering)) || tr->hide2 || tr->alpha <= 0;
+                if (!hidden) {
+                    int dxPx = (tr->xCenter + tr->xOffset) - homeX;
+                    int sc = tr->scaleX < 0 ? -tr->scaleX : tr->scaleX;
+                    float elev = spr->shadow.height > 0 ? (float)spr->shadow.height * 0.04f : 0.0f;
 
-                dst->visible = 1;
-                dst->worldX = wx + (float)dxPx * 0.032f;
-                dst->worldY = elev;
-                dst->worldZ = wz;
-                dst->alpha = (float)tr->alpha / 31.0f;
-
-                if (heightSizing) {
-                    float spScale = BattleStageSprites_GetSpeciesScale(i);
-                    float refBase = isPlayer ? 1.0f : 0.45f;
-                    float ratio = spScale / refBase;
-                    if (ratio < 0.65f) {
-                        ratio = 0.65f;
-                    } else if (ratio > 2.2f) {
-                        ratio = 2.2f;
+                    if (dxPx < -96) {
+                        dxPx = -96;
+                    } else if (dxPx > 96) {
+                        dxPx = 96;
                     }
-                    dst->shadowRadius *= ratio;
-                }
 
-                if (sc < MON_AFFINE_SCALE(1)) {
-                    float sf = (float)sc / (float)MON_AFFINE_SCALE(1);
-                    if (sf < 0.0f) {
-                        sf = 0.0f;
+                    dst->visible = 1;
+                    dst->worldX = wx + (float)dxPx * 0.032f;
+                    dst->worldY = elev;
+                    dst->worldZ = wz;
+                    dst->alpha = (float)tr->alpha / 31.0f;
+
+                    if (!anim->wasVisible && species > 0) {
+                        anim->wasVisible = TRUE;
+                        if (anim->animState != SIM_BATTLE3D_ANIM_FAINT) {
+                            SetBdspAnim(i, SIM_BATTLE3D_ANIM_CRY, BDSP_ANIM_CRY_DUR);
+                        }
                     }
-                    dst->shadowRadius = radius * sf;
+
+                    if (heightSizing && !has3d) {
+                        float spScale = BattleStageSprites_GetSpeciesScale(i);
+                        float refBase = isPlayer ? 1.0f : 0.45f;
+                        float ratio = spScale / refBase;
+                        if (ratio < 0.65f) {
+                            ratio = 0.65f;
+                        } else if (ratio > 2.2f) {
+                            ratio = 2.2f;
+                        }
+                        dst->shadowRadius *= ratio;
+                    }
+
+                    if (sc < MON_AFFINE_SCALE(1)) {
+                        float sf = (float)sc / (float)MON_AFFINE_SCALE(1);
+                        if (sf < 0.0f) {
+                            sf = 0.0f;
+                        }
+                        if (has3d) {
+                            dst->modelScale = modelScale * sf;
+                        }
+                        dst->shadowRadius = radius * sf;
+                    }
                 }
             }
         }
+
+        // Deterministic frame-stepped (1/60s per frame) animation timer
+        if (anim->wasVisible) {
+            if (anim->justTriggered) {
+                anim->justTriggered = FALSE;
+            } else {
+                anim->animTime += BDSP_ANIM_DT;
+                if (anim->animDuration > 0.0f && anim->animTime >= anim->animDuration) {
+                    anim->animState = SIM_BATTLE3D_ANIM_IDLE;
+                    anim->animTime = 0.0f;
+                    anim->animDuration = 0.0f;
+                    anim->animNonce++;
+                } else if (anim->animState == SIM_BATTLE3D_ANIM_IDLE && anim->animTime >= 3600.0f) {
+                    anim->animTime -= 3600.0f;
+                }
+            }
+        }
+
+        dst->animState = anim->animState;
+        dst->animTime = anim->animTime;
+        dst->animNonce = anim->animNonce;
     }
 
+    BattleBdspTrainer_Update(battleSys, &frame);
+    BattleBdspCam_Update(battleSys, &frame);
+    BdspDumpFrame(frameNum, &frame, battleSys, maxBattlers);
     SIM_Battle3D_SubmitFrame(&frame);
 }

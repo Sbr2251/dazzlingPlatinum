@@ -1408,8 +1408,11 @@ int BattleSystem_MenuInput(BattleSubscreen *btlSubscreen)
 
     int buttonResult, buttonIndex, buttonSlot;
 
-    if (hudButton >= 0) { // battlehud hook: main-screen click confirms
+    if (hudButton >= 0) { // battlehud hook: main-screen click or X quick-ball confirms
         buttonIndex = hudButton;
+        if (BattleHud_LastConfirmWasKey()) {
+            isKeyInput++;
+        }
     } else if (BattleSystem_GetBattleType(btlSubscreen->battleSys) & BATTLE_TYPE_CATCH_TUTORIAL) {
         buttonIndex = GetCatchTutorialInput(btlSubscreen);
     } else {
@@ -3484,6 +3487,17 @@ static int BattleSystem_MenuKeys(BattleSubscreen *btlSubscreen)
         }
     }
 
+    // BDSP HD HUD overlay keys: Y toggles move detail / battle status card,
+    // B dismisses an open info card without leaving the current menu.
+    if (BattleHud_HandleOverlayKeys(btlSubscreen)) {
+        if (btlSubscreen->activeMenuConfigIndex == 11 && !cursor->isActive) {
+            cursor->isActive = TRUE;
+            btlSubscreen->suppressActivationSfx = 0;
+            battleMenuConfig->handleCursorInput(btlSubscreen, 1);
+        }
+        return 0xffffffff;
+    }
+
     if (!cursor->isActive) { // Check if the cursor is inactive
         if (btlSubscreen->suppressActivationSfx == TRUE || gSystem.pressedKeys & (PAD_BUTTON_A | PAD_BUTTON_B | PAD_BUTTON_X | PAD_BUTTON_Y | PAD_KEY_RIGHT | PAD_KEY_LEFT | PAD_KEY_UP | PAD_KEY_DOWN)) {
             if (btlSubscreen->suppressActivationSfx == 0) { // If a key was pressed, play sfx
@@ -3545,16 +3559,16 @@ static int BattleSystem_Cursor_Menu(BattleSubscreen *btlSubscreen, BOOL cursorHi
             }
 
             if (gSystem.pressedKeys & PAD_KEY_UP) {
-                if (cur > 0) {
-                    cur--;
+                if (cur > 0 || BattleHud_IsHdMode()) {
+                    cur = (cur > 0) ? (cur - 1) : 3;
                     cursor->x = sBdspActionOrderX[cur];
                     cursor->y = sBdspActionOrderY[cur];
                     Sound_PlayEffect(SE_CONFIRM_sseq_3);
                     button = PAD_KEY_UP;
                 }
             } else if (gSystem.pressedKeys & PAD_KEY_DOWN) {
-                if (cur < 3) {
-                    cur++;
+                if (cur < 3 || BattleHud_IsHdMode()) {
+                    cur = (cur < 3) ? (cur + 1) : 0;
                     cursor->x = sBdspActionOrderX[cur];
                     cursor->y = sBdspActionOrderY[cur];
                     Sound_PlayEffect(SE_CONFIRM_sseq_3);
@@ -3760,16 +3774,16 @@ static int BattleSystem_Cursor_Moves(BattleSubscreen *btlSubscreen, BOOL cursorH
         }
 
         if (gSystem.pressedKeys & PAD_KEY_UP) {
-            if (cur > 0) {
-                cur--;
+            if (cur > 0 || (BattleHud_IsHdMode() && count > 1)) {
+                cur = (cur > 0) ? (cur - 1) : (count - 1);
                 cursor->x = orderX[cur];
                 cursor->y = orderY[cur];
                 Sound_PlayEffect(SE_CONFIRM_sseq_3);
                 button = PAD_KEY_UP;
             }
         } else if (gSystem.pressedKeys & PAD_KEY_DOWN) {
-            if (cur < count - 1) {
-                cur++;
+            if (cur < count - 1 || (BattleHud_IsHdMode() && count > 1)) {
+                cur = (cur < count - 1) ? (cur + 1) : 0;
                 cursor->x = orderX[cur];
                 cursor->y = orderY[cur];
                 Sound_PlayEffect(SE_CONFIRM_sseq_3);

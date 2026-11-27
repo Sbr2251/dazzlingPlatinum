@@ -4699,7 +4699,7 @@ BattleMonOBJData *BattleMonOBJData_New(BattleSystem *battleSys, enum HeapID heap
 
                     if (isHidden == 1) {
                         ManagedSprite_SetDrawFlag(managedSprite, 0);
-                    } else if (BattleStage_IsSpriteStreamed(battler)) {
+                    } else if (BattleStage_IsSpriteStreamed(battler) || BattleStage_IsBattler3DModel(battleSys, battler)) {
                         // These copies only sit over the battler's sprite, which goes on
                         // drawing; it animates its Gen 5 stream, which a still 80x80 frame A
                         // over it would double, so the sprite shows alone

@@ -1309,6 +1309,23 @@ static u32 DrawHook(PokemonSpriteManager *monSpriteMan, int index, const Pokemon
         return result;
     }
 
+    // BDSP 3D models: skip the 2D sprite & classic shadow when a 3D .glb model
+    // is loaded for this battler (and not currently showing a Substitute doll).
+    // Any non-extracted species falls back seamlessly to the 2D HD-2D sprite.
+    if (bdsp3d && monSpriteMan->excludeIdentity != TRUE && !IsSubstituteDoll(&sprite->template)
+        && sStageSprites.battleSys != NULL && index < BattleSystem_GetMaxBattlers(sStageSprites.battleSys)) {
+        BattleContext *ctx = BattleSystem_GetBattleContext(sStageSprites.battleSys);
+        if (ctx != NULL) {
+            int species = ctx->battleMons[index].species;
+            int form = ctx->battleMons[index].formNum;
+            int isShiny = ctx->battleMons[index].isShiny;
+            if (SIM_Battle3D_HasModelLoaded(species, form, isShiny)) {
+                ResetBreath(index);
+                return MON_SPRITE_DRAW_HOOK_DREW | MON_SPRITE_DRAW_HOOK_NO_SHADOW;
+            }
+        }
+    }
+
     width = rect->width;
     height = rect->height;
     u0 = rect->u0;

@@ -1,0 +1,235 @@
+{
+ "_note": "BDSP Phase 2 controls verification: Y Battle Status (before & after Close Combat stat drops), Y Move Detail (live cursor update + B dismiss without exiting Moves), vertical D-pad wrap in Action & Move menus, showKeyHints=1, quickBallCount from Bag (Ultra Ball x3), and X Quick Ball opening Bag cleanly.",
+ "config": {
+  "ScreenLayout": "wide"
+ },
+ "env": {
+  "SIM_FX_BATTLEHUD": "1",
+  "SIM_FX_BDSP_BATTLE": "1",
+  "SIM_FX_BDSP_MODELS": "1",
+  "SIM_FX_BDSP_SIZING": "1",
+  "SIM_FX_HUDHD": "1",
+  "SIM_FX_WIDE": "1",
+  "SIM_RENDERER": "gpu"
+ },
+ "name": "visual_bdsp_controls",
+ "requires_exists": [
+  "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+ ],
+ "start": {
+  "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+ },
+ "steps": [
+  {
+   "step": 900
+  },
+  {
+   "press_until": {
+    "app": "field"
+   },
+   "keys": "A",
+   "press_frames": 10,
+   "interval_frames": 300,
+   "timeout_frames": 7200
+  },
+  {
+   "step": 180
+  },
+  {
+   "give_item": "ITEM_POKE_BALL",
+   "qty": 5
+  },
+  {
+   "give_item": "ITEM_ULTRA_BALL",
+   "qty": 3
+  },
+  {
+   "step": 10
+  },
+  {
+   "start_battle": {
+    "spec": "../../../battle/specs/visual_swords_dance.json"
+   }
+  },
+  {
+   "timeout_frames": 7200,
+   "wait_until": {
+    "op": "eq",
+    "path": "battle.waiting",
+    "value": true
+   }
+  },
+  {
+   "step": 60
+  },
+  {
+   "frames": 10,
+   "press": "Y"
+  },
+  {
+   "step": 20
+  },
+  {
+   "frames": 10,
+   "press": "B"
+  },
+  {
+   "step": 20
+  },
+  {
+   "frames": 10,
+   "press": "DOWN"
+  },
+  {
+   "step": 15
+  },
+  {
+   "frames": 10,
+   "press": "UP"
+  },
+  {
+   "step": 15
+  },
+  {
+   "frames": 10,
+   "press": "DOWN"
+  },
+  {
+   "step": 15
+  },
+  {
+   "frames": 10,
+   "press": "A"
+  },
+  {
+   "step": 45
+  },
+  {
+   "frames": 10,
+   "press": "Y"
+  },
+  {
+   "step": 20
+  },
+  {
+   "frames": 10,
+   "press": "DOWN"
+  },
+  {
+   "step": 20
+  },
+  {
+   "frames": 10,
+   "press": "DOWN"
+  },
+  {
+   "step": 20
+  },
+  {
+   "frames": 10,
+   "press": "DOWN"
+  },
+  {
+   "step": 20
+  },
+  {
+   "frames": 10,
+   "press": "DOWN"
+  },
+  {
+   "step": 20
+  },
+  {
+   "frames": 10,
+   "press": "DOWN"
+  },
+  {
+   "step": 20
+  },
+  {
+   "frames": 10,
+   "press": "B"
+  },
+  {
+   "step": 20
+  },
+  {
+   "frames": 10,
+   "press": "A"
+  },
+  {
+   "step": 120
+  },
+  {
+   "frames": 10,
+   "press": "A"
+  },
+  {
+   "step": 180
+  },
+  {
+   "frames": 10,
+   "press": "A"
+  },
+  {
+   "step": 180
+  },
+  {
+   "frames": 10,
+   "press": "A"
+  },
+  {
+   "step": 180
+  },
+  {
+   "timeout_frames": 3600,
+   "wait_until": {
+    "op": "eq",
+    "path": "battle.waiting",
+    "value": true
+   }
+  },
+  {
+   "step": 45
+  },
+  {
+   "frames": 10,
+   "press": "Y"
+  },
+  {
+   "step": 20
+  },
+  {
+   "frames": 10,
+   "press": "Y"
+  },
+  {
+   "step": 20
+  },
+  {
+   "frames": 10,
+   "press": "X"
+  },
+  {
+   "step": 120
+  },
+  {
+   "frames": 10,
+   "press": "B"
+  },
+  {
+   "step": 60
+  },
+  {
+   "timeout_frames": 3600,
+   "wait_until": {
+    "op": "eq",
+    "path": "battle.waiting",
+    "value": true
+   }
+  },
+  {
+   "step": 30
+  }
+ ]
+}
