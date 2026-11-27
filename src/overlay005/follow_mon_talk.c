@@ -172,11 +172,29 @@ static void CopyAsciiToPlatinumString(String *dst, const char *src)
         return;
     }
     String_Clear(dst);
+    int col = 0;
     for (int i = 0; src[i] != '\0'; i++) {
         if ((u32)dst->size + 1u >= (u32)dst->maxSize) {
             break;
         }
+        if (src[i] == '\n') {
+            String_AppendChar(dst, CHAR_CR);
+            col = 0;
+            continue;
+        }
+        if (src[i] == ' ') {
+            int nextLen = 0;
+            for (int j = i + 1; src[j] != '\0' && src[j] != ' ' && src[j] != '\n'; j++) {
+                nextLen++;
+            }
+            if (col > 0 && col + 1 + nextLen > 32) {
+                String_AppendChar(dst, CHAR_CR);
+                col = 0;
+                continue;
+            }
+        }
         String_AppendChar(dst, EncodeAsciiChar(src[i]));
+        col++;
     }
 }
 
