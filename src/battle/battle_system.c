@@ -21,6 +21,7 @@
 #include "struct_defs/chatot_cry.h"
 #include "struct_defs/trainer.h"
 
+#include "battle/battle_bdsp_dialogue.h"
 #include "battle/battle_context.h"
 #include "battle/battle_display.h"
 #include "battle/battle_lib.h"
@@ -1621,6 +1622,7 @@ u8 BattleMessage_PrintTrainerMessage(BattleSystem *battleSys, int trainerID, int
 
             Window_FillTilemap(window, 0xFF);
             printerID = Text_AddPrinterWithParams(window, FONT_MESSAGE, string, 0, 0, renderDelay, BattleMessage_Callback);
+            BattleBdspDialogue_OnMessagePrint(battleSys, string, (u8)printerID, renderDelay);
             String_Free(string);
         } else {
             String *string;
@@ -1652,6 +1654,7 @@ u8 BattleMessage_PrintTrainerMessage(BattleSystem *battleSys, int trainerID, int
             Window_FillTilemap(window, 0xFF);
 
             printerID = Text_AddPrinterWithParams(window, FONT_MESSAGE, string, 0, 0, renderDelay, BattleMessage_Callback);
+            BattleBdspDialogue_OnMessagePrint(battleSys, string, (u8)printerID, renderDelay);
             String_Free(string);
             MessageLoader_Free(loader);
         }
@@ -1659,6 +1662,7 @@ u8 BattleMessage_PrintTrainerMessage(BattleSystem *battleSys, int trainerID, int
         Trainer_LoadMessage(trainerID, msgType, battleSys->msgBuffer, HEAP_ID_BATTLE);
         Window_FillTilemap(window, 0xFF);
         printerID = Text_AddPrinterWithParams(window, FONT_MESSAGE, battleSys->msgBuffer, 0, 0, renderDelay, BattleMessage_Callback);
+        BattleBdspDialogue_OnMessagePrint(battleSys, battleSys->msgBuffer, (u8)printerID, renderDelay);
     }
 
     return printerID;
@@ -1667,6 +1671,7 @@ u8 BattleMessage_PrintTrainerMessage(BattleSystem *battleSys, int trainerID, int
 u8 BattleMessage_Print(BattleSystem *battleSys, MessageLoader *msgLoader, BattleMessage *battleMsg, int renderDelay)
 {
     Window *textWindow = BattleSystem_GetWindow(battleSys, 0);
+    u8 printerID;
 
     BattleMessage_CheckSide(battleSys, battleMsg);
     BattleMessage_FillFormatBuffers(battleSys, battleMsg);
@@ -1674,7 +1679,9 @@ u8 BattleMessage_Print(BattleSystem *battleSys, MessageLoader *msgLoader, Battle
 
     Window_FillTilemap(textWindow, 0xFF);
 
-    return Text_AddPrinterWithParams(textWindow, FONT_MESSAGE, battleSys->msgBuffer, 0, 0, renderDelay, BattleMessage_Callback);
+    printerID = Text_AddPrinterWithParams(textWindow, FONT_MESSAGE, battleSys->msgBuffer, 0, 0, renderDelay, BattleMessage_Callback);
+    BattleBdspDialogue_OnMessagePrint(battleSys, battleSys->msgBuffer, printerID, renderDelay);
+    return printerID;
 }
 
 u8 BattleMessage_PrintToWindow(BattleSystem *battleSys, Window *window, MessageLoader *msgLoader, BattleMessage *battleMsg, int xOffset, int yOffset, int flags, int alignWidth, int renderDelay)
