@@ -170,12 +170,12 @@ def build_plain_route() -> ArenaScene:
         return hill
 
     def color_fn(x: float, z: float, r: float, y: float):
-        # Warm sunlit sandy-ochre clearing center -> vibrant BDSP chartreuse grass -> rich forest floor.
+        # Soft BDSP clearing: worn sandy-olive center -> natural soft meadow grass -> forest floor.
         n = 0.5 + 0.5 * math.sin(x * 0.38 + z * 0.29) * math.cos(z * 0.44 - x * 0.21)
-        dirt = (0.86, 0.78, 0.48, 1.0)
-        mid_grass = (0.62, 0.84, 0.36, 1.0)
-        lush_grass = (0.40, 0.72, 0.32, 1.0)
-        deep_floor = (0.28, 0.56, 0.28, 1.0)
+        dirt = (0.76, 0.72, 0.52, 1.0)
+        mid_grass = (0.46, 0.72, 0.38, 1.0)
+        lush_grass = (0.30, 0.58, 0.32, 1.0)
+        deep_floor = (0.20, 0.44, 0.26, 1.0)
         r_warped = r + (n - 0.5) * 1.6
         if r_warped < 6.0:
             return _lerp4(dirt, mid_grass, _smoothstep(2.4, 6.0, r_warped))
@@ -350,7 +350,7 @@ def build_forest() -> ArenaScene:
     bark_tex = scene.add_texture(128, 128, make_bark_texture(128, 206, (0.22, 0.16, 0.12), (0.40, 0.30, 0.22)), B3D_TEX_FLAG_REPEAT)
 
     sky_sm = scene.add_submesh(sky_tex, SKY_FLAGS, 1.0, 0.0)
-    mtn_sm = scene.add_submesh(rock_tex, B3D_SUBMESH_RECEIVE_SHADOW, 0.95, 1.0)
+    mtn_sm = scene.add_submesh(rock_tex, B3D_SUBMESH_RECEIVE_SHADOW, 0.95, 0.62)
     ground_sm = scene.add_submesh(ground_tex, B3D_SUBMESH_RECEIVE_SHADOW, 0.92, 0.80)
     rock_sm = scene.add_submesh(rock_tex, SHADOW_BOTH, 0.90, 0.88)
     cap_sm = scene.add_submesh(ground_tex, SHADOW_BOTH, 0.86, 0.85)
@@ -360,7 +360,7 @@ def build_forest() -> ArenaScene:
     tuft_sm = scene.add_submesh(-1, B3D_SUBMESH_RECEIVE_SHADOW | B3D_SUBMESH_DOUBLE_SIDED, 0.82, 0.84)
 
     add_sky_dome(sky_sm, 72.0, segs_u=32, segs_v=12)
-    add_mountain_ring(mtn_sm, rng, r_inner=40.0, r_peak=52.0, r_outer=64.0, segs=72)
+    add_mountain_ring(mtn_sm, rng, r_inner=38.0, r_peak=47.0, r_outer=60.0, segs=72, base_height=11.0, c_base=(0.24, 0.34, 0.56, 1.0), c_peak=(0.46, 0.58, 0.84, 1.0))
 
     def hfn(x: float, z: float) -> float:
         r = math.hypot(x, z)
@@ -374,16 +374,20 @@ def build_forest() -> ArenaScene:
 
     def cfn(x: float, z: float, r: float, y: float):
         n = 0.5 + 0.5 * math.sin(x * 0.36 + z * 0.31) * math.cos(z * 0.41 - x * 0.24)
-        clearing = (0.58, 0.64, 0.38, 1.0)
-        grass = (0.36, 0.64, 0.32, 1.0)
-        moss = (0.24, 0.52, 0.28, 1.0)
-        deep = (0.14, 0.34, 0.20, 1.0)
-        rw = r + (n - 0.5) * 1.6
-        if rw < 5.5:
-            return _lerp4(clearing, grass, _smoothstep(2.2, 5.5, rw))
-        if rw < 13.5:
-            return _lerp4(grass, moss, _smoothstep(5.5, 13.5, rw))
-        return _lerp4(moss, deep, _smoothstep(13.5, 26.0, rw))
+        n2 = 0.5 + 0.5 * math.sin(x * 0.72 - z * 0.58)
+        clearing = (0.68, 0.72, 0.46, 1.0)
+        grass = (0.40, 0.68, 0.38, 1.0)
+        moss = (0.24, 0.52, 0.34, 1.0)
+        deep = (0.14, 0.34, 0.24, 1.0)
+        rw = r + (n - 0.5) * 1.8
+        if rw < 5.8:
+            col = _lerp4(clearing, grass, _smoothstep(2.0, 5.8, rw))
+        elif rw < 13.5:
+            col = _lerp4(grass, moss, _smoothstep(5.8, 13.5, rw))
+        else:
+            col = _lerp4(moss, deep, _smoothstep(13.5, 26.0, rw))
+        v = 0.92 + 0.14 * n2
+        return (_clamp01(col[0] * v), _clamp01(col[1] * v), _clamp01(col[2] * v), 1.0)
 
     add_radial_ground(ground_sm, [0.0, 1.8, 3.6, 5.5, 7.4, 9.2, 11.8, 15.0, 19.5, 25.0, 32.0, 39.0], 44, hfn, cfn, 0.20)
 
@@ -413,14 +417,14 @@ def build_forest() -> ArenaScene:
     def _near_cam(px: float, pz: float) -> bool:
         return math.hypot(px - (-4.2), pz - 6.8) < 4.5 or (-6.5 < px < -0.5 and 3.0 < pz < 10.5)
 
-    # Band 1: Hero foreground/midground curved 6-tier pines framing left, back, and right
-    # Heights 6.2..8.0m so treetops sit cleanly in-frame against the starry sky,
-    # leaving a scenic window on the right-back for the distant mountain peak.
+    # Band 1: Hero foreground/midground curved 6-tier pines with dramatic size variation
+    # Tallest pines frame the left/right edges, shorter pines across the back,
+    # leaving a clear valley window around -0.52 rad for the distant blue mountain.
     hero_pines = [
-        (-13.4, -6.8, 7.2, 2.2, 6), (-10.8, -12.6, 8.0, 2.4, 6), (-6.2, -15.2, 6.8, 2.0, 5),
-        (-1.4, -16.4, 8.2, 2.4, 6), (2.8, -16.0, 6.8, 2.0, 5), (6.8, -14.8, 6.0, 1.9, 5),
-        (15.2, -9.8, 7.4, 2.2, 6), (17.2, -4.4, 6.8, 2.0, 5), (16.8, 1.0, 6.4, 1.9, 5),
-        (-15.2, -1.2, 7.2, 2.1, 6), (-14.4, 4.4, 6.6, 2.0, 5),
+        (-13.2, -6.4, 10.6, 2.7, 6), (-10.6, -12.4, 11.4, 2.8, 6), (-5.8, -15.2, 7.6, 2.1, 5),
+        (-1.2, -16.4, 9.2, 2.5, 6), (2.8, -16.0, 6.8, 2.0, 5), (6.4, -15.2, 5.8, 1.8, 5),
+        (15.6, -8.8, 9.8, 2.5, 6), (17.2, -4.0, 7.4, 2.1, 5), (16.8, 1.2, 6.8, 2.0, 5),
+        (-15.0, -1.0, 9.4, 2.4, 6), (-14.2, 4.4, 7.2, 2.1, 5),
     ]
     for px, pz, h, rad, tiers in hero_pines:
         add_pine_tree(
@@ -433,14 +437,14 @@ def build_forest() -> ArenaScene:
     # Band 2: Mid-back forest wall (24 trees)
     for k in range(24):
         ang = (k / 24.0) * math.tau + rng.uniform(-0.08, 0.08)
-        # Keep scenic valley window toward hero mountain (-0.42 rad)
-        if abs((ang - (-0.42) + math.pi) % math.tau - math.pi) < 0.24:
+        # Keep scenic valley window toward hero mountain (-0.52 rad)
+        if abs((ang - (-0.52) + math.pi) % math.tau - math.pi) < 0.28:
             continue
         dist = rng.uniform(18.5, 25.5)
         tx, tz = math.cos(ang) * dist, math.sin(ang) * dist
         if _near_cam(tx, tz):
             continue
-        h = rng.uniform(7.0, 10.2)
+        h = rng.uniform(6.4, 9.2)
         add_pine_tree(
             bark_sm, pine_sm, tx, hfn(tx, tz) - 0.1, tz, h, h * rng.uniform(0.23, 0.27), rng,
             tiers=5, lobes=8, curved=True,
@@ -451,11 +455,11 @@ def build_forest() -> ArenaScene:
     # Band 3: Far silhouette treeline (28 LOD trees bathed in atmospheric haze)
     for k in range(28):
         ang = (k / 28.0) * math.tau + rng.uniform(-0.07, 0.07)
-        if abs((ang - (-0.42) + math.pi) % math.tau - math.pi) < 0.18:
+        if abs((ang - (-0.52) + math.pi) % math.tau - math.pi) < 0.24:
             continue
         dist = rng.uniform(27.5, 36.5)
         tx, tz = math.cos(ang) * dist, math.sin(ang) * dist
-        h = rng.uniform(7.8, 11.2)
+        h = rng.uniform(6.8, 9.8)
         add_pine_tree(
             bark_sm, pine_sm, tx, hfn(tx, tz) - 0.1, tz, h, h * rng.uniform(0.22, 0.26), rng,
             tiers=4, lobes=7, curved=False,

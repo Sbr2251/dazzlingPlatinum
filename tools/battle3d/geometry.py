@@ -374,13 +374,13 @@ def add_pine_tree(
     for t in range(tiers):
         frac0 = t / tiers
         frac1 = (t + 1) / tiers
-        # Overlapping tiers: each tier reaches down past previous tier's base
-        ty_bot = y + bough_start + bough_span * (frac0 * 0.76)
-        ty_top = y + bough_start + bough_span * (min(1.0, frac0 * 0.76 + (1.0 / tiers) * 1.52))
+        # Tiered boughs with clear dark undersides and drooping outer tips
+        ty_bot = y + bough_start + bough_span * (frac0 * 0.74)
+        ty_top = y + bough_start + bough_span * (min(1.0, frac0 * 0.74 + (1.0 / tiers) * 1.32))
         if t == tiers - 1:
             ty_top = y + height
-        tr_out = base_radius * ((1.0 - frac0 * 0.76) * rng.uniform(0.94, 1.06))
-        tr_in = tr_out * 0.74
+        tr_out = base_radius * ((1.0 - frac0 * 0.74) * rng.uniform(0.92, 1.08))
+        tr_in = tr_out * 0.52
         # Slight horizontal lean along trunk
         ox_bot = x + lean_x * (ty_bot - y) / height
         oz_bot = z + lean_z * (ty_bot - y) / height
@@ -388,20 +388,20 @@ def add_pine_tree(
         oz_top = z + lean_z * (ty_top - y) / height
 
         # Vertical AO gradient: lower tiers darker, sunlit tips brighter
-        tier_shade = 0.72 + 0.28 * frac1
-        c_rim_out = _lerp4(tint_dark, tint_lit, 0.44 + 0.38 * frac1)
-        c_rim_in = _mul_color(_lerp4(tint_dark, tint_lit, 0.22 + 0.25 * frac1), 0.76)
-        c_mid_out = _lerp4(tint_dark, tint_lit, 0.56 + 0.32 * frac1)
-        c_apex = _lerp4(tint_dark, tint_lit, 0.74 + 0.26 * frac1)
+        tier_shade = 0.70 + 0.30 * frac1
+        c_rim_out = _lerp4(tint_dark, tint_lit, 0.46 + 0.40 * frac1)
+        c_rim_in = _mul_color(_lerp4(tint_dark, tint_lit, 0.16 + 0.20 * frac1), 0.68)
+        c_mid_out = _lerp4(tint_dark, tint_lit, 0.58 + 0.32 * frac1)
+        c_apex = _lerp4(tint_dark, tint_lit, 0.76 + 0.24 * frac1)
         if snow_dusted:
             c_apex = _lerp4(c_apex, (0.96, 0.98, 1.0, 1.0), 0.65 + 0.25 * frac1)
             c_mid_out = _lerp4(c_mid_out, (0.92, 0.96, 1.0, 1.0), 0.45 + 0.25 * frac1)
             c_rim_out = _lerp4(c_rim_out, (0.90, 0.95, 1.0, 1.0), 0.35 + 0.25 * frac1)
-        c_under = _mul_color(tint_dark, 0.54 * tier_shade)
+        c_under = _mul_color(tint_dark, 0.44 * tier_shade)
 
         apex_idx = pine_sm.add_vertex((ox_top, ty_top, oz_top), (0.0, 1.0, 0.0), (0.5, 0.0), c_apex)
         under_center_idx = pine_sm.add_vertex(
-            (ox_bot, ty_bot + (ty_top - ty_bot) * 0.16, oz_bot),
+            (ox_bot, ty_bot + (ty_top - ty_bot) * 0.20, oz_bot),
             (0.0, -1.0, 0.0),
             (0.5, 1.0),
             c_under,
@@ -412,15 +412,15 @@ def add_pine_tree(
         rim_top_ids: List[int] = []
         rim_und_ids: List[int] = []
         slope_h = max(0.2, ty_top - ty_bot)
-        ox_mid = _lerp(ox_top, ox_bot, 0.48)
-        oz_mid = _lerp(oz_top, oz_bot, 0.48)
-        ty_mid = _lerp(ty_top, ty_bot, 0.46)
+        ox_mid = _lerp(ox_top, ox_bot, 0.46)
+        oz_mid = _lerp(oz_top, oz_bot, 0.46)
+        ty_mid = _lerp(ty_top, ty_bot, 0.44)
 
         for i in range(n_pts):
             ang = phase + (i / n_pts) * math.tau
             is_lobe = (i % 2 == 0)
-            rad = (tr_out if is_lobe else tr_in) * rng.uniform(0.95, 1.05)
-            droop = -0.20 * slope_h if is_lobe else 0.04 * slope_h
+            rad = (tr_out if is_lobe else tr_in) * rng.uniform(0.93, 1.07)
+            droop = -0.32 * slope_h if is_lobe else 0.06 * slope_h
             ca = math.cos(ang)
             sa = math.sin(ang)
             px = ox_bot + ca * rad
@@ -881,17 +881,17 @@ def add_mountain_ring(
             d = (ang - target + math.pi) % math.tau - math.pi
             return abs(d)
 
-        # Hero Mt. Coronet massif right-back behind opponent (-0.42 rad) + secondary peaks
-        hero = 15.5 * math.exp(-((ang_dist(-0.42) / 0.22) ** 2))
-        sec1 = 7.0 * math.exp(-((ang_dist(-1.15) / 0.28) ** 2))
-        sec2 = 6.5 * math.exp(-((ang_dist(-2.05) / 0.32) ** 2))
-        sec3 = 5.5 * math.exp(-((ang_dist(0.35) / 0.35) ** 2))
+        # Hero Mt. Coronet massif right-back behind opponent (-0.52 rad) + secondary peaks
+        hero = 19.0 * math.exp(-((ang_dist(-0.52) / 0.24) ** 2))
+        sec1 = 9.0 * math.exp(-((ang_dist(-1.15) / 0.28) ** 2))
+        sec2 = 7.5 * math.exp(-((ang_dist(-2.05) / 0.32) ** 2))
+        sec3 = 6.5 * math.exp(-((ang_dist(0.35) / 0.35) ** 2))
         harm = (
             2.6 * math.sin(ang * 5.0 + 0.4)
             + 1.8 * math.cos(ang * 9.0 - 1.1)
             + 1.2 * math.sin(ang * 17.0 + 0.7)
         )
-        h = max(3.5, base_height + hero + sec1 + sec2 + sec3 + harm + rng.uniform(-0.8, 0.8))
+        h = max(4.5, base_height + hero + sec1 + sec2 + sec3 + harm + rng.uniform(-0.8, 0.8))
 
         ri = r_inner + rng.uniform(-1.5, 1.5)
         rp = r_peak + rng.uniform(-2.0, 2.0)

@@ -1,0 +1,10 @@
+{
+  "battle_type": "wild",
+  "seed": 11,
+  "player": [
+    {"species": "SPECIES_INFERNAPE", "level": 42, "moves": ["MOVE_FLARE_BLITZ", "MOVE_CLOSE_COMBAT"]}
+  ],
+  "opponent": [
+    {"species": "SPECIES_CATERPIE", "level": 12, "moves": ["MOVE_TACKLE", "MOVE_STRING_SHOT"]}
+  ]
+}

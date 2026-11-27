@@ -17430,7 +17430,7 @@ index 0000000..5f952c6
 +} // namespace SIM::Render
 diff --git a/libraries/sim/src/render_gpu/fx_battle3d.cpp b/libraries/sim/src/render_gpu/fx_battle3d.cpp
 new file mode 100644
-index 0000000..9133d79
+index 0000000..60b7a0f
 --- /dev/null
 +++ b/libraries/sim/src/render_gpu/fx_battle3d.cpp
 @@ -0,0 +1,915 @@
@@ -17697,15 +17697,15 @@ index 0000000..9133d79
 +  } else if (tod == SIM_BATTLE3D_TOD_NIGHT) {
 +    p.todMode = 1.0f;
 +    p.sunDir[0] = -0.45f; p.sunDir[1] = 0.78f; p.sunDir[2] = 0.42f;
-+    p.sunColor[0] = 0.72f; p.sunColor[1] = 0.84f; p.sunColor[2] = 1.06f;
-+    p.skyAmbient[0] = 0.32f; p.skyAmbient[1] = 0.42f; p.skyAmbient[2] = 0.66f;
-+    p.groundAmbient[0] = 0.22f; p.groundAmbient[1] = 0.30f; p.groundAmbient[2] = 0.42f;
-+    p.fogColor[0] = 0.19f; p.fogColor[1] = 0.28f; p.fogColor[2] = 0.50f;
-+    p.shadowTint[0] = 0.26f; p.shadowTint[1] = 0.34f; p.shadowTint[2] = 0.54f;
-+    p.shadowStrength = 0.58f;
++    p.sunColor[0] = 0.88f; p.sunColor[1] = 0.96f; p.sunColor[2] = 1.18f;
++    p.skyAmbient[0] = 0.42f; p.skyAmbient[1] = 0.54f; p.skyAmbient[2] = 0.78f;
++    p.groundAmbient[0] = 0.30f; p.groundAmbient[1] = 0.40f; p.groundAmbient[2] = 0.52f;
++    p.fogColor[0] = 0.22f; p.fogColor[1] = 0.32f; p.fogColor[2] = 0.56f;
++    p.shadowTint[0] = 0.28f; p.shadowTint[1] = 0.38f; p.shadowTint[2] = 0.58f;
++    p.shadowStrength = 0.55f;
 +    p.skyTint[0] = 0.34f; p.skyTint[1] = 0.40f; p.skyTint[2] = 0.62f;
-+    p.fogStart = 14.0f;
-+    p.fogEnd = 56.0f;
++    p.fogStart = 15.0f;
++    p.fogEnd = 58.0f;
 +  }
 +
 +  // Biome-specific overrides

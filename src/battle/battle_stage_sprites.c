@@ -1164,40 +1164,40 @@ float BattleStageSprites_GetSpeciesScale(int index)
         hMeters = 0.05f;
     }
 
-    // Compressed power curve so tiny (0.2m) and giant (9.2m Steelix) species both stay readable.
-    rel = powf(hMeters, 0.42f);
-    if (rel < 0.55f) {
-        rel = 0.55f;
-    } else if (rel > 2.05f) {
-        rel = 2.05f;
+    // Compressed power curve so tiny (0.3m) and giant (9.2m Steelix) species both stay readable.
+    rel = powf(hMeters, 0.36f);
+    if (rel < 0.60f) {
+        rel = 0.60f;
+    } else if (rel > 1.72f) {
+        rel = 1.72f;
     }
 
     btype = BattleSystem_GetBattlerType(battleSys, index);
     switch (btype) {
     case BATTLER_TYPE_SOLO_PLAYER:
-        base = 1.15f;
+        base = 1.06f;
         break;
     case BATTLER_TYPE_PLAYER_SIDE_SLOT_1:
     case BATTLER_TYPE_PLAYER_SIDE_SLOT_2:
-        base = 0.96f;
+        base = 0.90f;
         break;
     case BATTLER_TYPE_SOLO_ENEMY:
-        base = 0.50f;
+        base = 0.80f;
         break;
     case BATTLER_TYPE_ENEMY_SIDE_SLOT_1:
     case BATTLER_TYPE_ENEMY_SIDE_SLOT_2:
-        base = 0.44f;
+        base = 0.72f;
         break;
     default:
-        base = 0.75f;
+        base = 0.80f;
         break;
     }
 
     scale = base * rel;
-    if (scale < 0.28f) {
-        scale = 0.28f;
-    } else if (scale > 1.40f) {
-        scale = 1.40f;
+    if (scale < 0.42f) {
+        scale = 0.42f;
+    } else if (scale > 1.45f) {
+        scale = 1.45f;
     }
     return scale;
 }
@@ -1222,14 +1222,14 @@ static void BdspSpriteOffset(int index, fx32 *outDx, fx32 *outDy)
     type = BattleSystem_GetBattlerType(sStageSprites.battleSys, index);
     switch (type) {
     case BATTLER_TYPE_SOLO_PLAYER:
-        // bdsp-fix: right of and above the bottom-left player card, so big
-        // back sprites (Infernape) are not hidden behind it.
+        // bdsp-fix: right of the bottom-left card, feet just above card top edge (~y=150)
+        // so the full body (~45% height at 1.7m) is completely in frame.
         *outDx = (sizing ? 24 : 38) * FX32_ONE;
-        *outDy = (sizing ? -2 : 2) * FX32_ONE;
+        *outDy = (sizing ? -18 : 2) * FX32_ONE;
         break;
     case BATTLER_TYPE_SOLO_ENEMY:
-        *outDx = (sizing ? -28 : -16) * FX32_ONE;
-        *outDy = (sizing ? 4 : 14) * FX32_ONE;
+        *outDx = (sizing ? -22 : -16) * FX32_ONE;
+        *outDy = (sizing ? 10 : 14) * FX32_ONE;
         break;
     case BATTLER_TYPE_PLAYER_SIDE_SLOT_1:
     case BATTLER_TYPE_PLAYER_SIDE_SLOT_2:
@@ -1342,6 +1342,14 @@ static u32 DrawHook(PokemonSpriteManager *monSpriteMan, int index, const Pokemon
     if (BattleStageSprites_IsHeightSizingEnabled()) {
         float spScale = BattleStageSprites_GetSpeciesScale(index);
         fx32 footY = centreY + (fx32)((height * FX32_ONE) / 2);
+        if (sprite->shadow.height > 0 && sStageSprites.battleSys != NULL) {
+            int btype = BattleSystem_GetBattlerType(sStageSprites.battleSys, index);
+            if (btype == BATTLER_TYPE_SOLO_ENEMY || btype == BATTLER_TYPE_ENEMY_SIDE_SLOT_1 || btype == BATTLER_TYPE_ENEMY_SIDE_SLOT_2) {
+                // Keep hovering/tall enemy sprites (e.g. Steelix) anchored near the ground plane
+                int drop = sprite->shadow.height > 14 ? 14 : sprite->shadow.height;
+                footY += drop * FX32_ONE;
+            }
+        }
         width = (int)lroundf((float)width * spScale);
         height = (int)lroundf((float)height * spScale);
         if (width == 0) {
