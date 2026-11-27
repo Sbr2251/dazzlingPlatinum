@@ -132,9 +132,17 @@ BOOL FieldTask_Fishing(FieldTask *taskMan)
         } else {
             fishingContext->isFishEncountered = WildEncounters_TryFishingEncounter(fieldSystem, fishingContext->rodType, &fishingContext->fishEncounterDTO);
             if (fishingContext->isFishEncountered == FALSE) {
+                if (fishingContext->fishEncounterDTO != NULL) {
+                    FieldBattleDTO_Free(fishingContext->fishEncounterDTO);
+                    fishingContext->fishEncounterDTO = NULL;
+                }
                 int followBonus = FollowMon_GetFishingBonus(fieldSystem);
                 if (followBonus > 0 && (int)(LCRNG_Next() % 100u) < followBonus) {
                     fishingContext->isFishEncountered = WildEncounters_TryFishingEncounter(fieldSystem, fishingContext->rodType, &fishingContext->fishEncounterDTO);
+                    if (fishingContext->isFishEncountered == FALSE && fishingContext->fishEncounterDTO != NULL) {
+                        FieldBattleDTO_Free(fishingContext->fishEncounterDTO);
+                        fishingContext->fishEncounterDTO = NULL;
+                    }
                 }
             }
         }

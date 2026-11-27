@@ -39,6 +39,7 @@
 #include "savedata.h"
 #include "sound_playback.h"
 #include "system_flags.h"
+#include "vram_transfer.h"
 #include "terrain_collision_manager.h"
 #include "vars_flags.h"
 
@@ -189,23 +190,16 @@ static BOOL FollowMon_EnsureArchiveLoaded(void)
     arc->useStdio = FALSE;
     arc->stdioFile = NULL;
 
+    // Probe non-interactively via stdio only: FS_OpenFile on macOS/iOS opens
+    // the ROM-extraction modal when a file is missing, which would block boot
+    // whenever optional follow_mon.narc is absent.
     static const char *const kPaths[] = {
         "follow_mon.narc",
+        "./follow_mon.narc",
+        "game/follow_mon.narc",
         "gen5/follow_mon.narc",
         "data/follow_mon.narc",
     };
-
-    for (int i = 0; i < (int)(sizeof(kPaths) / sizeof(kPaths[0])); i++) {
-        FS_InitFile(&arc->fsFile);
-        if (FS_OpenFile(&arc->fsFile, kPaths[i])) {
-            arc->useStdio = FALSE;
-            if (ArchiveParseHeader(arc)) {
-                arc->available = TRUE;
-                return TRUE;
-            }
-            FS_CloseFile(&arc->fsFile);
-        }
-    }
 
     for (int i = 0; i < (int)(sizeof(kPaths) / sizeof(kPaths[0])); i++) {
         FILE *fp = fopen(kPaths[i], "rb");
@@ -590,6 +584,12 @@ Billboard *FollowMon_CreateBillboard(MapObject *mapObj, BillboardList *list, Res
         return NULL;
     }
 
+    // Drain any queued VBlank VRAM transfers before deleting the old billboard
+    // or freeing its BTX0 buffer so VBlank never reads freed memory.
+    if (sFollowMon.billboard != NULL || sFollowMon.btxBuf != NULL) {
+        VramTransfer_Process();
+    }
+
     // Clean any previously owned follower billboard/buffers first.
     if (sFollowMon.billboard != NULL) {
         Billboard_Delete(sFollowMon.billboard);
@@ -697,6 +697,8 @@ Billboard *FollowMon_CreateBillboard(MapObject *mapObj, BillboardList *list, Res
 void FollowMon_DestroyBillboard(MapObject *mapObj, Billboard **billboard)
 {
     (void)mapObj;
+
+    VramTransfer_Process();
 
     Billboard *target = NULL;
     if (billboard != NULL && *billboard != NULL) {
@@ -1042,6 +1044,15 @@ static void FollowMon_TrySpawn(FieldSystem *fieldSystem)
 // Public lifecycle & movement hooks
 // ---------------------------------------------------------------------------
 
+void FollowMon_SyncBillboardPose(FieldSystem *fieldSystem)
+{
+    MapObject *mapObj = FollowMon_GetMapObject(fieldSystem);
+    if (mapObj == NULL) {
+        return;
+    }
+    FollowMon_RenderDraw(mapObj);
+}
+
 void FollowMon_OnFieldInit(FieldSystem *fieldSystem)
 {
     sFollowMon.fieldActive = TRUE;
@@ -1051,6 +1062,12 @@ void FollowMon_OnFieldInit(FieldSystem *fieldSystem)
     sFollowMon.mapObj = NULL;
     sFollowMon.billboard = NULL;
     FollowMon_FreeBillboardBuffers();
+
+    if (!SIM_Config_prj_FollowerEnabled()) {
+        sFollowMon.active = FALSE;
+        sFollowMon.hidden = TRUE;
+        return;
+    }
 
     if (!FollowMon_EnsureArchiveLoaded()) {
         sFollowMon.active = FALSE;

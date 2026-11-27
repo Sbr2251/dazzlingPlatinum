@@ -100,17 +100,93 @@ static void RequestBillboardVRAMTransfer(BillboardVRAMTransfer *transfer, const 
     }
 }
 
+static u32 CalcTextureDataByteSize(const NNSG3dResTex *texture, u8 index)
+{
+    if (texture == NULL) {
+        return 0;
+    }
+
+    const NNSG3dResDictTexData *textureData = NNS_G3dGetTexDataByIdx(texture, index);
+    if (textureData == NULL) {
+        return 0;
+    }
+
+    u32 param = textureData->texImageParam;
+    u32 w = 8u << ((param >> 20) & 7u);
+    u32 h = 8u << ((param >> 23) & 7u);
+    u32 fmt = (param >> 26) & 7u;
+    u32 pixels = w * h;
+    u32 byteSize = 0;
+
+    switch (fmt) {
+    case GX_TEXFMT_A3I5:
+    case GX_TEXFMT_A5I3:
+    case GX_TEXFMT_PLTT256:
+        byteSize = pixels;
+        break;
+    case GX_TEXFMT_PLTT4:
+        byteSize = pixels >> 2;
+        break;
+    case GX_TEXFMT_PLTT16:
+        byteSize = pixels >> 1;
+        break;
+    case GX_TEXFMT_COMP4x4:
+        byteSize = pixels >> 2;
+        break;
+    case GX_TEXFMT_DIRECT:
+        byteSize = pixels << 1;
+        break;
+    default:
+        return 0;
+    }
+
+    u32 texOffset = ((param & NNS_G3D_TEXIMAGE_PARAM_TEX_ADDR_MASK) + texture->texInfo.vramKey) << 3;
+    u32 totalTexBytes = (u32)texture->texInfo.sizeTex << 3;
+    if (texOffset >= totalTexBytes) {
+        return 0;
+    }
+    u32 avail = totalTexBytes - texOffset;
+    if (byteSize > avail) {
+        byteSize = avail;
+    }
+    return byteSize;
+}
+
 static void RequestBillboardTextureVRAMTransfer(BillboardVRAMTransfer *transfer, const BillboardTexPlttIndex *texPlttIndexes)
 {
     void *buffer = GetBillboardTextureVRAMBuffer(transfer, texPlttIndexes);
-    VramTransfer_Request(NNS_GFD_DST_3D_TEX_VRAM, NNS_GfdGetTexKeyAddr(transfer->texKey), buffer, NNS_GfdGetTexKeySize(transfer->texKey));
+    u32 destSize = NNS_GfdGetTexKeySize(transfer->texKey);
+    u32 srcSize = CalcTextureDataByteSize(transfer->texture, texPlttIndexes->textureIdx);
+    u32 copySize = (srcSize > 0 && srcSize < destSize) ? srcSize : destSize;
+    if (buffer != NULL && copySize > 0) {
+        VramTransfer_Request(NNS_GFD_DST_3D_TEX_VRAM, NNS_GfdGetTexKeyAddr(transfer->texKey), buffer, copySize);
+    }
     transfer->textureIdx = texPlttIndexes->textureIdx;
 }
 
 static void RequestBillboardPlttVRAMTransfer(BillboardVRAMTransfer *transfer, const BillboardTexPlttIndex *texPlttIndexes)
 {
     void *buffer = GetBillboardPlttVRAMBuffer(transfer, texPlttIndexes);
-    VramTransfer_Request(NNS_GFD_DST_3D_TEX_PLTT, NNS_GfdGetPlttKeyAddr(transfer->plttKey), buffer, NNS_GfdGetPlttKeySize(transfer->plttKey));
+    u32 destSize = NNS_GfdGetPlttKeySize(transfer->plttKey);
+    u32 copySize = destSize;
+    if (transfer->texture != NULL) {
+        const NNSG3dResDictPlttData *plttData = NNS_G3dGetPlttDataByIdx(transfer->texture, texPlttIndexes->plttIdx);
+        u32 totalPlttBytes = (u32)transfer->texture->plttInfo.sizePltt << 3;
+        if (plttData != NULL) {
+            u32 plttOff = ((u32)plttData->offset + transfer->texture->plttInfo.vramKey) << 3;
+            if (plttOff < totalPlttBytes) {
+                u32 avail = totalPlttBytes - plttOff;
+                if (copySize > avail) {
+                    copySize = avail;
+                }
+            } else {
+                copySize = 0;
+            }
+        }
+    }
+    if (buffer != NULL && copySize > 0) {
+        VramTransfer_Request(NNS_GFD_DST_3D_TEX_PLTT, NNS_GfdGetPlttKeyAddr(transfer->plttKey), buffer, copySize);
+    }
     transfer->plttIdx = texPlttIndexes->plttIdx;
 }
 

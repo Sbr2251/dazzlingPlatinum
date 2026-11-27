@@ -39,6 +39,7 @@
 #include "map_object_move.h"
 #include "math_util.h"
 #include "party.h"
+#include "vram_transfer.h"
 #include "player_avatar.h"
 #include "player_move.h"
 #include "pokemon.h"
@@ -173,13 +174,15 @@ static void CopyAsciiToPlatinumString(String *dst, const char *src)
     }
     String_Clear(dst);
     int col = 0;
+    int line = 0;
     for (int i = 0; src[i] != '\0'; i++) {
         if ((u32)dst->size + 1u >= (u32)dst->maxSize) {
             break;
         }
         if (src[i] == '\n') {
-            String_AppendChar(dst, CHAR_CR);
+            String_AppendChar(dst, (line == 0) ? CHAR_CR : CHAR_CONTROL_SCROLL);
             col = 0;
+            line++;
             continue;
         }
         if (src[i] == ' ') {
@@ -188,8 +191,9 @@ static void CopyAsciiToPlatinumString(String *dst, const char *src)
                 nextLen++;
             }
             if (col > 0 && col + 1 + nextLen > 32) {
-                String_AppendChar(dst, CHAR_CR);
+                String_AppendChar(dst, (line == 0) ? CHAR_CR : CHAR_CONTROL_SCROLL);
                 col = 0;
+                line++;
                 continue;
             }
         }
@@ -238,6 +242,9 @@ static void ReadPokemonDisplayName(Pokemon *mon, char *outName, int cap)
 
 static void FollowMon_DestroyEmote(void)
 {
+    if (sEmote.billboard != NULL || sEmote.texBuf != NULL) {
+        VramTransfer_Process();
+    }
     if (sEmote.billboard != NULL) {
         Billboard_Delete(sEmote.billboard);
         sEmote.billboard = NULL;
@@ -778,6 +785,7 @@ static BOOL FollowMon_TalkFieldTask(FieldTask *task)
     switch (ctx->state) {
     case TALK_STATE_INIT: {
         MapObjectMan_PauseAllMovement(fieldSystem->mapObjMan);
+        FollowMon_SyncBillboardPose(fieldSystem);
         FollowMon_EvaluateTalk(fieldSystem, &ctx->outcome);
         FollowMon_AdjustMood(ctx->outcome.moodDelta);
 
@@ -801,10 +809,12 @@ static BOOL FollowMon_TalkFieldTask(FieldTask *task)
             s64 num = (s64)4 * f * (dur - f) * (8 * FX32_ONE);
             s64 den = (s64)dur * dur;
             FollowMon_SetTalkBubbleOffset((fx32)(num / den));
+            FollowMon_SyncBillboardPose(fieldSystem);
             return FALSE;
         }
 
         FollowMon_SetTalkBubbleOffset(0);
+        FollowMon_SyncBillboardPose(fieldSystem);
         ctx->msgStr = String_Init(256, HEAP_ID_FIELD1);
         if (ctx->msgStr != NULL) {
             CopyAsciiToPlatinumString(ctx->msgStr, ctx->outcome.message);

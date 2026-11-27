@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "constants/battle.h"
+#include "constants/charcode.h"
 #include "constants/field/dynamic_map_features.h"
 #include "constants/field/map.h"
 #include "constants/fieldmap.h"
@@ -22,8 +23,13 @@
 #include "port/sim_config_prj.h"
 
 #include "bag.h"
+#include "bg_window.h"
 #include "encounter.h"
 #include "field_battle_data_transfer.h"
+#include "field_message.h"
+#include "field_task.h"
+#include "heap.h"
+#include "item.h"
 #include "location.h"
 #include "map_header.h"
 #include "map_header_data.h"
@@ -34,9 +40,12 @@
 #include "persisted_map_features_init.h"
 #include "player_avatar.h"
 #include "pokeradar.h"
+#include "render_window.h"
 #include "rtc.h"
 #include "save_player.h"
 #include "sound_playback.h"
+#include "string_gf.h"
+#include "system.h"
 #include "system_flags.h"
 #include "terrain_collision_manager.h"
 #include "trainer_info.h"
@@ -120,10 +129,31 @@ static BOOL IsPhenomenaAllowed(FieldSystem *fieldSystem)
     if (fieldSystem->chain != NULL && GetRadarChainActive(fieldSystem->chain) == TRUE) {
         return FALSE;
     }
+    if (SystemFlag_CheckHasPartner(SaveData_GetVarsFlags(fieldSystem->saveData)) == TRUE) {
+        return FALSE;
+    }
     if (IsForbiddenMap(fieldSystem, fieldSystem->location->mapHeaderID)) {
         return FALSE;
     }
     return TRUE;
+}
+
+static BOOL IsPlayerOnCyclingRoadDeck(FieldSystem *fieldSystem)
+{
+    if (fieldSystem == NULL || fieldSystem->location == NULL || fieldSystem->playerAvatar == NULL) {
+        return FALSE;
+    }
+    if (fieldSystem->location->mapHeaderID != MAP_HEADER_ROUTE_206) {
+        return FALSE;
+    }
+    MapObject *playerObj = PlayerAvatar_GetMapObject(fieldSystem->playerAvatar);
+    if (playerObj != NULL && MapObject_CheckStatusFlag(playerObj, MAP_OBJ_STATUS_ON_ELEVATED_BRIDGE)) {
+        return TRUE;
+    }
+    int px = PlayerAvatar_GetXPos(fieldSystem->playerAvatar);
+    int pz = PlayerAvatar_GetZPos(fieldSystem->playerAvatar);
+    u8 beh = TerrainCollisionManager_GetTileBehavior(fieldSystem, px, pz);
+    return (TileBehavior_IsBikeBridgeNorthSouth(beh) || TileBehavior_IsBikeBridgeEastWest(beh)) ? TRUE : FALSE;
 }
 
 static BOOL IsCyclingRoadDeckTile(FieldSystem *fieldSystem, int mapHeaderID, int tileX, int tileZ)
@@ -131,12 +161,11 @@ static BOOL IsCyclingRoadDeckTile(FieldSystem *fieldSystem, int mapHeaderID, int
     if (mapHeaderID != MAP_HEADER_ROUTE_206) {
         return FALSE;
     }
+    if (!IsPlayerOnCyclingRoadDeck(fieldSystem)) {
+        return FALSE;
+    }
     u8 beh = TerrainCollisionManager_GetTileBehavior(fieldSystem, tileX, tileZ);
     if (TileBehavior_IsBikeBridgeNorthSouth(beh) || TileBehavior_IsBikeBridgeEastWest(beh) || TileBehavior_IsBridge(beh)) {
-        return TRUE;
-    }
-    MapObject *playerObj = PlayerAvatar_GetMapObject(fieldSystem->playerAvatar);
-    if (playerObj != NULL && MapObject_CheckStatusFlag(playerObj, MAP_OBJ_STATUS_ON_ELEVATED_BRIDGE)) {
         return TRUE;
     }
     return FALSE;
@@ -167,9 +196,16 @@ static BOOL IsTileSameMapHeader(FieldSystem *fieldSystem, int mapHeaderID, int t
     }
     int offsetX = LandDataManager_GetOffsetTileX(fieldSystem->landDataMan);
     int offsetZ = LandDataManager_GetOffsetTileZ(fieldSystem->landDataMan);
-    int mx = (tileX - offsetX) / MAP_TILES_COUNT_X;
-    int mz = (tileZ - offsetZ) / MAP_TILES_COUNT_Z;
-    if (tileX - offsetX < 0 || tileZ - offsetZ < 0) {
+    int relX = tileX - offsetX;
+    int relZ = tileZ - offsetZ;
+    if (relX < 0 || relZ < 0) {
+        return FALSE;
+    }
+    int mx = relX / MAP_TILES_COUNT_X;
+    int mz = relZ / MAP_TILES_COUNT_Z;
+    int width = MapMatrix_GetWidth(fieldSystem->mapMatrix);
+    int height = MapMatrix_GetHeight(fieldSystem->mapMatrix);
+    if (mx < 0 || mz < 0 || mx >= width || mz >= height) {
         return FALSE;
     }
     return (int)MapMatrix_GetMapHeaderIDAtCoords(fieldSystem->mapMatrix, mx, mz) == mapHeaderID;
@@ -409,14 +445,29 @@ void FieldPhenomena_Clear(void)
 
 void FieldPhenomena_OnFieldInit(FieldSystem *fieldSystem)
 {
-    (void)fieldSystem;
+    // Preserve an active phenomenon across same-map menu round trips (e.g.
+    // opening the Bag to use the Super Rod on a rippling water spot). Clear
+    // whenever the map changed or the feature is disabled.
+    if (sPhenomena.active
+        && fieldSystem != NULL
+        && fieldSystem->location != NULL
+        && SIM_Config_prj_PhenomenaEnabled()
+        && sPhenomena.mapHeaderID == fieldSystem->location->mapHeaderID) {
+        const VecFx32 *playerPos = (fieldSystem->playerAvatar != NULL) ? PlayerAvatar_GetPos(fieldSystem->playerAvatar) : NULL;
+        fx32 refY = playerPos != NULL ? playerPos->y : sPhenomena.worldY;
+        u8 heightSrc = 0;
+        sPhenomena.worldY = TerrainCollisionManager_GetHeight(fieldSystem, refY, sPhenomena.worldX, sPhenomena.worldZ, &heightSrc);
+        return;
+    }
     memset(&sPhenomena, 0, sizeof(sPhenomena));
 }
 
 void FieldPhenomena_OnFieldExit(FieldSystem *fieldSystem)
 {
     (void)fieldSystem;
-    memset(&sPhenomena, 0, sizeof(sPhenomena));
+    // Keep logical phenomenon state across same-map sub-menus (Bag/Party);
+    // FieldPhenomena_OnFieldInit clears it if returning to a different map,
+    // and OnZoneChange/OnBattleStart clear it immediately.
 }
 
 void FieldPhenomena_OnZoneChange(FieldSystem *fieldSystem)
@@ -719,12 +770,125 @@ void FieldPhenomena_Draw(FieldSystem *fieldSystem)
     G3_Color(GX_RGB(31, 31, 31));
 }
 
+typedef struct {
+    int state;
+    u16 itemID;
+    BOOL added;
+    Window window;
+    BOOL windowOpen;
+    String *msgStr;
+    u8 printerID;
+} PhenomenonItemMsgCtx;
+
+static charcode_t PhenomEncodeAscii(char ch)
+{
+    if (ch >= '0' && ch <= '9') {
+        return (charcode_t)(CHAR_0 + (ch - '0'));
+    }
+    if (ch >= 'A' && ch <= 'Z') {
+        return (charcode_t)(CHAR_A + (ch - 'A'));
+    }
+    if (ch >= 'a' && ch <= 'z') {
+        return (charcode_t)(CHAR_a + (ch - 'a'));
+    }
+    switch (ch) {
+    case ' ': return CHAR_SPACE;
+    case '\n': return CHAR_CR;
+    case '!': return CHAR_EXCLAMATION;
+    case '.': return CHAR_PERIOD;
+    case ',': return CHAR_COMMA;
+    default: return CHAR_SPACE;
+    }
+}
+
+static void PhenomAppendAscii(String *dst, const char *s)
+{
+    for (int i = 0; s[i] != '\0' && (u32)dst->size + 1u < (u32)dst->maxSize; i++) {
+        String_AppendChar(dst, PhenomEncodeAscii(s[i]));
+    }
+}
+
+static BOOL PhenomenonItemMsgTask(FieldTask *task)
+{
+    FieldSystem *fieldSystem = FieldTask_GetFieldSystem(task);
+    PhenomenonItemMsgCtx *ctx = FieldTask_GetEnv(task);
+    if (fieldSystem == NULL || ctx == NULL) {
+        return TRUE;
+    }
+
+    if (ctx->state == 0) {
+        MapObjectMan_PauseAllMovement(fieldSystem->mapObjMan);
+        ctx->msgStr = String_Init(128, HEAP_ID_FIELD1);
+        String *itemName = String_Init(64, HEAP_ID_FIELD1);
+        if (ctx->msgStr != NULL && itemName != NULL) {
+            Item_LoadName(itemName, ctx->itemID, HEAP_ID_FIELD1);
+            PhenomAppendAscii(ctx->msgStr, "Found ");
+            String_Concat(ctx->msgStr, itemName);
+            if (ctx->added) {
+                PhenomAppendAscii(ctx->msgStr, "!\nPut it away in the Bag.");
+            } else {
+                PhenomAppendAscii(ctx->msgStr, ",\nbut the Bag is full!");
+            }
+            String_Free(itemName);
+            FieldMessage_AddWindow(fieldSystem->bgConfig, &ctx->window, BG_LAYER_MAIN_3);
+            FieldMessage_DrawWindow(&ctx->window, SaveData_GetOptions(fieldSystem->saveData));
+            ctx->windowOpen = TRUE;
+            ctx->printerID = FieldMessage_Print(&ctx->window, ctx->msgStr, SaveData_GetOptions(fieldSystem->saveData), TRUE);
+            ctx->state = 1;
+            return FALSE;
+        }
+        if (itemName != NULL) {
+            String_Free(itemName);
+        }
+        if (ctx->msgStr != NULL) {
+            String_Free(ctx->msgStr);
+        }
+        MapObjectMan_UnpauseAllMovement(fieldSystem->mapObjMan);
+        Heap_Free(ctx);
+        return TRUE;
+    }
+
+    if (FieldMessage_FinishedPrinting(ctx->printerID) == TRUE && JOY_NEW(PAD_BUTTON_A | PAD_BUTTON_B)) {
+        if (ctx->windowOpen) {
+            Window_EraseMessageBox(&ctx->window, FALSE);
+            Window_Remove(&ctx->window);
+            ctx->windowOpen = FALSE;
+        }
+        if (ctx->msgStr != NULL) {
+            String_Free(ctx->msgStr);
+            ctx->msgStr = NULL;
+        }
+        MapObjectMan_UnpauseAllMovement(fieldSystem->mapObjMan);
+        Heap_Free(ctx);
+        return TRUE;
+    }
+    return FALSE;
+}
+
+static void StartPhenomenonItemMsg(FieldSystem *fieldSystem, u16 itemID, BOOL added)
+{
+    if (fieldSystem == NULL || FieldSystem_IsRunningTask(fieldSystem)) {
+        return;
+    }
+    PhenomenonItemMsgCtx *ctx = Heap_Alloc(HEAP_ID_FIELD1, sizeof(PhenomenonItemMsgCtx));
+    if (ctx == NULL) {
+        return;
+    }
+    memset(ctx, 0, sizeof(PhenomenonItemMsgCtx));
+    ctx->itemID = itemID;
+    ctx->added = added;
+    FieldSystem_CreateTask(fieldSystem, PhenomenonItemMsgTask, ctx);
+}
+
 int FieldPhenomena_CheckStepTrigger(FieldSystem *fieldSystem)
 {
     if (!sPhenomena.active || fieldSystem == NULL || fieldSystem->location == NULL || fieldSystem->playerAvatar == NULL) {
         return 0;
     }
     if (!SIM_Config_prj_PhenomenaEnabled()) {
+        return 0;
+    }
+    if (fieldSystem->saveData != NULL && SystemFlag_CheckHasPartner(SaveData_GetVarsFlags(fieldSystem->saveData)) == TRUE) {
         return 0;
     }
     if (sPhenomena.mapHeaderID != fieldSystem->location->mapHeaderID) {
@@ -737,9 +901,12 @@ int FieldPhenomena_CheckStepTrigger(FieldSystem *fieldSystem)
         return 0;
     }
 
+    if (sPhenomena.type == PHENOMENON_SHADOW && !IsPlayerOnCyclingRoadDeck(fieldSystem)) {
+        return 0;
+    }
+
     enum PhenomenonType type = sPhenomena.type;
     int mapHeaderID = sPhenomena.mapHeaderID;
-    FieldPhenomena_Clear();
 
     BOOL doBattle = TRUE;
     if (type == PHENOMENON_DUST) {
@@ -749,6 +916,7 @@ int FieldPhenomena_CheckStepTrigger(FieldSystem *fieldSystem)
     }
 
     if (doBattle) {
+        FieldPhenomena_Clear();
         FieldBattleDTO *dto = BuildPhenomenonBattleDTO(fieldSystem, type, FALSE);
         if (dto != NULL) {
             Encounter_NewVsWild(fieldSystem, dto);
@@ -759,8 +927,17 @@ int FieldPhenomena_CheckStepTrigger(FieldSystem *fieldSystem)
 
     u16 itemID = PhenomenaTables_RollItem(type, mapHeaderID);
     if (itemID != 0 && fieldSystem->saveData != NULL) {
-        Bag_TryAddItem(SaveData_GetBag(fieldSystem->saveData), itemID, 1, HEAP_ID_FIELD1);
-        Sound_PlayEffect(SEQ_SE_DP_DECIDE_sseq);
+        Bag *bag = SaveData_GetBag(fieldSystem->saveData);
+        if (Bag_TryAddItem(bag, itemID, 1, HEAP_ID_FIELD1) == TRUE) {
+            FieldPhenomena_Clear();
+            Sound_PlayEffect(SEQ_SE_DP_DECIDE_sseq);
+            StartPhenomenonItemMsg(fieldSystem, itemID, TRUE);
+        } else {
+            Sound_PlayEffect(SEQ_SE_DP_BOX03_sseq);
+            StartPhenomenonItemMsg(fieldSystem, itemID, FALSE);
+        }
+    } else {
+        FieldPhenomena_Clear();
     }
     return -1;
 }
@@ -774,6 +951,9 @@ BOOL FieldPhenomena_TrySuperRodEncounter(FieldSystem *fieldSystem, enum Encounte
         return FALSE;
     }
     if (!SIM_Config_prj_PhenomenaEnabled() || fieldSystem == NULL || fieldSystem->location == NULL || fieldSystem->playerAvatar == NULL) {
+        return FALSE;
+    }
+    if (fieldSystem->saveData != NULL && SystemFlag_CheckHasPartner(SaveData_GetVarsFlags(fieldSystem->saveData)) == TRUE) {
         return FALSE;
     }
     if (sPhenomena.mapHeaderID != fieldSystem->location->mapHeaderID) {
@@ -826,7 +1006,11 @@ BOOL FieldPhenomena_DebugForceSpawn(FieldSystem *fieldSystem, enum PhenomenonTyp
     int tx = tileX;
     int tz = tileZ;
 
-    if (!hasCoords) {
+    if (hasCoords) {
+        if (!IsTileSameMapHeader(fieldSystem, mapHeaderID, tx, tz)) {
+            return FALSE;
+        }
+    } else {
         int playerX = PlayerAvatar_GetXPos(fieldSystem->playerAvatar);
         int playerZ = PlayerAvatar_GetZPos(fieldSystem->playerAvatar);
         BOOL found = FALSE;

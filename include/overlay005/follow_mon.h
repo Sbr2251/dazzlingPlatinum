@@ -74,6 +74,7 @@ BOOL FollowMon_HeadlessTalk(FieldSystem *fieldSystem, int *outEmote, int *outMoo
 // Shared helpers used by follow_mon_talk.c
 MapObject *FollowMon_GetMapObject(FieldSystem *fieldSystem);
 void FollowMon_SetTalkBubbleOffset(fx32 jumpY);
+void FollowMon_SyncBillboardPose(FieldSystem *fieldSystem);
 u8 FollowMon_GetShinyLeafCount(int slotIndex);
 void FollowMon_IncrementShinyLeafCount(int slotIndex);
 int FollowMon_GetActivePartySlot(void);

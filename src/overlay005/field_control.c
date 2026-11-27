@@ -357,14 +357,14 @@ BOOL FieldInput_Process(const FieldInput *input, FieldSystem *fieldSystem)
             return TRUE;
         }
 
-        if (FollowMon_TryTalk(fieldSystem) == TRUE) {
-            return TRUE;
-        }
-
         int fogScript = FieldMoves_GetFogInteractScript(fieldSystem);
 
         if (fogScript != 0xffff) {
             ScriptManager_Set(fieldSystem, fogScript, NULL);
+            return TRUE;
+        }
+
+        if (FollowMon_TryTalk(fieldSystem) == TRUE) {
             return TRUE;
         }
     }

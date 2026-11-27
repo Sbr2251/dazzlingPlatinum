@@ -301,7 +301,7 @@ BOOL SIM_Config_prj_FollowerEnabled(void)
         }
     }
 
-    if (SIM_Config_prj_EnvIsSet("SIM_HEADLESS")) {
+    if (SIM_Config_prj_EnvIsSet("SIM_HEADLESS") || getenv("SIM_CONTROL") != NULL) {
         return FALSE;
     }
 
@@ -320,7 +320,7 @@ BOOL SIM_Config_prj_PhenomenaEnabled(void)
         }
     }
 
-    if (SIM_Config_prj_EnvIsSet("SIM_HEADLESS")) {
+    if (SIM_Config_prj_EnvIsSet("SIM_HEADLESS") || getenv("SIM_CONTROL") != NULL) {
         return FALSE;
     }
 
