@@ -1,0 +1,119 @@
+{
+ "name": "visual_bdsp_hd_doubles",
+ "env": {
+  "SIM_FX_BATTLEHUD": "1",
+  "SIM_FX_BDSP_BATTLE": "1",
+  "SIM_FX_WIDE": "1",
+  "SIM_FX_HUDHD": "1",
+  "SIM_RENDERER": "gpu",
+  "SIM_FX_BDSP_SIZING": "1"
+ },
+ "config": {
+  "ScreenLayout": "wide"
+ },
+ "start": {
+  "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+ },
+ "steps": [
+  {
+   "step": 900
+  },
+  {
+   "frames": 10,
+   "press": "A"
+  },
+  {
+   "step": 290
+  },
+  {
+   "frames": 10,
+   "press": "A"
+  },
+  {
+   "step": 290
+  },
+  {
+   "frames": 10,
+   "press": "A"
+  },
+  {
+   "step": 290
+  },
+  {
+   "frames": 10,
+   "press": "A"
+  },
+  {
+   "step": 290
+  },
+  {
+   "frames": 10,
+   "press": "A"
+  },
+  {
+   "step": 290
+  },
+  {
+   "frames": 10,
+   "press": "A"
+  },
+  {
+   "step": 290
+  },
+  {
+   "frames": 10,
+   "press": "A"
+  },
+  {
+   "step": 290
+  },
+  {
+   "frames": 10,
+   "press": "A"
+  },
+  {
+   "step": 290
+  },
+  {
+   "step": 600
+  },
+  {
+   "start_battle": {
+    "spec": "../../../battle/specs/visual_double_mega.json"
+   }
+  },
+  {
+   "timeout_frames": 7200,
+   "wait_until": {
+    "op": "eq",
+    "path": "battle.waiting",
+    "value": true
+   }
+  },
+  {
+   "step": 60
+  },
+  {
+   "frames": 10,
+   "press": "A"
+  },
+  {
+   "step": 30
+  },
+  {
+   "frames": 10,
+   "press": "A"
+  },
+  {
+   "step": 30
+  },
+  {
+   "screenshot": "hd_doubles",
+   "reference": "../references/visual/visual_bdsp_hd_doubles.bmp",
+   "tolerance": 0.0
+  }
+ ],
+ "requires_exists": [
+  "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+ ]
+}
