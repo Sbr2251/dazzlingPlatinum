@@ -30,11 +30,12 @@ LIGHT = LIGHT / np.linalg.norm(LIGHT)
 
 VIEWPOINTS = [
     ("01_west_entry", 582, 600),
-    ("02_flooded_boardwalk", 600, 593),
-    ("03_lowland_070", 618, 594),
-    ("04_north_ruts_crates", 634, 587),
-    ("05_south_field_crates", 648, 594),
-    ("06_veilstone_approach", 663, 598),
+    ("02_flooded_boardwalk", 600, 592),
+    ("03_lowland_070", 620, 592),
+    ("04_north_ruts_crates", 634, 586),
+    ("05_south_field_crates", 652, 592),
+    ("06_veilstone_staging", 664, 598),
+    ("07_west_flood_overlook", 591, 596),
 ]
 
 
@@ -100,7 +101,10 @@ def raster(batches, project, Wd, Ht, bg=(46, 58, 70)):
     img = np.zeros((Ht, Wd, 3), float)
     img[:] = np.array(bg) / 255.0
     zb = np.full((Ht, Wd), np.inf)
-    order = sorted(batches, key=lambda b: b["alpha"] < 0.99)       # opaque first
+    for b in batches:
+        a = b["tex"][..., 3]
+        b["soft"] = bool(((a > 0) & (a < 255)).any())               # A3I5 / A5I3: real per-texel alpha
+    order = sorted(batches, key=lambda b: (b["alpha"] < 0.99 or b["soft"], b["soft"]))   # opaque first
     for b in order:
         sx, sy, dz = project(b["W"])
         tex = b["tex"].astype(float) / 255.0
@@ -150,7 +154,7 @@ def raster(batches, project, Wd, Ht, bg=(46, 58, 70)):
                 col = col * (w0[..., None] * vc[0] + w1[..., None] * vc[1] + w2[..., None] * vc[2])
             region = img[y0:y1 + 1, x0:x1 + 1]
             aa = np.where(ok, a, 0)[..., None]
-            if b["alpha"] >= 0.99:
+            if b["alpha"] >= 0.99 and not b["soft"]:
                 aa = np.where(ok, (a > 0.5).astype(float), 0)[..., None]
                 sub[ok & (a > 0.5)] = z[ok & (a > 0.5)]
             region[:] = region * (1 - aa) + np.clip(col, 0, 1) * aa

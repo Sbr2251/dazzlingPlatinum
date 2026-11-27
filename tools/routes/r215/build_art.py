@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Route 215 flooded-lowland art pass: map_data_069/070/071 (stock terrain edited in place) + set 078 + lighting 006.
+"""Route 215 flooded-lowland art pass (v2): map_data_069/070/071 (stock terrain edited in place) + set 078 +
+lighting 006.
 
 Usage:
   ~/.venvs/desmume/bin/python tools/routes/r215/build_art.py              dry run: build, budgets, every check
@@ -11,22 +12,26 @@ lighting_set_000 (schema + block times + sun directions). Re-running never feeds
 
 What it adds (tools/world_art/chunkedit.py: every stock shape and material stays byte for byte, the new geometry is
 appended as new materials/shapes; stock props and BDHC are kept verbatim):
-  * Flooded standing water: r215_puddle blobs (2x2 tiles each, c0 transparent) scattered over the main lowland paths
-    (FLOOD zones). Every tile whose centre is under puddle water gets the stock TILE_BEHAVIOR_PUDDLE (0x16) low byte,
-    so the player splashes and reflects in it (collision bits untouched).
-  * Weathered timber boardwalks (BOARDWALKS): r215_board decks 0.03 tiles over the ground (the BDHC floor: feet never
-    sink or float), mud-dark skirts and short pilings on the deck edges, laid over flooded stretches.
-  * Eclipse truck ruts (RUTS): r215_ruts dual-tyre tracks (2 tiles wide) through MAP_070's north field and MAP_071's
-    south field / lane, down to the Veilstone gate approach.
-  * Three Eclipse staging clusters (CLUSTERS): stacked crates, tarp-covered stacks, hazard barriers, warning posts and
-    amber / violet work lamps (unlit lamp heads + translucent glow pools), only on tiles that are blocked by them
-    (newly blocked tiles are checked: no event, no NPC route, full reachability kept) or already blocked.
-  * A flooded drainage sign post (SIGNS) by the west boardwalk; its tile is blocked, the BG_EVENTs read it.
+  * Three continuous flood sheets (SHEETS) over the lowland dips, in Platinum's own animated `sea` water (stock set
+    010 texture, 1 tile per repeat). Each sheet's outline is the zero contour of a smooth field (signed distance
+    to the sheet's dry border + low-frequency noise), traced by marching squares on a quarter-tile grid,
+    simplified (Douglas-Peucker) and ear-clipped into triangles; a shoreline strip (r215_shore, c0=1: silty
+    shallows, wet mud lip, stock-green grass overhang thinning into the stock grass) follows the whole contour as
+    one mitred quad strip. Walkable tiles whose centre is under the water get the stock TILE_BEHAVIOR_PUDDLE
+    (0x16) low byte (splashes + reflections; collision bits untouched).
+  * Weathered timber boardwalks (BOARDWALKS) spanning right across the sheets: decks 0.06 tiles over the ground
+    (the BDHC floor), mud-dark skirts, corner and edge pilings standing in the water.
+  * Eclipse truck ruts (RUTS) on DRY ground only (north field, south field / lane, gate approach): wobbling
+    mitred quad strips of the sculpted r215_ruts groove texture (never laid on a flood sheet; checked).
+  * Team Eclipse staging: the gate staging yard is a 3x3-tile landmark (pallets, multi-height dark-slate crate
+    stacks, a draped olive tarp, a tripod work lamp and a soft contact shadow); two smaller 2x2 clusters with mast
+    lamps in the north and south fields. Lamps glow through an unlit lamp glass plus smooth A3I5 halo / ground
+    pool cards (r215_glow): no dithered glow anywhere.
+  * A flooded drainage sign post (SIGNS); its tile is blocked, a BG_EVENT reads it.
 """
 import json
 import math
 import os
-import subprocess
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -48,45 +53,53 @@ LIGHTING_TEMPLATE = "res/field/lighting/lighting_set_000.json"
 # the layout (absolute matrix tiles; rect = (x0, z0, x1, z1) inclusive tiles)
 # ---------------------------------------------------------------------------------------------------------------
 
-# flooded zones: puddle blobs are placed on a jittered 2-tile lattice inside them, only where the whole 2x2 footprint
-# is flat walkable ground (behaviour 0) at one BDHC height
-FLOOD = [
-    (577, 595, 589, 601),     # MAP_069 west entry from Route 210 (x 576 seam column left stock)
-    (584, 589, 590, 594),     # MAP_069 lowland west of the first bridge
-    (594, 589, 606, 594),     # MAP_069 lowland east of the bridge (the flooded boardwalk)
-    (608, 588, 621, 597),     # MAP_070 lowland under the second bridge
-    (630, 583, 645, 587),     # MAP_070 north field (truck ruts)
-    (640, 590, 654, 593),     # MAP_071 south field
-    (644, 596, 658, 599),     # MAP_071 lane to the gate stairs
-    (660, 595, 667, 601),     # MAP_071 Veilstone gate approach (low ground, h 0)
-]
-FLOOD_SKIP = [(600, 591, 600, 591)]   # keep a dry spot for the Max Ether ball
+# flood sheets: the water may cover the flat walkable behaviour-0 tiles of `rect` at one BDHC height plus the
+# listed blocked tree-base tiles (`trees`, linking lobes under the canopy); `dry_x0` keeps the seam column clear
+SHEETS = {
+    "west": dict(rect=(577, 594, 589, 601), trees=[(582, 594), (583, 594), (582, 595), (583, 595)],
+                 note="MAP_069 west entry from Route 210 (the west boardwalk)"),
+    "lowland": dict(rect=(594, 589, 606, 595), trees=[],
+                    note="MAP_069 lowland east of the first raised walkway (the long boardwalk)"),
+    "east": dict(rect=(616, 585, 621, 595), trees=[],
+                 note="MAP_070 lowland under the second raised walkway"),
+}
+SHEET_MARGIN = 0.42          # contour inset from the sheet's dry border (tiles)
+SHEET_NOISE = 0.36           # contour wobble amplitude (tiles)
+GRID = 0.25                  # marching-squares step (tiles)
+SIMPLIFY = 0.07              # Douglas-Peucker tolerance (tiles)
+DECK_H = 0.06
+SHORE_IN, SHORE_OUT = 0.26, 0.62   # shoreline strip: over the water / over the bank (tiles)
+H_WATER, H_SHORE = 0.036, 0.041    # decal heights over the ground (tiles): above the stock A3I5 'allpeak'
+                                   # grass decals (+0.03), below the boardwalk decks (+0.06)
 
 # boardwalk decks: (x0, z0, x1, z1) tile rects, decks run along x, 2 tiles wide in z
 BOARDWALKS = [
-    (577, 598, 587, 599),     # west entry
-    (595, 591, 606, 592),     # flooded lowland east of the bridge
-    (616, 592, 621, 593),     # MAP_070 lowland
+    (577, 598, 587, 599),     # west entry (sheet west)
+    (595, 591, 606, 592),     # flooded lowland (sheet lowland)
+    (616, 592, 621, 593),     # MAP_070 lowland (sheet east)
 ]
 
-# truck ruts: polylines of lane centres (x, z) in tiles; the lane is 2 tiles wide
+# truck ruts: polylines of lane centres (x, z) in tiles; the lane is 2 tiles wide; corners are filleted
 RUTS = [
     [(630.3, 586.0), (656.6, 586.0)],                                   # MAP_070 -> 071 north field, eastbound
-    [(653.5, 591.0), (645.0, 591.0), (645.0, 598.0), (658.6, 598.0)],   # MAP_071 south field -> lane -> stairs
-    [(661.2, 598.5), (667.8, 598.5)],                                   # MAP_071 gate approach (low ground)
+    [(653.2, 591.0), (645.0, 591.0), (645.0, 598.0), (658.6, 598.0)],   # MAP_071 south field -> lane -> stairs
+    [(660.8, 598.0), (670.3, 598.0)],                                   # MAP_071 gate approach (low ground)
 ]
+RUT_FILLET = 1.25
 
 # Eclipse staging clusters: tiles they block (must be free of events / NPC routes) + their props
 CLUSTERS = {
-    "field": dict(block=(655, 592, 656, 593), lamp="violet"),
-    "gate": dict(block=(665, 600, 667, 601), lamp="amber"),
-    "north": dict(block=(630, 583, 631, 584), lamp="amber"),
+    "north": dict(block=(630, 582, 632, 584), kind="yard"),       # the 3x3 roadside landmark over the north ruts
+    "gate": dict(block=(665, 599, 667, 601), kind="gate"),        # 3x3 yard by the Veilstone gate
+    "field": dict(block=(655, 592, 656, 593), kind="small"),
 }
 SIGNS = {"drain": (594, 590)}         # the flooded drainage sign post (tile blocked)
 BG_SIGNS = [                          # (x, z, script) BG_EVENTs appended to events.json
     (655, 592, "Route215_EclipseCrates"),
     (594, 590, "Route215_DrainageSign"),
+    (666, 599, "Route215_EclipseStaging"),
 ]
+CLIFF_OK = {"lgreen", "lgreenp", "ngrass", "tshadow", "nectgr", "allpeak", "shadowchip", "nhana", "plant2"}
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -103,6 +116,17 @@ def h01(x, z, k=0):
     return v - math.floor(v)
 
 
+def vnoise(x, z, cell, k):
+    """Smooth value noise in world tiles (lattice `cell` tiles)."""
+    fx, fz = x / cell, z / cell
+    ix, iz = math.floor(fx), math.floor(fz)
+    tx, tz = fx - ix, fz - iz
+    tx, tz = tx * tx * (3 - 2 * tx), tz * tz * (3 - 2 * tz)
+    a = h01(ix, iz, k) * (1 - tx) + h01(ix + 1, iz, k) * tx
+    b = h01(ix, iz + 1, k) * (1 - tx) + h01(ix + 1, iz + 1, k) * tx
+    return a * (1 - tz) + b * tz
+
+
 class Stock:
     def __init__(self):
         self.chunks = R.stock_chunks()
@@ -110,6 +134,24 @@ class Stock:
         hts = R.merged_heights(self.chunks)
         self.h = {t: (None if v is None else v - 1.0) for t, v in hts.items()}   # chunkedit h (ground = 1.0)
         self.ev = R.stock_events()
+        self.cliff = self._cliff_tiles()
+
+    def _cliff_tiles(self):
+        """Tiles touched by any stock face that is not flat ground / tree art (cliffs, stairs, raised walkways)."""
+        out = set()
+        for c, d in self.chunks.items():
+            e = d["edit"]
+            for si, tex, pal in e.iter_shapes():
+                if tex in CLIFF_OK or tex.startswith(("tree", "conttree")):
+                    continue
+                tris, quads = e._faces(si)
+                for f in tris + quads:
+                    pts = [e.tile(v["pos"]) for v in f]
+                    xs, zs = [p[0] for p in pts], [p[2] for p in pts]
+                    for x in range(int(math.floor(min(xs) + 0.05)), int(math.floor(max(xs) - 0.05)) + 1):
+                        for z in range(int(math.floor(min(zs) + 0.05)), int(math.floor(max(zs) - 0.05)) + 1):
+                            out.add((x, z))
+        return out
 
     def ground(self, t, behaviours=(0,)):
         """Walkable flat ground tile: unblocked, behaviour in `behaviours`, BDHC at a whole-tile height and the four
@@ -129,56 +171,64 @@ class Stock:
                 return None
         return round(h)
 
+    def tree_base(self, t, h):
+        """Blocked plain tile at height h with no cliff / stair art on it (a tree base under its canopy)."""
+        p = self.perm.get(t)
+        return p is not None and p & 0x8000 and (p & 0xFF) == 0 and t not in self.cliff and \
+            self.h[t] is not None and abs(self.h[t] - h) < 0.01
+
 
 class Art:
     """New faces in absolute tiles, routed to the chunk holding their centroid."""
+
+    SPEC = {   # key -> (texture, lights, cull, alpha, polygon id)
+        "water": (TX.WATER_TEXTURE, 1, "none", 31, 0),     # two-sided: a sliver can never cull into a gap
+        "shore": ("r215_shore", 1, "none", 31, 0),
+        "board": ("r215_board", 1, "back", 31, 0),
+        "ruts": ("r215_ruts", 1, "back", 31, 0),
+        "crate": ("r215_crate", 1, "back", 31, 0),
+        "crate2": ("r215_crate", 1, "none", 31, 0),
+        "lamp": ("r215_crate", 0, "none", 31, 0),
+        "shadow": ("r215_glow", 0, "back", 31, 1),
+        "pool": ("r215_glow", 0, "back", 31, 2),
+        "halo": ("r215_glow", 0, "none", 31, 3),
+    }
+    PALETTE = {TX.WATER_TEXTURE: TX.WATER_TEXTURE}
 
     def __init__(self, table):
         self.mb = {c: C.MeshBuilder() for c in R.CHUNKS}
         self.table = table
         self.decals = []        # (x0, z0, x1, z1, h) flat ground decals
         self.solids = []        # [(pts)] solid props
-        self.mats = {}
+        self.faces = []         # (key, pts, uvs) every new face, for the geometry checks
 
-    def material(self, key):
-        """key -> (name, texture, palette, lights, cull, alpha)."""
-        spec = {
-            "board": ("r215_board", 1, "back", 31),
-            "board2": ("r215_board", 1, "none", 31),
-            "ruts": ("r215_ruts", 1, "back", 31),
-            "puddle": ("r215_puddle", 1, "back", 31),
-            "crate": ("r215_crate", 1, "back", 31),
-            "crate2": ("r215_crate", 1, "none", 31),
-            "lamp": ("r215_crate", 0, "none", 31),
-            "glow": ("r215_crate", 0, "back", 14),
-        }[key]
-        tex, lights, cull, alpha = spec
-        return "r215_" + key, tex, tex + "_pl", lights, cull, alpha
-
-    def add(self, key, pts, uvs, facing, solid=True, rebase=True):
+    def add(self, key, pts, uvs, facing, solid=True, rebase=True, chunk=None, color=(255, 255, 255)):
         n = C.face_normal(pts)
         if sum(a * b for a, b in zip(n, facing)) < 0:
             pts, uvs = pts[::-1], uvs[::-1]
-        name, tex, pal, lights, cull, alpha = self.material(key)
+        tex, lights, cull, alpha, pid = self.SPEC[key]
         uvs = [list(u) for u in uvs]
         if rebase:
             for k in (0, 1):
                 lo = math.floor(min(u[k] for u in uvs) + 1e-6)
                 for u in uvs:
                     u[k] -= lo
-        cx = sum(p[0] for p in pts) / len(pts)
-        c = R.chunk_of(int(math.floor(cx)))
-        mb = self.mb[c]
-        mb.material(name, tex, pal, self.table[tex]["size"], lights=lights, cull=cull, alpha=alpha)
-        mb.face(name, [tuple(p) for p in pts], [tuple(u) for u in uvs],
-                color=(255, 255, 255) if lights else (255, 255, 255))
+        if chunk is None:
+            cx = sum(p[0] for p in pts) / len(pts)
+            chunk = R.chunk_of(int(math.floor(cx)))
+        mb = self.mb[chunk]
+        name = "r215_" + key
+        mb.material(name, tex, self.PALETTE.get(tex, tex + "_pl"), self.table[tex]["size"], lights=lights, cull=cull,
+                    alpha=alpha, polygon_id=pid)
+        mb.face(name, [tuple(p) for p in pts], [tuple(u) for u in uvs], color=color)
+        self.faces.append((key, [tuple(p) for p in pts], [tuple(u) for u in uvs]))
         if solid:
             self.solids.append(pts)
 
-    def flat(self, key, x0, z0, x1, z1, h, uv, rebase=True):
+    def flat(self, key, x0, z0, x1, z1, h, uv, rebase=True, chunk=None):
         u0, v0, u1, v1 = uv
         self.add(key, [(x0, h, z1), (x1, h, z1), (x1, h, z0), (x0, h, z0)],
-                 [(u0, v1), (u1, v1), (u1, v0), (u0, v0)], (0, 1, 0), solid=False, rebase=rebase)
+                 [(u0, v1), (u1, v1), (u1, v0), (u0, v0)], (0, 1, 0), solid=False, rebase=rebase, chunk=chunk)
         self.decals.append((x0, z0, x1, z1, h))
 
     def wall(self, key, a, b, h0, h1, uv, solid=True):
@@ -203,84 +253,401 @@ class Art:
                      [(u0, v1), (u1, v1), (u1, v0), (u0, v0)], (0, 1, 0), solid=True, rebase=False)
 
 
-def cuv(key, inset=0.25):
+def cuv(key, inset=0.25, atlas=None):
     """Atlas texel box -> uv rect (u0, v0, u1, v1), inset by a quarter texel against bleeding."""
-    x0, y0, x1, y1 = TX.CRATE_UV[key]
+    x0, y0, x1, y1 = (atlas or TX.CRATE_UV)[key]
     return ((x0 + inset) / 64, (y0 + inset) / 64, (x1 - inset) / 64, (y1 - inset) / 64)
 
 
+def guv(key, inset=0.5):
+    return cuv(key, inset, TX.GLOW_UV)
+
+
 # ---------------------------------------------------------------------------------------------------------------
-# builders
+# flood sheets: field -> marching squares -> loops -> simplify -> triangles + shoreline strips
 # ---------------------------------------------------------------------------------------------------------------
 
-def build_puddles(F, S, blocked_new):
-    """Greedy blob placement: candidate 2x2 footprints at quarter-tile jitter around every tile of the flood zones,
-    in hash order; a blob is kept when every walkable tile under it is flat ground (behaviour 0) at one height,
-    at least half of its 2x2 tiles are walkable, the rest are blocked plain ground at that height (tree bases: the
-    canopy covers them, never a ledge, slope or cliff), and its centre is >= MIN_GAP from every kept blob.
-    -> (puddle-behaviour tiles, placed blobs)."""
-    masks = {k: TX.puddle_mask(k) for k in TX.PUDDLES}
+def sheet_tiles(S, name):
+    """-> (height, set of tiles the water may cover)."""
+    sh = SHEETS[name]
+    hs = {}
+    for t in tiles(sh["rect"]):
+        h = S.ground(t)
+        if h is not None and t not in S.cliff:
+            hs.setdefault(h, set()).add(t)
+    h, core = max(hs.items(), key=lambda kv: len(kv[1]))
+    ok = set(core)
+    for t in sh["trees"]:
+        assert S.tree_base(t, h), f"sheet {name}: {t} is not a plain tree base at h {h}"
+        ok.add(t)
+    return h, ok
+
+
+def sq_dist(px, pz, t):
+    dx = max(t[0] - px, 0.0, px - (t[0] + 1))
+    dz = max(t[1] - pz, 0.0, pz - (t[1] + 1))
+    return math.hypot(dx, dz)
+
+
+def field(px, pz, ok, rect, k, boost=()):
+    """Signed distance to the dry border of `ok` (positive inside), inset and wobbled by noise."""
+    x0, z0, x1, z1 = rect
+    tx, tz = int(math.floor(px)), int(math.floor(pz))
+    inside = (tx, tz) in ok
+    best = 9.0
+    for dz in range(-3, 4):
+        for dx in range(-3, 4):
+            t = (tx + dx, tz + dz)
+            if (t in ok) != inside:
+                best = min(best, sq_dist(px, pz, t))
+    d = best if inside else -best
+    d = min(d, px - 577.0)
+    n = (vnoise(px, pz, 2.1, 11 + k) - 0.5) * 2 * SHEET_NOISE + (vnoise(px, pz, 0.8, 23 + k) - 0.5) * 0.18
+    for bx, bz, br, ba in boost:          # keep a lobe-linking neck open
+        r = math.hypot(px - bx, pz - bz) / br
+        if r < 1:
+            n += ba * (1 - r * r) ** 2
+    return d - SHEET_MARGIN + n
+
+
+def march(fn, x0, z0, nx, nz, s):
+    """Marching squares of fn on the grid (x0 + i s, z0 + j s) -> list of closed loops [(x, z), ...]."""
+    F = [[fn(x0 + i * s, z0 + j * s) for i in range(nx + 1)] for j in range(nz + 1)]
+    for row in F:
+        for i, v in enumerate(row):
+            if abs(v) < 1e-6:
+                row[i] = 1e-6
+
+    def P(i, j):
+        return (x0 + i * s, z0 + j * s)
+
+    def edge_pt(e):
+        kind, i, j = e
+        a, b = (i, j), ((i + 1, j) if kind == "h" else (i, j + 1))
+        fa, fb = F[a[1]][a[0]], F[b[1]][b[0]]
+        t = fa / (fa - fb)
+        pa, pb = P(*a), P(*b)
+        return (pa[0] + (pb[0] - pa[0]) * t, pa[1] + (pb[1] - pa[1]) * t)
+
+    adj = {}
+    for j in range(nz):
+        for i in range(nx):
+            a, b, c, d = F[j][i] > 0, F[j][i + 1] > 0, F[j + 1][i + 1] > 0, F[j + 1][i] > 0
+            top, right, bottom, left = ("h", i, j), ("v", i + 1, j), ("h", i, j + 1), ("v", i, j)
+            es = [e for e, x in ((top, a != b), (right, b != c), (bottom, c != d), (left, d != a)) if x]
+            if len(es) == 2:
+                segs = [(es[0], es[1])]
+            elif len(es) == 4:
+                centre = (F[j][i] + F[j][i + 1] + F[j + 1][i + 1] + F[j + 1][i]) / 4 > 0
+                segs = [(top, right), (bottom, left)] if centre == a else [(left, top), (right, bottom)]
+            else:
+                segs = []
+            for p, q in segs:
+                adj.setdefault(p, []).append(q)
+                adj.setdefault(q, []).append(p)
+    loops, seen = [], set()
+    for start in adj:
+        if start in seen:
+            continue
+        loop, prev, cur = [], None, start
+        while True:
+            seen.add(cur)
+            loop.append(edge_pt(cur))
+            nxt = [e for e in adj[cur] if e != prev]
+            if not nxt:
+                break
+            prev, cur = cur, nxt[0]
+            if cur == start:
+                break
+        loops.append(loop)
+    return loops
+
+
+def area(poly):
+    return 0.5 * sum(a[0] * b[1] - b[0] * a[1] for a, b in zip(poly, poly[1:] + poly[:1]))
+
+
+def chaikin(loop, it=3):
+    """Corner-cutting smoothing of a closed loop (rounds the tile-corner kinks of the distance field)."""
+    for _ in range(it):
+        out = []
+        n = len(loop)
+        for i in range(n):
+            a, b = loop[i], loop[(i + 1) % n]
+            out.append((0.75 * a[0] + 0.25 * b[0], 0.75 * a[1] + 0.25 * b[1]))
+            out.append((0.25 * a[0] + 0.75 * b[0], 0.25 * a[1] + 0.75 * b[1]))
+        loop = out
+    return loop
+
+
+def simplify(loop, tol):
+    def dp(pts):
+        if len(pts) < 3:
+            return pts
+        a, b = pts[0], pts[-1]
+        L = math.hypot(b[0] - a[0], b[1] - a[1]) or 1e-9
+        best, bi = -1.0, 0
+        for i in range(1, len(pts) - 1):
+            p = pts[i]
+            d = abs((b[0] - a[0]) * (a[1] - p[1]) - (a[0] - p[0]) * (b[1] - a[1])) / L
+            if d > best:
+                best, bi = d, i
+        if best <= tol:
+            return [a, b]
+        return dp(pts[:bi + 1])[:-1] + dp(pts[bi:])
+    far = max(range(len(loop)), key=lambda i: (loop[i][0] - loop[0][0]) ** 2 + (loop[i][1] - loop[0][1]) ** 2)
+    a = dp(loop[:far + 1])
+    b = dp(loop[far:] + loop[:1])
+    out = a[:-1] + b[:-1]
+    # drop nearly collinear vertices (< 10 deg turn): they only breed sliver triangles
+    changed = True
+    while changed and len(out) > 4:
+        changed = False
+        for i in range(len(out)):
+            p0, p1, p2 = out[i - 1], out[i], out[(i + 1) % len(out)]
+            v1 = (p1[0] - p0[0], p1[1] - p0[1])
+            v2 = (p2[0] - p1[0], p2[1] - p1[1])
+            cs = (v1[0] * v2[0] + v1[1] * v2[1]) / (math.hypot(*v1) * math.hypot(*v2) + 1e-12)
+            if cs > math.cos(math.radians(10)):
+                out.pop(i)
+                changed = True
+                break
+    # keep segments >= 0.12 tiles (no slivers)
+    res = []
+    for p in out:
+        if not res or math.hypot(p[0] - res[-1][0], p[1] - res[-1][1]) >= 0.2:
+            res.append(p)
+    if len(res) > 3 and math.hypot(res[0][0] - res[-1][0], res[0][1] - res[-1][1]) < 0.2:
+        res.pop()
+    return res
+
+
+def point_in(poly, x, z):
+    c = False
+    for (ax, az), (bx, bz) in zip(poly, poly[1:] + poly[:1]):
+        if (az > z) != (bz > z) and x < ax + (bx - ax) * (z - az) / (bz - az):
+            c = not c
+    return c
+
+
+def ear_clip(poly):
+    """Simple CCW polygon (positive area) -> triangles (index triples)."""
+    idx = list(range(len(poly)))
+    out = []
+
+    def cross(o, a, b):
+        return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+
+    guard = 0
+    while len(idx) > 3 and guard < 10000:
+        guard += 1
+        n = len(idx)
+        cut = False
+        # prefer the ear with the best (largest) minimum angle, for well-shaped triangles
+        best = None
+        for k in range(n):
+            i0, i1, i2 = idx[k - 1], idx[k], idx[(k + 1) % n]
+            a, b, c = poly[i0], poly[i1], poly[i2]
+            if cross(a, b, c) <= 1e-9:
+                continue
+            if any(cross(a, b, poly[j]) >= -1e-12 and cross(b, c, poly[j]) >= -1e-12 and
+                   cross(c, a, poly[j]) >= -1e-12 for j in idx if j not in (i0, i1, i2)):
+                continue
+            ang = []
+            for p, q, r in ((a, b, c), (b, c, a), (c, a, b)):
+                v1, v2 = (q[0] - p[0], q[1] - p[1]), (r[0] - p[0], r[1] - p[1])
+                cs = (v1[0] * v2[0] + v1[1] * v2[1]) / (math.hypot(*v1) * math.hypot(*v2) + 1e-12)
+                ang.append(math.acos(max(-1.0, min(1.0, cs))))
+            score = min(ang)
+            if best is None or score > best[0]:
+                best = (score, k)
+        if best is not None:
+            k = best[1]
+            out.append((idx[k - 1], idx[k], idx[(k + 1) % n]))
+            idx.pop(k)
+            cut = True
+        if not cut:
+            raise AssertionError("ear clipping failed (self-intersecting outline?)")
+    out.append(tuple(idx))
+    return out
+
+
+def min_angle(poly, t):
+    out = 180.0
+    for i in range(3):
+        a, b, c = poly[t[i]], poly[t[(i + 1) % 3]], poly[t[(i + 2) % 3]]
+        v1, v2 = (b[0] - a[0], b[1] - a[1]), (c[0] - a[0], c[1] - a[1])
+        cs = (v1[0] * v2[0] + v1[1] * v2[1]) / (math.hypot(*v1) * math.hypot(*v2) + 1e-12)
+        out = min(out, math.degrees(math.acos(max(-1.0, min(1.0, cs)))))
+    return out
+
+
+def improve(poly, tris):
+    """Lawson edge flips: flip an interior edge whenever the two triangles sharing it form a convex quad and the
+    flip raises their smallest angle (kills the long slivers ear clipping leaves)."""
+    def cross(o, a, b):
+        return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+    tris = [tuple(t) for t in tris]
+    for _ in range(200):
+        edges = {}
+        for ti, t in enumerate(tris):
+            for i in range(3):
+                e = tuple(sorted((t[i], t[(i + 1) % 3])))
+                edges.setdefault(e, []).append(ti)
+        flipped = False
+        for (a, b), ts in edges.items():
+            if len(ts) != 2:
+                continue
+            t1, t2 = tris[ts[0]], tris[ts[1]]
+            c = [v for v in t1 if v not in (a, b)][0]
+            d = [v for v in t2 if v not in (a, b)][0]
+            # orient: t1 = (a, b, c) CCW
+            if cross(poly[a], poly[b], poly[c]) < 0:
+                a, b = b, a
+            # new triangles (c, a, d) and (d, b, c) must both be CCW (convex quad)
+            n1, n2 = (c, a, d), (d, b, c)
+            if cross(poly[n1[0]], poly[n1[1]], poly[n1[2]]) <= 1e-9 or \
+                    cross(poly[n2[0]], poly[n2[1]], poly[n2[2]]) <= 1e-9:
+                continue
+            old = min(min_angle(poly, t1), min_angle(poly, t2))
+            new = min(min_angle(poly, n1), min_angle(poly, n2))
+            if new > old + 1e-6:
+                tris[ts[0]], tris[ts[1]] = n1, n2
+                flipped = True
+                break
+        if not flipped:
+            break
+    return tris
+
+
+def build_sheets(F, S, decks_rects, blocked_new):
+    """-> (wet tiles, sheet report dicts, water polygons per sheet)."""
     wet = set()
-    placed = []
-    skip = {t for r in FLOOD_SKIP for t in tiles(r)}
-    MIN_GAP = 1.55
-    cands = []
-    for (x0, z0, x1, z1) in FLOOD:
-        for gz in range(z0 - 1, z1 + 1):
-            for gx in range(x0 - 1, x1 + 1):
-                jx = round((h01(gx, gz, 2) - 0.5) * 0.9 * 4) / 4
-                jz = round((h01(gx, gz, 3) - 0.5) * 0.9 * 4) / 4
-                cands.append((h01(gx, gz, 1), gx + jx, gz + jz, gx, gz, (x0, z0, x1, z1)))
-    cands.sort()
-    for _, px, pz, gx, gz, zone in cands:
-        if px < 576.3 or px + 2 > 671.7:
-            continue
-        cxm, czm = px + 1, pz + 1
-        if not (zone[0] <= cxm <= zone[2] + 1 and zone[1] <= czm <= zone[3] + 1):
-            continue
-        if any(math.hypot(cxm - q[0] - 1, czm - q[1] - 1) < MIN_GAP for q in placed):
-            continue
-        foot = {(int(math.floor(px + a)), int(math.floor(pz + b))) for a in (0.02, 1.0, 1.98)
-                for b in (0.02, 1.0, 1.98)}
-        if foot & blocked_new or foot & skip:
-            continue
-        walk = [t for t in foot if not S.perm[t] & 0x8000]
-        hs = {S.ground(t) for t in walk}
-        if None in hs or len(hs) != 1 or len(walk) * 2 < len(foot):
-            continue
-        h = next(iter(hs))
-        ok = True
-        for t in foot:
-            if S.perm[t] & 0x8000:
-                if (S.perm[t] & 0xFF) != 0 or S.h[t] is None or abs(S.h[t] - h) > 0.01:
-                    ok = False
-        if not ok:
-            continue
-        key = "abcd"[int(h01(gx, gz, 4) * 4) % 4]
-        bx0, by0, bx1, by1 = TX.PUDDLES[key]
-        k = len(placed)
-        hh = h + 0.006 + 0.0015 * (k % 4)
-        F.flat("puddle", px, pz, px + 2, pz + 2, hh, (bx0 / 64, by0 / 64, bx1 / 64, by1 / 64), rebase=False)
-        placed.append((px, pz, key, h))
-        m = masks[key]
-        for t in walk:
-            cx = int(((t[0] + 0.5) - px) * 16)
-            cz = int(((t[1] + 0.5) - pz) * 16)
-            if 0 <= cx < 32 and 0 <= cz < 32 and m[cz, cx] and t not in skip:
-                wet.add(t)
-    return wet, placed
+    report = []
+    polys = {}
+    deck_tiles = {t for r in decks_rects for t in tiles(r)}
+    for k, (name, sh) in enumerate(SHEETS.items()):
+        h, ok = sheet_tiles(S, name)
+        x0, z0, x1, z1 = sh["rect"]
+        gx0, gz0 = x0 - 1.0, z0 - 1.0
+        nx, nz = int((x1 + 2 - gx0) / GRID), int((z1 + 2 - gz0) / GRID)
+        fn = lambda px, pz: field(px, pz, ok, sh["rect"], 7 * k, sh.get("boost", ()))  # noqa: E731
+        loops = [simplify(chaikin(lp), SIMPLIFY) for lp in march(fn, gx0, gz0, nx, nz, GRID)]
+        loops = [lp for lp in loops if len(lp) >= 3 and abs(area(lp)) > 3.0]     # no stray mini ponds
+        outer = []
+        holes = []
+        for lp in loops:
+            # a loop inside another loop is a hole (dry island)
+            if any(point_in(o, *lp[0]) for o in loops if o is not lp):
+                holes.append(lp)
+            else:
+                outer.append(lp)
+        assert not holes, f"sheet {name}: dry islands inside the water ({[round(abs(area(hh)), 2) for hh in holes]})"
+        hw = h + H_WATER
+        ox, oz = math.floor(x0), math.floor(z0)
+        tot_area, ntri, nstrip = 0.0, 0, 0
+        chunk = R.chunk_of(x0)
+        polys[name] = []
+        for lp in outer:
+            if area(lp) < 0:
+                lp = lp[::-1]
+            polys[name].append(lp)
+            tot_area += area(lp)
+            # water: planar UVs, 1 tile per repeat of the 16x16 stock sea
+            for a, b, c in improve(lp, ear_clip(lp)):
+                pts = [(lp[i][0], hw, lp[i][1]) for i in (a, b, c)]
+                uvs = [(lp[i][0] - ox, lp[i][1] - oz) for i in (a, b, c)]
+                F.add("water", pts, uvs, (0, 1, 0), solid=False, rebase=False, chunk=chunk)
+                ntri += 1
+            # shoreline strip: outward normals (lp is CCW in x/z with z down -> outward = (dz, -dx) flipped by
+            # test), mitred, u along the contour (2 tiles per repeat, an integer number of repeats per loop)
+            n = len(lp)
+            segn = []
+            for i in range(n):
+                a, b = lp[i], lp[(i + 1) % n]
+                L = math.hypot(b[0] - a[0], b[1] - a[1])
+                segn.append(((b[1] - a[1]) / L, -(b[0] - a[0]) / L))
+            mx, mz = (lp[0][0] + lp[1][0]) / 2, (lp[0][1] + lp[1][1]) / 2
+            if fn(mx + segn[0][0] * 0.15, mz + segn[0][1] * 0.15) > fn(mx - segn[0][0] * 0.15, mz - segn[0][1] * 0.15):
+                segn = [(-a, -b) for a, b in segn]
+            vn, lim = [], []
+            seglen = [math.hypot(lp[(i + 1) % n][0] - lp[i][0], lp[(i + 1) % n][1] - lp[i][1]) for i in range(n)]
+            for i in range(n):
+                p, q = segn[i - 1], segn[i]
+                sx, sz = p[0] + q[0], p[1] + q[1]
+                L = math.hypot(sx, sz) or 1.0
+                sx, sz = sx / L, sz / L
+                cosh = max(0.6, sx * q[0] + sz * q[1])
+                vn.append((sx / cosh, sz / cosh))
+                # an offset d slides the corner point back along both segments by d * tan(turn / 2): keep that
+                # under 45% of the shorter neighbouring segment (no crossed / bow-tie strip quads)
+                turn = math.acos(max(-1.0, min(1.0, p[0] * q[0] + p[1] * q[1])))
+                tn = math.tan(turn / 2)
+                lim.append(9.0 if tn < 1e-6 else 0.45 * min(seglen[i - 1], seglen[i]) / tn)
+            per = sum(math.hypot(lp[(i + 1) % n][0] - lp[i][0], lp[(i + 1) % n][1] - lp[i][1]) for i in range(n))
+            reps = max(1, round(per / 2.0))
+            s = 0.0
+            us = []
+            for i in range(n + 1):
+                us.append(s / per * reps)
+                a, b = lp[i % n], lp[(i + 1) % n]
+                s += math.hypot(b[0] - a[0], b[1] - a[1])
+            hs = h + H_SHORE
+            for i in range(n):
+                j = (i + 1) % n
+                wo = [min(lim[m], SHORE_OUT * (1.0 + 0.25 * (vnoise(lp[m][0], lp[m][1], 1.1, 41 + k) - 0.5)))
+                      for m in (i, j)]
+                wn = [min(lim[m], SHORE_IN) for m in (i, j)]
+                A_i = (lp[i][0] - vn[i][0] * wn[0], lp[i][1] - vn[i][1] * wn[0])
+                B_i = (lp[i][0] + vn[i][0] * wo[0], lp[i][1] + vn[i][1] * wo[0])
+                A_j = (lp[j][0] - vn[j][0] * wn[1], lp[j][1] - vn[j][1] * wn[1])
+                B_j = (lp[j][0] + vn[j][0] * wo[1], lp[j][1] + vn[j][1] * wo[1])
+                pts = [(A_i[0], hs, A_i[1]), (B_i[0], hs, B_i[1]), (B_j[0], hs, B_j[1]), (A_j[0], hs, A_j[1])]
+                uvs = [(us[i], 0.0), (us[i], 1.0), (us[i + 1], 1.0), (us[i + 1], 0.0)]
 
+                def sa(a, b, c):
+                    return (b[0] - a[0]) * (c[2] - a[2]) - (b[2] - a[2]) * (c[0] - a[0])
+                s1, s2 = sa(pts[0], pts[1], pts[2]), sa(pts[0], pts[2], pts[3])
+                s3, s4 = sa(pts[1], pts[2], pts[3]), sa(pts[1], pts[3], pts[0])
+                if s1 * s2 > 0 and s3 * s4 > 0:
+                    F.add("shore", pts, uvs, (0, 1, 0), solid=False, rebase=False, chunk=chunk)
+                else:
+                    # a non-convex strip quad at a tight bend: two triangles over the diagonal that keeps both
+                    # positive (the hardware only rasterises convex polygons correctly)
+                    tri = ((0, 1, 2), (0, 2, 3)) if s1 * s2 > 0 else ((1, 2, 3), (1, 3, 0))
+                    for t3 in tri:
+                        F.add("shore", [pts[m] for m in t3], [uvs[m] for m in t3], (0, 1, 0), solid=False,
+                              rebase=False, chunk=chunk)
+                nstrip += 1
+            F.decals.append((min(p[0] for p in lp) - SHORE_OUT, min(p[1] for p in lp) - SHORE_OUT,
+                             max(p[0] for p in lp) + SHORE_OUT, max(p[1] for p in lp) + SHORE_OUT, hs))
+        # puddle behaviour: walkable behaviour-0 tiles whose centre is under the water (not decks / props)
+        nwet = 0
+        for t in ok:
+            if S.perm[t] & 0x8000 or t in deck_tiles or t in blocked_new:
+                continue
+            if any(point_in(lp, t[0] + 0.5, t[1] + 0.5) for lp in polys[name]):
+                wet.add(t)
+                nwet += 1
+        report.append(dict(name=name, h=h, loops=len(outer), area=tot_area, tris=ntri, strip=nstrip, wet=nwet,
+                           verts=sum(len(lp) for lp in polys[name])))
+    return wet, report, polys
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# boardwalks
+# ---------------------------------------------------------------------------------------------------------------
 
 def build_boardwalks(F, S):
-    """Deck top at ground + 0.03; skirts; pilings at corners and every 3 tiles along the long edges."""
+    """Deck top at ground + 0.06 (over the flood water); skirts; pilings at corners and every 3 tiles along the
+    long edges."""
     decks = []
     for x0, z0, x1, z1 in BOARDWALKS:
         hs = {S.ground(t) for t in tiles((x0, z0, x1, z1))}
         assert len(hs) == 1 and None not in hs, f"boardwalk {x0},{z0} not on flat ground: {hs}"
         h = hs.pop()
         X0, X1, Z0, Z1 = x0 + 0.02, x1 + 0.98, z0 + 0.06, z1 + 0.94
-        hd = h + 0.03
-        # deck: u along x, 32 texels (2 tiles) per repeat; v 0..1 across the 2-tile width
+        hd = h + DECK_H
         L = X1 - X0
         step = 4.0
         a = X0
@@ -290,17 +657,14 @@ def build_boardwalks(F, S):
                   [((a - X0) / 2, 1), ((b - X0) / 2, 1), ((b - X0) / 2, 0), ((a - X0) / 2, 0)], (0, 1, 0),
                   solid=False, rebase=True)
             F.decals.append((a, Z0, b, Z1, hd))
-            # south skirt (camera side): the dark edge beam band of the texture
             F.wall("board", (a, Z1), (b, Z1), h - 0.01, hd, ((a - X0) / 2, 0.97, (b - X0) / 2, 1.0), solid=False)
             a = b
-        # end caps
         F.wall("board", (X0, Z0), (X0, Z1), h - 0.01, hd, (0.0, 0.97, 1.0, 1.0), solid=False)
         F.wall("board", (X1, Z1), (X1, Z0), h - 0.01, hd, (0.0, 0.97, 1.0, 1.0), solid=False)
-        # a wet shadow line under the south edge so the deck reads as standing proud of the water
-        F.add("board", [(X0, h + 0.02, Z1 + 0.16), (X1, h + 0.02, Z1 + 0.16), (X1, h + 0.02, Z1), (X0, h + 0.02, Z1)],
+        # a dark wet line under the south edge so the deck reads as standing proud of the water
+        hl = h + H_SHORE + 0.006
+        F.add("board", [(X0, hl, Z1 + 0.16), (X1, hl, Z1 + 0.16), (X1, hl, Z1), (X0, hl, Z1)],
               [(0, 0.995), (L / 2, 0.995), (L / 2, 0.975), (0, 0.975)], (0, 1, 0), solid=False, rebase=False)
-        # pilings: weathered posts at the deck corners (taller, roped) and short stubs along the long edges,
-        # all on tile boundaries
         xs = [float(x) for x in range(x0 + 3, x1, 3)]
         post = cuv("post")
         for px in [X0 + 0.06, X1 - 0.06] + xs:
@@ -308,137 +672,253 @@ def build_boardwalks(F, S):
             for pz in (Z0 - 0.02, Z1 + 0.02):
                 s = 0.075 if tall else 0.06
                 F.box("crate", px - s, pz - s, px + s, pz + s, h - 0.02, hd + (0.42 if tall else 0.12),
-                      (post[0], post[1] + (0.02 if tall else 0.06), post[0] + 0.06, post[3]),
-                      top=(post[0], post[1], post[0] + 0.03, post[1] + 0.03))
+                      (post[0], post[1] + (0.07 if tall else 0.09), post[0] + 0.06, post[3]),
+                      top=(post[0], post[1] + 0.07, post[0] + 0.03, post[1] + 0.1))
         decks.append((x0, z0, x1, z1, h))
     return decks
 
 
-def lane_segments(poly):
-    out = []
-    for (xa, za), (xb, zb) in zip(poly, poly[1:]):
-        # split at chunk boundaries so each face lives in one chunk
-        cuts = [0.0, 1.0]
-        for xb_ in (608.0, 640.0):
-            if (xa - xb_) * (xb - xb_) < 0:
-                cuts.append((xb_ - xa) / (xb - xa))
-        cuts.sort()
-        for t0, t1 in zip(cuts, cuts[1:]):
-            out.append(((xa + (xb - xa) * t0, za + (zb - za) * t0), (xa + (xb - xa) * t1, za + (zb - za) * t1)))
+# ---------------------------------------------------------------------------------------------------------------
+# ruts: filleted, wobbling, mitred quad strips
+# ---------------------------------------------------------------------------------------------------------------
+
+def fillet(poly, r):
+    """Round every interior corner of a polyline with an arc of radius r (8 steps per quarter turn)."""
+    out = [poly[0]]
+    for k in range(1, len(poly) - 1):
+        a, b, c = poly[k - 1], poly[k], poly[k + 1]
+        d1 = ((b[0] - a[0]), (b[1] - a[1]))
+        d2 = ((c[0] - b[0]), (c[1] - b[1]))
+        l1, l2 = math.hypot(*d1), math.hypot(*d2)
+        d1, d2 = (d1[0] / l1, d1[1] / l1), (d2[0] / l2, d2[1] / l2)
+        turn = math.atan2(d1[0] * d2[1] - d1[1] * d2[0], d1[0] * d2[0] + d1[1] * d2[1])
+        t = r * math.tan(abs(turn) / 2)
+        p1 = (b[0] - d1[0] * t, b[1] - d1[1] * t)
+        sgn = 1 if turn > 0 else -1
+        cen = (p1[0] - d1[1] * r * sgn, p1[1] + d1[0] * r * sgn)
+        a0 = math.atan2(p1[1] - cen[1], p1[0] - cen[0])
+        steps = max(2, int(abs(turn) / (math.pi / 2) * 8))
+        for i in range(steps + 1):
+            ang = a0 + turn * i / steps
+            out.append((cen[0] + r * math.cos(ang), cen[1] + r * math.sin(ang)))
+    out.append(poly[-1])
     return out
 
 
-def build_ruts(F, S):
+def densify(poly, step=1.0):
+    out = [poly[0]]
+    for a, b in zip(poly, poly[1:]):
+        L = math.hypot(b[0] - a[0], b[1] - a[1])
+        n = max(1, int(round(L / step)))
+        for i in range(1, n + 1):
+            out.append((a[0] + (b[0] - a[0]) * i / n, a[1] + (b[1] - a[1]) * i / n))
+    return out
+
+
+def build_ruts(F, S, sheet_polys):
     covered = []
     for pi, poly in enumerate(RUTS):
-        s_acc = 0.0
-        for k, ((xa, za), (xb, zb)) in enumerate(lane_segments(poly)):
-            L = math.hypot(xb - xa, zb - za)
-            dx, dz = (xb - xa) / L, (zb - za) / L
-            nx, nz = -dz, dx                                   # left of the direction of travel
-            # extend each piece by 1 tile at corners so the turns overlap cleanly
-            ea = 1.0 if k > 0 and abs(dx) < 0.5 else 0.0
-            eb = 1.0 if abs(dx) < 0.5 and k < len(lane_segments(poly)) - 1 else 0.0
-            pa = (xa - dx * ea, za - dz * ea)
-            pb = (xb + dx * eb, zb + dz * eb)
-            # tiles under the lane must be walkable ground (tall grass allowed: flattened by the tyres)
-            n = max(1, int(math.ceil((L + ea + eb) * 2)))
-            hs = set()
-            for i in range(n + 1):
-                t = i / n
-                cx, cz = pa[0] + (pb[0] - pa[0]) * t, pa[1] + (pb[1] - pa[1]) * t
-                for o in (-0.85, 0.0, 0.85):
-                    tt = (int(math.floor(cx + nx * o)), int(math.floor(cz + nz * o)))
-                    hs.add(S.ground(tt, behaviours=(0, 2, PUDDLE)))
+        pts = densify(fillet(poly, RUT_FILLET), 1.0)
+        n = len(pts)
+        # tangents / normals, a gentle lateral wobble so the lane never runs ruler-straight
+        cen, nor = [], []
+        for i in range(n):
+            a, b = pts[max(0, i - 1)], pts[min(n - 1, i + 1)]
+            dx, dz = b[0] - a[0], b[1] - a[1]
+            L = math.hypot(dx, dz)
+            dx, dz = dx / L, dz / L
+            nx, nz = -dz, dx
+            w = 0.0 if i in (0, n - 1) else 0.10 * math.sin(i * 0.9 + pi) + 0.04 * math.sin(i * 2.3 + 2 * pi)
+            cen.append((pts[i][0] + nx * w, pts[i][1] + nz * w))
+            nor.append((nx, nz))
+        s, vs = 0.0, [0.0]
+        for i in range(1, n):
+            s += math.hypot(cen[i][0] - cen[i - 1][0], cen[i][1] - cen[i - 1][1])
+            vs.append(s)
+        hs = set()
+        for i in range(n):
+            for o in (-0.78, 0.0, 0.78):
+                tt = (int(math.floor(cen[i][0] + nor[i][0] * o)), int(math.floor(cen[i][1] + nor[i][1] * o)))
+                hs.add(S.ground(tt, behaviours=(0, 2)))
+                covered.append(tt)
+            if i:
+                mx, mz = (cen[i][0] + cen[i - 1][0]) / 2, (cen[i][1] + cen[i - 1][1]) / 2
+                for o in (-0.78, 0.78):
+                    tt = (int(math.floor(mx + nor[i][0] * o)), int(math.floor(mz + nor[i][1] * o)))
+                    hs.add(S.ground(tt, behaviours=(0, 2)))
                     covered.append(tt)
-            assert None not in hs and len(hs) == 1, f"ruts {pi}/{k} leave flat walkable ground: {hs}"
-            h = hs.pop() + 0.011
-            A = (pa[0] + nx, pa[1] + nz)
-            Bv = (pa[0] - nx, pa[1] - nz)
-            Cv = (pb[0] - nx, pb[1] - nz)
-            D = (pb[0] + nx, pb[1] + nz)
-            s0, s1 = s_acc - ea, s_acc + L + eb
-            pts = [(A[0], h, A[1]), (Bv[0], h, Bv[1]), (Cv[0], h, Cv[1]), (D[0], h, D[1])]
-            uvs = [(0.0, s0 / 4), (1.0, s0 / 4), (1.0, s1 / 4), (0.0, s1 / 4)]
-            F.add("ruts", pts, uvs, (0, 1, 0), solid=False, rebase=True)
-            F.decals.append((min(A[0], Cv[0]), min(A[1], Cv[1]), max(A[0], Cv[0]), max(A[1], Cv[1]), h))
-            s_acc += L
+        assert None not in hs and len(hs) == 1, f"ruts {pi} leave flat walkable ground: {hs}"
+        h = hs.pop() + 0.034                       # over the stock 'allpeak' grass decals (+0.03)
+        L_ = [(cen[i][0] + nor[i][0], cen[i][1] + nor[i][1]) for i in range(n)]
+        R_ = [(cen[i][0] - nor[i][0], cen[i][1] - nor[i][1]) for i in range(n)]
+        for i in range(n - 1):
+            q = [(L_[i][0], h, L_[i][1]), (R_[i][0], h, R_[i][1]), (R_[i + 1][0], h, R_[i + 1][1]),
+                 (L_[i + 1][0], h, L_[i + 1][1])]
+            uvs = [(0.0, vs[i] / 4), (1.0, vs[i] / 4), (1.0, vs[i + 1] / 4), (0.0, vs[i + 1] / 4)]
+            F.add("ruts", q, uvs, (0, 1, 0), solid=False, rebase=False)
+        xs = [p[0] for p in L_ + R_]
+        zs = [p[1] for p in L_ + R_]
+        F.decals.append((min(xs), min(zs), max(xs), max(zs), h))
     return covered
 
 
-def crate(F, x0, z0, s, h0, hs, tarp=False):
-    side = cuv("tarp_s" if tarp else "crate_s")
-    top = cuv("tarp_t" if tarp else "crate_t")
-    F.box("crate", x0, z0, x0 + s, z0 + s, h0, h0 + hs, side, top)
+# ---------------------------------------------------------------------------------------------------------------
+# Eclipse staging clusters
+# ---------------------------------------------------------------------------------------------------------------
+
+def crate(F, x0, z0, sx, sz, h0, hs, variant=1):
+    side = cuv("crate_s" if variant == 1 else "crate2_s")
+    top = cuv("crate_t" if variant == 1 else "crate2_t")
+    F.box("crate", x0, z0, x0 + sx, z0 + sz, h0, h0 + hs, side, top)
 
 
-def lamp(F, x, z, h, color):
-    """A work-lamp mast: dark metal pole, hazard collar, unlit lamp head card and a translucent glow pool."""
+def pallet(F, x0, z0, sx, sz, h0):
+    F.box("crate", x0, z0, x0 + sx, z0 + sz, h0, h0 + 0.14, cuv("pallet_s"), cuv("pallet_t"))
+    return h0 + 0.14
+
+
+def drape(F, x0, z0, x1, z1, htop, drop, k=0):
+    """An olive rain tarp thrown over a stack: a top sheet and four skirts hanging out and down, the long sides in
+    two panels of different lengths so the hem never runs straight."""
+    e, o = 0.04, 0.11
+    ht = htop + 0.02
+    t0, t1, t2, t3 = cuv("tarp_t")
+    F.add("crate2", [(x0 - e, ht, z1 + e), (x1 + e, ht, z1 + e), (x1 + e, ht, z0 - e), (x0 - e, ht, z0 - e)],
+          [(t0, t3), (t2, t3), (t2, t1), (t0, t1)], (0, 1, 0), solid=True, rebase=False)
+    u0, v0, u1, v1 = cuv("tarp_s")
+    sides = [((x0 - e, z1 + e), (x1 + e, z1 + e), (0, 1)), ((x1 + e, z0 - e), (x0 - e, z0 - e), (0, -1)),
+             ((x1 + e, z1 + e), (x1 + e, z0 - e), (1, 0)), ((x0 - e, z0 - e), (x0 - e, z1 + e), (-1, 0))]
+    for si, ((ax, az), (bx, bz), (nx, nz)) in enumerate(sides):
+        parts = 2 if si < 2 else 1
+        for p in range(parts):
+            t0, t1 = p / parts, (p + 1) / parts
+            pa = (ax + (bx - ax) * t0, az + (bz - az) * t0)
+            pb = (ax + (bx - ax) * t1, az + (bz - az) * t1)
+            d = drop * (0.82 + 0.3 * h01(si, p, 5 + k))
+            pts = [(pa[0], ht, pa[1]), (pb[0], ht, pb[1]), (pb[0] + nx * o, ht - d, pb[1] + nz * o),
+                   (pa[0] + nx * o, ht - d, pa[1] + nz * o)]
+            uu0 = u0 + (u1 - u0) * t0
+            uu1 = u0 + (u1 - u0) * t1
+            F.add("crate2", pts, [(uu0, v0), (uu1, v0), (uu1, v1), (uu0, v1)], (nx, 0.3, nz), solid=True,
+                  rebase=False)
+
+
+def glow(F, x, hy, z, size=1.45):
+    """Smooth A3I5 halo card around a lamp glass, tilted to face the field camera (pitch ~59 deg)."""
+    g = guv("halo_amber")
+    s = size / 2
+    cp, sp = math.cos(math.radians(59.05)), math.sin(math.radians(59.05))
+    up = (0.0, cp, -sp)                   # card 'up' axis, perpendicular to the view direction
+    pts = []
+    for ox, oy in ((-s, s), (s, s), (s, -s), (-s, -s)):
+        pts.append((x + ox, hy + up[1] * oy, z + 0.12 + up[2] * oy))
+    F.add("halo", pts, [(g[0], g[1]), (g[2], g[1]), (g[2], g[3]), (g[0], g[3])], (0, sp, cp), solid=False,
+          rebase=False)
+
+
+def light_pool(F, x, z, h, rx=1.25, rz=1.0):
+    g = guv("pool_amber")
+    F.add("pool", [(x - rx, h + 0.039, z + rz), (x + rx, h + 0.039, z + rz), (x + rx, h + 0.039, z - rz),
+                   (x - rx, h + 0.039, z - rz)], [(g[0], g[3]), (g[2], g[3]), (g[2], g[1]), (g[0], g[1])],
+          (0, 1, 0), solid=False, rebase=False)
+
+
+def contact_shadow(F, x0, z0, x1, z1, h, pad=0.28):
+    g = guv("shadow")
+    F.add("shadow", [(x0 - pad, h + 0.037, z1 + pad), (x1 + pad, h + 0.037, z1 + pad),
+                     (x1 + pad, h + 0.037, z0 - pad), (x0 - pad, h + 0.037, z0 - pad)],
+          [(g[0], g[3]), (g[2], g[3]), (g[2], g[1]), (g[0], g[1])], (0, 1, 0), solid=False, rebase=False)
+
+
+def lamp_head(F, x, z, hh):
+    """Lamp housing with the unlit amber glass facing south (the camera)."""
+    back, cap = cuv("lamp_back"), cuv("lamp_cap")
+    F.box("crate", x - 0.17, z - 0.12, x + 0.17, z + 0.06, hh, hh + 0.30, back, cap, sides="new")
+    glass = cuv("lamp_amber")
+    F.add("lamp", [(x - 0.15, hh + 0.28, z + 0.07), (x + 0.15, hh + 0.28, z + 0.07), (x + 0.15, hh + 0.02, z + 0.09),
+                   (x - 0.15, hh + 0.02, z + 0.09)],
+          [(glass[0], glass[1]), (glass[2], glass[1]), (glass[2], glass[3]), (glass[0], glass[3])],
+          (0, 0.2, 1), solid=True, rebase=False)
+    F.box("crate", x - 0.19, z - 0.14, x + 0.19, z + 0.10, hh + 0.30, hh + 0.36, cap, cap)
+    glow(F, x, hh + 0.15, z + 0.1)
+
+
+def mast_lamp(F, x, z, h):
     met = cuv("metal")
     F.box("crate", x - 0.05, z - 0.05, x + 0.05, z + 0.05, h, h + 1.35, (met[0], met[1], met[0] + 0.05, met[3]))
     hz = cuv("hazard")
     F.box("crate", x - 0.065, z - 0.065, x + 0.065, z + 0.065, h + 0.25, h + 0.42, (hz[0], hz[1], hz[0] + 0.12, hz[3]))
-    head = cuv("lamp_" + color)
-    # lamp head: a south-facing card, tilted down toward the ground, lit by nothing (glows in the dark)
-    hh = h + 1.35
-    F.add("lamp", [(x - 0.17, hh + 0.42, z + 0.02), (x + 0.17, hh + 0.42, z + 0.02), (x + 0.17, hh, z + 0.16),
-                   (x - 0.17, hh, z + 0.16)], [(head[0], head[1]), (head[2], head[1]), (head[2], head[3]),
-                                                (head[0], head[3])], (0, 0.3, 1), solid=True, rebase=False)
-    cap = cuv("lamp_cap")
-    F.box("crate", x - 0.2, z - 0.06, x + 0.2, z + 0.04, hh + 0.40, hh + 0.48, cap, top=cap)
-    g = cuv("glow_" + color, 0.0)
-    F.add("glow", [(x - 1.5, h + 0.02, z + 1.9), (x + 1.5, h + 0.02, z + 1.9), (x + 1.5, h + 0.02, z - 1.1),
-                   (x - 1.5, h + 0.02, z - 1.1)], [(g[0], g[3]), (g[2], g[3]), (g[2], g[1]), (g[0], g[1])], (0, 1, 0),
-          solid=False, rebase=False)
+    lamp_head(F, x, z, h + 1.30)
 
 
-def barrier(F, xa, xb, z, h):
-    """Two hazard-collared warning posts with a striped bar between them."""
-    post = cuv("post")
-    for x in (xa, xb):
-        F.box("crate", x - 0.06, z - 0.06, x + 0.06, z + 0.06, h, h + 0.62, (post[0], post[1], post[0] + 0.06, post[3]),
-              top=(post[0], post[1], post[0] + 0.03, post[1] + 0.03))
-    hz = cuv("hazard")
-    L = xb - xa
-    F.box("crate", xa, z - 0.035, xb, z + 0.035, h + 0.38, h + 0.52, (hz[0], hz[1], hz[0] + L / 4 * 0.25, hz[3]),
-          sides="ns", top=(hz[0], hz[1], hz[2], hz[1] + 0.02))
+def tripod_lamp(F, x, z, h):
+    """A tripod work lamp: three splayed legs, a mast and a lamp head."""
+    met = cuv("metal")
+    apex = h + 1.05
+    for k in range(3):
+        a = math.radians(90 + 120 * k + 15)
+        fx, fz = x + 0.36 * math.cos(a), z + 0.30 * math.sin(a)
+        # leg as a thin two-sided strip from the foot to the apex
+        px, pz = -math.sin(a) * 0.035, math.cos(a) * 0.035
+        F.add("crate2", [(x + px, apex, z + pz), (x - px, apex, z - pz), (fx - px, h, fz - pz), (fx + px, h, fz + pz)],
+              [(met[0], met[1]), (met[0] + 0.04, met[1]), (met[0] + 0.04, met[3]), (met[0], met[3])],
+              (math.cos(a), 0.2, math.sin(a)), solid=True, rebase=False)
+    F.box("crate", x - 0.045, z - 0.045, x + 0.045, z + 0.045, apex - 0.1, h + 1.48,
+          (met[0], met[1], met[0] + 0.05, met[3]))
+    lamp_head(F, x, z, h + 1.44)
 
 
 def build_clusters(F, S):
     blocked = {}
     for name, cl in CLUSTERS.items():
         x0, z0, x1, z1 = cl["block"]
-        hs = {S.ground(t, behaviours=(0, PUDDLE)) for t in tiles(cl["block"])}
+        hs = {S.ground(t, behaviours=(0, 2, PUDDLE)) for t in tiles(cl["block"])}
         assert len(hs) == 1 and None not in hs, f"cluster {name} not on flat ground: {hs}"
         h = hs.pop()
         for t in tiles(cl["block"]):
             blocked[t] = name
-        W, D = x1 - x0 + 1, z1 - z0 + 1
-        bx, bz = x0 + 0.08, z0 + 0.06
-        if name == "field":
-            # 2x2: a 2-high crate stack, a tarp-covered stack, a loose crate, a violet lamp behind
-            crate(F, bx, bz + 0.95, 0.9, h, 0.82)
-            crate(F, bx + 0.05, bz + 1.0, 0.8, h + 0.82, 0.72)
-            crate(F, bx + 0.98, bz + 0.9, 0.84, h, 0.8, tarp=True)
-            crate(F, bx + 1.0, bz + 0.15, 0.72, h, 0.62)
-            lamp(F, x0 + 0.35, z0 + 0.4, h, cl["lamp"])
-        elif name == "gate":
-            # 3x2 by the gate: tarp stacks, a crate pyramid, amber lamp, a hazard barrier along the north edge
-            crate(F, bx, bz + 0.95, 0.9, h, 0.85, tarp=True)
-            crate(F, bx + 0.02, bz + 1.0, 0.86, h + 0.85, 0.6, tarp=True)
-            crate(F, bx + 1.0, bz + 1.0, 0.86, h, 0.8)
-            crate(F, bx + 1.95, bz + 0.95, 0.86, h, 0.8)
-            crate(F, bx + 1.45, bz + 1.05, 0.8, h + 0.8, 0.72)
-            crate(F, bx + 1.98, bz + 0.1, 0.8, h, 0.66)
-            lamp(F, x0 + 0.5, z0 + 0.35, h, cl["lamp"])
-            barrier(F, x0 + 1.0, x1 + 0.85, z0 + 0.12, h)
+        contact_shadow(F, x0 + 0.05, z0 + 0.1, x1 + 0.95, z1 + 0.95, h, pad=0.22 if cl["kind"] == "small" else 0.3)
+        if cl["kind"] == "yard":
+            # 3x3 roadside staging yard (front = south = camera side): pallet stack + tarp stack in front, the tall
+            # three-high stack back right, a tripod work lamp and a loose crate back left
+            ph = pallet(F, x0 + 0.10, z0 + 1.68, 1.25, 1.20, h)
+            crate(F, x0 + 0.18, z0 + 1.78, 0.98, 0.98, ph, 0.92)
+            crate(F, x0 + 0.30, z0 + 1.88, 0.76, 0.76, ph + 0.92, 0.70, variant=2)
+            ph2 = pallet(F, x0 + 1.52, z0 + 1.64, 1.38, 1.24, h)
+            crate(F, x0 + 1.60, z0 + 1.74, 1.04, 1.04, ph2, 0.86, variant=2)
+            crate(F, x0 + 1.68, z0 + 1.82, 0.88, 0.88, ph2 + 0.86, 0.78)
+            drape(F, x0 + 1.60, z0 + 1.74, x0 + 2.64, z0 + 2.78, ph2 + 1.64, 0.95, k=1)
+            crate(F, x0 + 1.86, z0 + 0.10, 0.98, 0.98, h, 0.90)
+            crate(F, x0 + 1.92, z0 + 0.16, 0.86, 0.86, h + 0.90, 0.82, variant=2)
+            crate(F, x0 + 2.02, z0 + 0.26, 0.66, 0.66, h + 1.72, 0.60)
+            crate(F, x0 + 0.14, z0 + 0.14, 0.66, 0.66, h, 0.58, variant=2)
+            tripod_lamp(F, x0 + 1.08, z0 + 0.66, h)
+            light_pool(F, x0 + 1.2, z0 + 0.5, h, rx=1.9, rz=1.45)
+        elif cl["kind"] == "gate":
+            # 3x3 yard by the Veilstone gate, whose south row sits behind the tree canopy: the pallet stack and the
+            # tripod lamp face the road (north), the tall stack and the tarp stack stand in front and rise over
+            # the canopy
+            ph = pallet(F, x0 + 0.10, z0 + 0.10, 1.25, 1.20, h)
+            crate(F, x0 + 0.18, z0 + 0.20, 0.98, 0.98, ph, 0.92)
+            crate(F, x0 + 0.30, z0 + 0.30, 0.76, 0.76, ph + 0.92, 0.70, variant=2)
+            tripod_lamp(F, x0 + 2.25, z0 + 0.62, h)
+            light_pool(F, x0 + 1.8, z0 + 0.3, h, rx=1.9, rz=1.4)
+            ph2 = pallet(F, x0 + 1.52, z0 + 1.62, 1.38, 1.24, h)
+            crate(F, x0 + 1.60, z0 + 1.72, 1.04, 1.04, ph2, 0.86, variant=2)
+            crate(F, x0 + 1.68, z0 + 1.80, 0.88, 0.88, ph2 + 0.86, 0.78)
+            drape(F, x0 + 1.60, z0 + 1.72, x0 + 2.64, z0 + 2.76, ph2 + 1.64, 0.95, k=3)
+            crate(F, x0 + 0.12, z0 + 1.90, 0.98, 0.98, h, 0.90)
+            crate(F, x0 + 0.18, z0 + 1.96, 0.86, 0.86, h + 0.90, 0.82, variant=2)
+            crate(F, x0 + 0.28, z0 + 2.06, 0.66, 0.66, h + 1.72, 0.60)
         else:
-            # 2x2 north-field stack under an amber lamp
-            crate(F, bx + 0.05, bz + 1.0, 0.86, h, 0.8)
-            crate(F, bx + 0.95, bz + 0.98, 0.9, h, 0.86, tarp=True)
-            crate(F, bx + 0.5, bz + 1.02, 0.8, h + 0.8, 0.66)
-            crate(F, bx + 1.05, bz + 0.12, 0.78, h, 0.6)
-            lamp(F, x0 + 0.3, z0 + 0.35, h, cl["lamp"])
+            ph = pallet(F, x0 + 0.08, z0 + 0.95, 1.10, 1.00, h)
+            crate(F, x0 + 0.14, z0 + 1.02, 0.90, 0.88, ph, 0.82)
+            crate(F, x0 + 0.24, z0 + 1.10, 0.70, 0.70, ph + 0.82, 0.62, variant=2)
+            crate(F, x0 + 1.06, z0 + 0.92, 0.86, 0.90, h, 0.84, variant=2)
+            drape(F, x0 + 1.06, z0 + 0.92, x0 + 1.92, z0 + 1.82, h + 0.84, 0.62, k=2)
+            crate(F, x0 + 1.12, z0 + 0.12, 0.72, 0.70, h, 0.56)
+            mast_lamp(F, x0 + 0.38, z0 + 0.40, h)
+            light_pool(F, x0 + 0.6, z0 + 0.9, h, rx=1.7, rz=1.35)
     return blocked
 
 
@@ -449,45 +929,53 @@ def build_signs(F, S):
         assert h is not None, f"sign {name} not on flat ground"
         blocked[(x, z)] = name
         post = cuv("post")
+        board = cuv("board")
         hz = cuv("hazard")
         F.box("crate", x + 0.44, z + 0.44, x + 0.56, z + 0.56, h, h + 0.95, (post[0], post[1] + 0.1, post[0] + 0.07,
                                                                                post[3]))
-        # the board: a south-facing card on the post, leaning back like the stock signs, hazard stripe header
         lean = 0.22
-        F.add("crate2", [(x + 0.1, h + 1.05, z + 0.5 - lean), (x + 0.9, h + 1.05, z + 0.5 - lean),
-                         (x + 0.9, h + 0.55, z + 0.62), (x + 0.1, h + 0.55, z + 0.62)],
-              [(post[0], post[1] + 6 / 64), (post[2], post[1] + 6 / 64), (post[2], post[3]), (post[0], post[3])],
+        F.add("crate2", [(x + 0.08, h + 1.12, z + 0.5 - lean), (x + 0.92, h + 1.12, z + 0.5 - lean),
+                         (x + 0.92, h + 0.62, z + 0.62), (x + 0.08, h + 0.62, z + 0.62)],
+              [(board[0], board[1]), (board[2], board[1]), (board[2], board[3]), (board[0], board[3])],
               (0, 0.4, 1), solid=True, rebase=False)
-        F.add("crate2", [(x + 0.1, h + 1.17, z + 0.5 - lean - 0.05), (x + 0.9, h + 1.17, z + 0.5 - lean - 0.05),
-                         (x + 0.9, h + 1.05, z + 0.5 - lean), (x + 0.1, h + 1.05, z + 0.5 - lean)],
-              [(hz[0], hz[1]), (hz[2], hz[1]), (hz[2], hz[3]), (hz[0], hz[3])], (0, 0.4, 1), solid=True, rebase=False)
         # a gauge stake in the water beside it
         F.box("crate", x + 0.12, z + 0.78, x + 0.2, z + 0.86, h, h + 0.5, (hz[0], hz[1], hz[0] + 0.04, hz[3]))
     return blocked
 
 
 # ---------------------------------------------------------------------------------------------------------------
-# lighting: overcast slate-blue rain daylight, stormy night (lighting_set_000 schema, block times, directions)
+# lighting: crisp overcast rain daylight, dark stormy indigo night (lighting_set_000 schema, block times, directions)
 # ---------------------------------------------------------------------------------------------------------------
 
-# endTime -> (light 0 colour, diffuse, ambient, specular, emission); 5-bit components
+# endTime -> (light 0 colour, diffuse, ambient, specular, emission); 5-bit components. Terrain colour ~
+# emission + light0 * (diffuse * N.L + ambient): low emission + strong diffuse = contrast (no flat grey wash).
 LIGHT_CURVE = {
-    0: ((8, 9, 14), (11, 12, 15), (8, 9, 12), (10, 11, 15), (6, 7, 11)),          # 00:00 stormy night
-    7200: ((8, 9, 14), (11, 12, 15), (8, 9, 12), (10, 11, 15), (6, 7, 11)),       # .. 04:00
-    8100: ((9, 10, 15), (10, 11, 14), (10, 11, 13), (8, 9, 13), (8, 9, 12)),      # 04:30 pre-dawn
-    9000: ((10, 11, 17), (11, 11, 14), (10, 11, 13), (9, 10, 14), (10, 11, 13)),  # 05:00 grey dawn
-    14400: ((13, 14, 19), (12, 12, 14), (10, 11, 13), (11, 12, 15), (12, 13, 16)),  # 08:00 overcast morning
-    20700: ((15, 16, 20), (13, 13, 15), (11, 12, 14), (13, 14, 16), (13, 14, 16)),  # 11:30
-    21600: ((17, 18, 21), (14, 14, 16), (11, 12, 14), (14, 15, 17), (13, 14, 16)),  # 12:00 brightest rain light
-    27000: ((18, 19, 22), (15, 15, 16), (12, 13, 15), (15, 16, 18), (13, 14, 15)),  # 15:00
-    27900: ((17, 18, 21), (14, 14, 16), (12, 13, 15), (15, 15, 17), (12, 13, 15)),  # 15:30
-    30600: ((16, 16, 20), (14, 14, 15), (11, 12, 14), (14, 14, 16), (11, 12, 14)),  # 17:00
-    32400: ((15, 14, 17), (13, 13, 14), (11, 11, 13), (13, 13, 15), (9, 9, 12)),    # 18:00 dim stormy dusk
-    33300: ((13, 11, 14), (12, 12, 14), (10, 10, 13), (12, 12, 14), (8, 8, 11)),    # 18:30
-    34200: ((11, 10, 14), (12, 12, 14), (10, 10, 13), (11, 11, 14), (7, 8, 11)),    # 19:00
-    36000: ((9, 10, 14), (11, 12, 14), (9, 10, 12), (10, 11, 14), (6, 7, 11)),      # 20:00 night
-    43200: ((8, 9, 14), (11, 12, 15), (8, 9, 12), (10, 11, 15), (6, 7, 11)),        # 24:00
+    0: ((8, 8, 17), (12, 12, 16), (6, 7, 12), (9, 9, 15), (3, 3, 7)),               # 00:00 stormy indigo night
+    7200: ((8, 8, 17), (12, 12, 16), (6, 7, 12), (9, 9, 15), (3, 3, 7)),            # .. 02:00
+    8100: ((10, 10, 18), (13, 13, 16), (7, 8, 12), (10, 10, 15), (4, 4, 8)),        # 02:15 pre-dawn
+    9000: ((14, 14, 20), (14, 14, 16), (7, 8, 11), (11, 11, 15), (5, 5, 8)),        # 02:30 grey dawn
+    14400: ((21, 22, 25), (17, 17, 18), (6, 7, 8), (13, 13, 15), (3, 4, 6)),        # overcast morning
+    20700: ((23, 24, 26), (18, 18, 18), (6, 7, 8), (14, 14, 16), (3, 4, 5)),
+    21600: ((24, 25, 27), (18, 18, 18), (6, 7, 8), (15, 15, 17), (3, 4, 5)),        # brightest rain light
+    27000: ((24, 25, 27), (18, 18, 18), (6, 7, 8), (15, 15, 17), (3, 4, 5)),
+    27900: ((23, 24, 26), (18, 18, 18), (6, 7, 8), (14, 14, 16), (3, 4, 5)),
+    30600: ((21, 21, 25), (17, 17, 18), (6, 6, 8), (13, 13, 15), (3, 4, 6)),
+    32400: ((17, 15, 19), (15, 15, 16), (7, 7, 10), (12, 12, 14), (4, 4, 7)),       # dim stormy dusk
+    33300: ((13, 11, 17), (14, 14, 16), (7, 7, 11), (11, 11, 14), (3, 3, 7)),
+    34200: ((10, 9, 17), (13, 13, 16), (6, 7, 11), (10, 10, 14), (3, 3, 7)),
+    36000: ((8, 8, 17), (12, 12, 16), (6, 7, 12), (9, 9, 15), (3, 3, 7)),           # night
+    43200: ((8, 8, 17), (12, 12, 16), (6, 7, 12), (9, 9, 15), (3, 3, 7)),
 }
+
+
+def terrain_rgb(blk, ndl=0.87):
+    """Approximate flat-ground colour (0..1 per channel) under a lighting block."""
+    out = []
+    for ch in ("red", "green", "blue"):
+        L = blk["lights"][0]["color"][ch] / 31
+        v = blk["emissionColor"][ch] / 31 + L * (blk["diffuseColor"][ch] / 31 * ndl + blk["ambientColor"][ch] / 31)
+        out.append(min(1.0, v))
+    return out
 
 
 def build_lighting():
@@ -514,6 +1002,7 @@ def build_lighting():
         fails.append("lighting: schema differs from lighting_set_000")
     if [b["endTime"] for b in back] != [b["endTime"] for b in tmpl]:
         fails.append("lighting: block times differ from stock")
+    notes = []
     for b, t in zip(back, tmpl):
         cols = [b[k] for k in ("diffuseColor", "ambientColor", "specularColor", "emissionColor")] + \
             [lt["color"] for lt in b["lights"]]
@@ -523,10 +1012,18 @@ def build_lighting():
             fails.append(f"lighting: light directions changed at {b['endTime']}")
         if b["lights"][1:] != t["lights"][1:]:
             fails.append(f"lighting: sprite lights 1..3 changed at {b['endTime']}")
-        # readability: sprites are lit by lights 2/3 (stock); terrain brightness floor
-        if sum(b["lights"][0]["color"].values()) + sum(b["ambientColor"].values()) < 40:
-            fails.append(f"lighting: too dark at {b['endTime']}")
-    return text, fails
+        g = terrain_rgb(b)
+        wall = terrain_rgb(b, ndl=0.25)
+        if max(g) < 0.45:
+            fails.append(f"lighting: terrain too dark at {b['endTime']} ({[round(v, 2) for v in g]})")
+        notes.append((b["endTime"], g, wall))
+    day = [n for n in notes if n[0] == 21600][0]
+    night = [n for n in notes if n[0] == 0][0]
+    if not (day[1][2] > day[1][0] and day[1][0] - day[2][0] > 0.25 and day[1][2] < 0.97):
+        fails.append(f"lighting: noon not cool / contrasty enough {day}")
+    if not (night[1][2] - night[1][0] > 0.3 and night[1][0] < 0.3):
+        fails.append(f"lighting: night not a dark indigo {night}")
+    return text, fails, notes
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -540,10 +1037,9 @@ def build():
     blocked = {}
     blocked.update(build_clusters(F, S))
     blocked.update(build_signs(F, S))
-    wet, placed = build_puddles(F, S, set(blocked))
+    wet, sheets, polys = build_sheets(F, S, BOARDWALKS, set(blocked))
     decks = build_boardwalks(F, S)
-    ruts = build_ruts(F, S)
-    # permissions: stock + puddle behaviour on wet tiles + blocked prop tiles
+    ruts = build_ruts(F, S, polys)
     perm = dict(S.perm)
     for t in wet:
         if (perm[t] & 0xFF) == 0 and not perm[t] & 0x8000:
@@ -554,13 +1050,14 @@ def build():
     for c, cell in R.CHUNKS.items():
         edit = S.chunks[c]["edit"]
         edit.faces.clear()
+        edit.new.clear()
         edit.add(F.mb[c], texres["table"])
         model = edit.model_bytes()
         g = [[perm[(cell[0] * 32 + lx, cell[1] * 32 + lz)] for lx in range(32)] for lz in range(32)]
         data = edit.pack(g, model)
         out[c] = dict(edit=edit, model=model, data=data, grid=g, stats=edit.stats(model), polys=F.mb[c].polygons())
-    return dict(S=S, F=F, tex=texres, out=out, perm=perm, wet=wet, placed=placed, decks=decks, blocked=blocked,
-                ruts=ruts)
+    return dict(S=S, F=F, tex=texres, out=out, perm=perm, wet=wet, sheets=sheets, polys=polys, decks=decks,
+                blocked=blocked, ruts=ruts)
 
 
 def checks(res):
@@ -582,8 +1079,7 @@ def checks(res):
         edited = {o["edit"].model["shapes"][si]["name"] for si in o["edit"].faces}
         bad = C.stock_shapes_identical(o["edit"].model, o["edit"].built, edited)
         rs.append((f"map_data_{c:03d}: every stock shape + material byte-identical (cut: {sorted(edited)})", not bad))
-    # seams: the x 576 and x 671 columns' permissions/heights untouched, no new geometry within 0.25 of the outer
-    # chunk edges (Route 210 / Veilstone stream against them)
+    # seams
     edge = [t for t in perm if t[0] in (576, 671)]
     rs.append(("seam columns x 576 / x 671: permissions identical to stock", all(perm[t] == S.perm[t] for t in edge)))
     near = []
@@ -593,14 +1089,75 @@ def checks(res):
                 if p[0] < 576.25 or p[0] > 671.75 or p[2] < 576.0 or p[2] > 608.0:
                     near.append((c, p))
     rs.append((f"no new geometry within 0.25 tiles of the west/east route edges ({len(near)} vertices)", not near))
-    # reachability: every stock-reachable tile is still reachable except the tiles the props now block
+    # geometry sanity: no degenerate / sliver faces, no stretched or collapsed UVs (stray-line sources)
+    degen = []
+    for key, pts, uvs in F.faces:
+        def tri_area(a, b, c):
+            u = (b[0] - a[0], b[1] - a[1], b[2] - a[2])
+            v = (c[0] - a[0], c[1] - a[1], c[2] - a[2])
+            cr = (u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0])
+            return 0.5 * math.sqrt(sum(x * x for x in cr))
+        ar = tri_area(pts[0], pts[1], pts[2]) + (tri_area(pts[0], pts[2], pts[3]) if len(pts) == 4 else 0)
+        edges = [math.dist(pts[i], pts[(i + 1) % len(pts)]) for i in range(len(pts))]
+        uva = abs(sum(uvs[i][0] * uvs[(i + 1) % len(uvs)][1] - uvs[(i + 1) % len(uvs)][0] * uvs[i][1]
+                      for i in range(len(uvs)))) / 2
+        bow = False
+        if len(pts) == 4 and max(p[1] for p in pts) - min(p[1] for p in pts) < 1e-6:
+            def sa(a, b, c):
+                return (b[0] - a[0]) * (c[2] - a[2]) - (b[2] - a[2]) * (c[0] - a[0])
+            s1, s2 = sa(pts[0], pts[1], pts[2]), sa(pts[0], pts[2], pts[3])
+            s3, s4 = sa(pts[1], pts[2], pts[3]), sa(pts[1], pts[3], pts[0])
+            bow = s1 * s2 <= 0 or s3 * s4 <= 0
+        if ar < 2e-4 or min(edges) < 0.01 or uva < 1e-7 or bow or max(abs(u) for uv in uvs for u in uv) > 120:
+            degen.append((key, [tuple(round(x, 2) for x in p) for p in pts][:2]))
+    slivers = []
+    for key, pts, uvs in F.faces:
+        if key in ("water", "shore") and len(pts) == 3:
+            angs = []
+            for i in range(3):
+                a, b, c = pts[i], pts[(i + 1) % 3], pts[(i + 2) % 3]
+                v1 = (b[0] - a[0], b[2] - a[2])
+                v2 = (c[0] - a[0], c[2] - a[2])
+                cs = (v1[0] * v2[0] + v1[1] * v2[1]) / (math.hypot(*v1) * math.hypot(*v2) + 1e-12)
+                angs.append(math.degrees(math.acos(max(-1, min(1, cs)))))
+            if min(angs) < 2.0:
+                slivers.append((key, round(min(angs), 2), [(round(p[0], 2), round(p[2], 2)) for p in pts]))
+    rs.append((f"no sliver water / shore triangles (min angle >= 2 deg): {slivers[:3]}", not slivers))
+    rs.append((f"every new face has real area, edges >= 0.01 tiles, no bow-tie (crossed) quads, UVs in range "
+               f"({len(F.faces)} faces, bad {degen[:3]})", not degen))
+    # flood sheets: 2..3 continuous sheets in the stock sea texture, boardwalks across them, ruts never on water
+    shs = res["sheets"]
+    rs.append((f"flood sheets: {len(shs)} continuous sheets of stock '{TX.WATER_TEXTURE}' water "
+               + ", ".join(f"{s['name']} {s['area']:.1f} tiles^2 / {s['loops']} loop / {s['verts']} verts / "
+                           f"{s['tris']} tris + {s['strip']} shore quads / {s['wet']} puddle tiles" for s in shs),
+               2 <= len(shs) <= 3 and all(s["loops"] == 1 and s["area"] >= 18 for s in shs)))
+    under = []
+    for (x0, z0, x1, z1, h) in res["decks"]:
+        n = cov = 0
+        for xi in range(x0 * 4, (x1 + 1) * 4):
+            for zi in range(z0 * 4, (z1 + 1) * 4):
+                n += 1
+                px, pz = (xi + 0.5) / 4, (zi + 0.5) / 4
+                cov += any(point_in(lp, px, pz) for lps in res["polys"].values() for lp in lps)
+        under.append(round(cov / n, 2))
+    rs.append((f"boardwalks span the flood sheets (water under each deck: {under})", all(u >= 0.55 for u in under)))
+    wet_rut = [t for t in res["ruts"] if any(point_in(lp, t[0] + 0.5, t[1] + 0.5)
+                                             for lps in res["polys"].values() for lp in lps)]
+    rut_x = [t for t in res["ruts"] if any(sh["rect"][0] - 1 <= t[0] <= sh["rect"][2] + 1 and
+                                           sh["rect"][1] - 1 <= t[1] <= sh["rect"][3] + 1 for sh in SHEETS.values())]
+    rs.append((f"truck ruts only on dry ground (rut tiles under water: {wet_rut[:4]}, near a sheet: {rut_x[:4]})",
+               not wet_rut and not rut_x))
+    keys = {k for k, _, _ in F.faces}
+    rs.append(("no dithered glow decal: lamp glow is unlit glass + smooth A3I5 halo / pool cards only "
+               f"(materials {sorted(keys)})", "glow" not in keys and "puddle" not in keys and
+               {"halo", "pool", "shadow", "water", "shore"} <= keys))
+    # reachability
     seen0, _ = PA.reach(S.perm)
     seen1, _ = PA.reach(perm)
     lost = seen0 - seen1 - set(res["blocked"])
     rs.append((f"reachability: {len(seen1)} tiles reachable from Route 210, stock {len(seen0)}; only prop tiles "
                f"lost ({len(seen0 - seen1)} = {len(res['blocked'])} blocked)", not lost))
     rs.append(("Veilstone gate warps (671, 598/599) reachable", (670, 598) in seen1 and (670, 599) in seen1))
-    # events: no event, coord trigger or NPC wander box on a newly blocked tile; every event still reachable
     ev = S.ev
     evt = {(o["x"], o["z"]): o.get("id", o.get("script")) for k in ("object_events", "bg_events", "warp_events",
                                                                         "coord_events") for o in ev[k]}
@@ -613,21 +1170,16 @@ def checks(res):
             ranges.append((o["id"], o["x"] - rx, o["z"] - rz, o["x"] + rx, o["z"] + rz))
     inr = [(n, t) for t in res["blocked"] for n, a, b, cc, d in ranges if a <= t[0] <= cc and b <= t[1] <= d]
     rs.append((f"blocked tiles inside an NPC wander box (allowed, NPC just skips them): {len(inr)}", True))
-    unreachable = []
+    unreachable, stock_unreach = [], []
     for o in ev["object_events"] + ev["bg_events"]:
         t = (o["x"], o["z"])
         nb = [(t[0] + dx, t[1] + dz) for dx, dz in ((1, 0), (-1, 0), (0, 1), (0, -1))] + [t]
         if not any(n in seen1 for n in nb):
             unreachable.append(o.get("id", t))
-    stock_unreach = []
-    for o in ev["object_events"] + ev["bg_events"]:
-        t = (o["x"], o["z"])
-        nb = [(t[0] + dx, t[1] + dz) for dx, dz in ((1, 0), (-1, 0), (0, 1), (0, -1))] + [t]
         if not any(n in seen0 for n in nb):
             stock_unreach.append(o.get("id", t))
     rs.append((f"every object/bg event still has a reachable tile (unreachable {unreachable}, stock {stock_unreach})",
                set(map(str, unreachable)) <= set(map(str, stock_unreach))))
-    # trainer sight lines: no newly blocked tile in a trainer's facing line within 8 tiles
     dirs = {"DIR_NORTH": (0, -1), "DIR_SOUTH": (0, 1), "DIR_WEST": (-1, 0), "DIR_EAST": (1, 0)}
     sight = []
     for o in ev["object_events"]:
@@ -642,7 +1194,6 @@ def checks(res):
                 if t in res["blocked"]:
                     sight.append((o["id"], t))
     rs.append((f"no prop in a trainer's sight line {sight}", not sight))
-    # BG_EVENT signs: in events.json, on a prop-blocked tile, with a reachable tile beside them
     evj = json.load(open(os.path.join(R.ROOT, R.EVENTS_REL)))
     have = {(b["x"], b["z"], b.get("script")) for b in evj["bg_events"]}
     okbg = all((x, z, sc) in have and (x, z) in res["blocked"] and
@@ -653,13 +1204,11 @@ def checks(res):
                f"reachable tile; stock bg events kept in order", okbg and new_bg[:len(stock_bg)] == stock_bg))
     rs.append(("object / warp / coord events identical to stock",
                all(evj[k] == S.ev[k] for k in ("object_events", "warp_events", "coord_events"))))
-    # puddle behaviour only on stock behaviour-0 walkable tiles
     changed = [t for t in perm if perm[t] != S.perm[t]]
     okb = all((t in res["blocked"] and perm[t] == S.perm[t] | 0x8000) or
               (t in res["wet"] and S.perm[t] == 0 and perm[t] == PUDDLE) for t in changed)
     rs.append((f"permission changes: {len(res['wet'])} puddle tiles (behaviour 0 -> 0x16), {len(res['blocked'])} "
                f"prop tiles blocked; nothing else", okb))
-    # walkable clearance: no solid prop face over the interior of a walkable tile below 1.3 tiles
     bad = []
     for pts in F.solids:
         xs, zs, hs = [p[0] for p in pts], [p[2] for p in pts], [p[1] for p in pts]
@@ -670,17 +1219,12 @@ def checks(res):
                 if inside and min(hs) < (S.h[t] or 0) + 1.3:
                     bad.append(t)
     rs.append((f"no solid prop over a walkable tile's interior {sorted(set(bad))[:8]}", not bad))
-    # boardwalk decks sit at the BDHC floor (+0.03 tiles = 0.48 world units)
-    rs.append((f"boardwalks: {len(res['decks'])} decks at BDHC floor + 0.03 tiles over flat ground", True))
-    # camera polygons
-    faces = []
-    for c, o in out.items():
-        faces.append((o["edit"].built, R.CHUNKS[c]))
+    rs.append((f"boardwalks: {len(res['decks'])} decks at BDHC floor + {DECK_H} tiles over flat ground", True))
+    faces = [(o["edit"].built, R.CHUNKS[c]) for c, o in out.items()]
     cf = C.camera_faces(faces)
     walk = [t for t in perm if not perm[t] & 0x8000]
     worst, at = C.camera_polys(cf, walk[::3])
     rs.append((f"camera: worst {worst} polygons on screen (at {at}) <= 2048", worst <= 2048))
-    # textures
     vb, vo = res["tex"]["vram"]
     rs.append((f"set 078: VRAM {sum(vb)} -> {sum(vo)} B < {TX.VRAM_TARGET}; round trip: "
                f"{'ok' if not res['tex']['fails'] else res['tex']['fails']}", not res["tex"]["fails"]))
@@ -694,12 +1238,14 @@ def main():
     for name, good in rs:
         print(("PASS " if good else "FAIL ") + name)
         ok &= good
-    ltext, lfails = build_lighting()
+    ltext, lfails, notes = build_lighting()
     for f in lfails:
         print("FAIL", f)
+    for t, g, w in notes:
+        if t in (0, 9000, 21600, 32400):
+            print(f"  lighting {t:5d}: ground rgb {[round(v, 2) for v in g]}  wall {[round(v, 2) for v in w]}")
     ok &= not lfails
-    print(f"puddles: {len(res['placed'])} blobs, {len(res['wet'])} puddle tiles; decks {len(res['decks'])}; "
-          f"blocked {sorted(res['blocked'])}")
+    print(f"blocked {sorted(res['blocked'])}")
     if "--write" in sys.argv:
         assert ok, "refusing to write: a check failed"
         for c, o in res["out"].items():

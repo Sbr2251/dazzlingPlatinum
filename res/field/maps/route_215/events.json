@@ -36,6 +36,14 @@
             "z": 590,
             "y": 0,
             "player_facing_dir": "BG_EVENT_DIR_ALL"
+        },
+        {
+            "script": "Route215_EclipseStaging",
+            "type": "BG_EVENT_TYPE_FACING",
+            "x": 666,
+            "z": 599,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_ALL"
         }
     ],
     "object_events": [

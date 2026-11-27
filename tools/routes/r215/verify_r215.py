@@ -26,17 +26,19 @@ GATE = "MAP_HEADER_ROUTE_215_GATE_TO_VEILSTONE_CITY"
 
 # (name, x, z, facing): the showcase viewpoints
 VIEWPOINTS = [
-    ("01_west_entry_boardwalk", 582, 598, "DIR_EAST"),
-    ("02_flooded_boardwalk", 600, 592, "DIR_EAST"),
-    ("03_lowland_boardwalk_070", 618, 592, "DIR_EAST"),
-    ("04_north_ruts_crates", 634, 586, "DIR_EAST"),
-    ("05_south_field_ruts_crates", 650, 591, "DIR_EAST"),
-    ("06_lane_ruts", 652, 598, "DIR_EAST"),
-    ("07_veilstone_approach", 663, 598, "DIR_EAST"),
+    ("01_west_flood_overlook", 591, 596, "DIR_WEST"),
+    ("02_west_entry_boardwalk", 582, 598, "DIR_EAST"),
+    ("03_flooded_boardwalk", 600, 592, "DIR_EAST"),
+    ("04_east_flood_boardwalk", 620, 592, "DIR_NORTH"),
+    ("05_north_staging_yard", 633, 586, "DIR_WEST"),
+    ("06_south_field_ruts_crates", 652, 592, "DIR_EAST"),
+    ("07_lane_ruts", 652, 598, "DIR_EAST"),
+    ("08_veilstone_staging_yard", 664, 598, "DIR_EAST"),
 ]
 INTERACTIONS = [
-    ("08_sign_eclipse_crates", "Eclipse crate stack (Route215_EclipseCrates)", 654, 592, "DIR_EAST"),
-    ("09_sign_drainage", "Flooded drainage sign (Route215_DrainageSign)", 595, 590, "DIR_WEST"),
+    ("09_sign_eclipse_crates", "Eclipse crate stack (Route215_EclipseCrates)", 654, 592, "DIR_EAST"),
+    ("10_sign_drainage", "Flooded drainage sign (Route215_DrainageSign)", 595, 590, "DIR_WEST"),
+    ("11_sign_staging_yard", "Eclipse staging yard (Route215_EclipseStaging)", 666, 598, "DIR_SOUTH"),
 ]
 
 
@@ -91,15 +93,15 @@ def tour(game, out_dir, run, results, shots):
         m, pos = V.where(st)
         V.expect(m == ROUTE and pos == (595 + k, 592), f"boardwalk step {k}/11 reached {pos}", results)
     game.cmd({"cmd": "step", "frames": 30})
-    V.shoot(game, out_dir, f"{run}_10_boardwalk_walked", shots, results)
+    V.shoot(game, out_dir, f"{run}_12_boardwalk_walked", shots, results)
     # the Route 210 seam: walk west off x 576
     V.warp(game, 577, 597, "DIR_WEST", results, mapname=ROUTE)
-    V.shoot(game, out_dir, f"{run}_11_route210_seam", shots, results)
+    V.shoot(game, out_dir, f"{run}_13_route210_seam", shots, results)
     V.walk_one(game, "LEFT")
     st = V.walk_one(game, "LEFT")
     m, pos = V.where(st)
     V.expect(m != ROUTE and pos == (575, 597), f"seam: walked from Route 215 (576, 597) into {m} at {pos}", results)
-    V.shoot(game, out_dir, f"{run}_12_route210_side", shots, results)
+    V.shoot(game, out_dir, f"{run}_14_route210_side", shots, results)
     # the Veilstone gate
     V.warp(game, 669, 598, "DIR_EAST", results, mapname=ROUTE)
     st = V.walk_until_map(game, "RIGHT", GATE)
