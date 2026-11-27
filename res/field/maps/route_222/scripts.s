@@ -21,6 +21,11 @@
     ScriptEntry Route222_OnTransition
     ScriptEntry Route222_Arc2KahnCliff
     ScriptEntry Route222_Arc2OnResume
+    ScriptEntry Route222_StrandedPsyduck
+    ScriptEntry Route222_StrandedPiplup
+    ScriptEntry Route222_StrandedPrinplup
+    ScriptEntry Route222_BlackoutLamp
+    ScriptEntry Route222_VioletLamp
     ScriptEntryEnd
 
 Route222_OnTransition:
@@ -141,3 +146,35 @@ Route222_Arc2Movement_KahnCloseHand:
     Delay8
     WalkOnSpotSlowSouth
     EndMovement
+
+// Route 222 Violet-Lit Coast (routes-wave2, tools/routes/r222/events.py): stranded Water Pokemon on the tide line
+// and the blacked-out coastal lamps. Appended after the stock entries so init.s's entry numbers stay valid.
+Route222_StrandedPsyduck:
+    PokemonCryAndMessage SPECIES_PSYDUCK, Route222_Text_StrandedPsyduck
+    End
+
+Route222_StrandedPiplup:
+    PokemonCryAndMessage SPECIES_PIPLUP, Route222_Text_StrandedPiplup
+    End
+
+Route222_StrandedPrinplup:
+    PokemonCryAndMessage SPECIES_PRINPLUP, Route222_Text_StrandedPrinplup
+    End
+
+Route222_BlackoutLamp:
+    PlaySE SE_CONFIRM_sseq_3
+    LockAll
+    Message Route222_Text_BlackoutLamp
+    WaitABPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+Route222_VioletLamp:
+    PlaySE SE_CONFIRM_sseq_3
+    LockAll
+    Message Route222_Text_VioletLamp
+    WaitABPadPress
+    CloseMessage
+    ReleaseAll
+    End
