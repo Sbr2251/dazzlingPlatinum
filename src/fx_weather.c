@@ -52,12 +52,25 @@ void FxWeather_OnMapChange(int mapHeaderID, u16 weather)
     if (FxWeather_WeatherFxEnabled()) {
         // Map mood first: Eterna Forest gets canopy light shafts on a
         // clear day, Route 218 (Everspring Sanctuary) gets bioluminescent
-        // fairy spores & subtle twilight aura, Stark Mountain / ashfall
-        // areas get heat haze.
+        // fairy spores & subtle twilight aura, Routes 222/223 get the violet
+        // rift aura (kind 7), Routes 215-217 get rain mist / snowdrift
+        // (kind 8), Stark Mountain / ashfall areas get heat haze.
         if (mapHeaderID == MAP_HEADER_ETERNA_FOREST || mapHeaderID == MAP_HEADER_ETERNA_FOREST_OUTSIDE) {
             kind = 4; intensity = 0.8f;
         } else if (mapHeaderID == MAP_HEADER_ROUTE_218) {
             kind = 6; intensity = 0.75f;
+        } else if (mapHeaderID == MAP_HEADER_ROUTE_223) {
+            // Violet Rift Coast & Sea-Sky Aura: full strength at the rift sea.
+            kind = 7; intensity = 0.80f;
+        } else if (mapHeaderID == MAP_HEADER_ROUTE_222) {
+            // Violet-lit coast: the rift glow cast westward, gentler.
+            kind = 7; intensity = 0.55f;
+        } else if (mapHeaderID == MAP_HEADER_ROUTE_215) {
+            // Flooded lowland: rain mist streaks + slate vignette.
+            kind = 8; intensity = 0.60f;
+        } else if (mapHeaderID == MAP_HEADER_ROUTE_216 || mapHeaderID == MAP_HEADER_ROUTE_217) {
+            // Memorial Ridge / Indra's camp: alpine snowdrift.
+            kind = 8; intensity = 0.65f;
         } else if (mapHeaderID == MAP_HEADER_STARK_MOUNTAIN_OUTSIDE || mapHeaderID == MAP_HEADER_STARK_MOUNTAIN_ROOM_1
             || mapHeaderID == MAP_HEADER_STARK_MOUNTAIN_ROOM_2 || mapHeaderID == MAP_HEADER_STARK_MOUNTAIN_ROOM_3
             || weather == OVERWORLD_WEATHER_SLOW_ASHFALL) {
