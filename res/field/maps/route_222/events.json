@@ -55,6 +55,22 @@
             "z": 789,
             "y": 0,
             "player_facing_dir": "BG_EVENT_DIR_ALL"
+        },
+        {
+            "script": "Route222_BlackoutLamp",
+            "type": "BG_EVENT_TYPE_FACING",
+            "x": 792,
+            "z": 775,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_NORTH"
+        },
+        {
+            "script": "Route222_VioletLamp",
+            "type": "BG_EVENT_TYPE_FACING",
+            "x": 820,
+            "z": 790,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_WEST"
         }
     ],
     "object_events": [
@@ -572,6 +588,51 @@
             "movement_range_z": 0,
             "x": 742,
             "z": 794,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_STRANDED_PSYDUCK",
+            "graphics_id": "OBJ_EVENT_GFX_PSYDUCK",
+            "movement_type": "MOVEMENT_TYPE_LOOK_EAST",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "0",
+            "script": "Route222_StrandedPsyduck",
+            "initial_dir": "DIR_EAST",
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 791,
+            "z": 790,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_STRANDED_PIPLUP",
+            "graphics_id": "OBJ_EVENT_GFX_PIPLUP",
+            "movement_type": "MOVEMENT_TYPE_LOOK_EAST",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "0",
+            "script": "Route222_StrandedPiplup",
+            "initial_dir": "DIR_EAST",
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 803,
+            "z": 791,
+            "y": 0
+        },
+        {
+            "id": "LOCALID_STRANDED_PRINPLUP",
+            "graphics_id": "OBJ_EVENT_GFX_PRINPLUP",
+            "movement_type": "MOVEMENT_TYPE_LOOK_EAST",
+            "trainer_type": "TRAINER_TYPE_NONE",
+            "hidden_flag": "0",
+            "script": "Route222_StrandedPrinplup",
+            "initial_dir": "DIR_EAST",
+            "data": [],
+            "movement_range_x": 0,
+            "movement_range_z": 0,
+            "x": 813,
+            "z": 795,
             "y": 0
         }
     ],
