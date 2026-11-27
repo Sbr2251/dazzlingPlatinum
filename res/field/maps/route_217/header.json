@@ -4,7 +4,7 @@
   "locationName": "LocationNames_Text_Route217",
   "textBank": "TEXT_BANK_ROUTE_217",
   "popupStyle": "MAP_LABEL_WINDOW_ROUTE",
-  "weather": "OVERWORLD_WEATHER_BLIZZARD",
+  "weather": "OVERWORLD_WEATHER_SNOWING",
   "cameraType": "CAMERA_TYPE_DEFAULT",
   "battleBackground": "BACKGROUND_SNOW",
   "mapType": "MAP_TYPE_OUTDOORS",

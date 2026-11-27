@@ -6,6 +6,14 @@
             "z": 409,
             "y": 0,
             "player_facing_dir": "BG_EVENT_DIR_ALL"
+        },
+        {
+            "script": "Route216_TeoMemorial",
+            "type": "BG_EVENT_TYPE_FACING",
+            "x": 317,
+            "z": 401,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_NORTH"
         }
     ],
     "object_events": [

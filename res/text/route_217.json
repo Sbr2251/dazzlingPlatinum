@@ -45,6 +45,39 @@
         "Rt. 217\n",
         "Lake Acuity"
       ]
+    },
+    {
+      "id": "Route217_Text_IndraCampTent",
+      "en_US": [
+        "A weathered violet expedition tent\n",
+        "stands in the snow. Nobody is here.\r",
+        "Embers still glow in a ring of\n",
+        "stones beside a split-log bench.\r",
+        "A lantern still burns on a supply\n",
+        "crate, beside an open field journal.\r"
+      ]
+    },
+    {
+      "id": "Route217_Text_IndraCampJournal",
+      "en_US": [
+        "The handwriting is small and neat.\r",
+        "Day 9. The shard will not settle.\n",
+        "Every night it pulls to the south.\r",
+        "Day 12. Not up the mountain. Down.\n",
+        "Under it. Under all of that dark.\r",
+        "Teo, you always said I worried\n",
+        "too much. I'm coming anyway."
+      ]
+    },
+    {
+      "id": "Route217_Text_IndraCampCompass",
+      "en_US": [
+        "An Eclipse shard-compass hums\n",
+        "faintly in its open case.\r",
+        "Its dim violet needle points due\n",
+        "south... toward Mt. Coronet\r",
+        "and the molten depths beneath it."
+      ]
     }
   ]
 }

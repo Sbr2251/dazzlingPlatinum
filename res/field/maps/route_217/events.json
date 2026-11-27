@@ -69,6 +69,22 @@
             "z": 337,
             "y": 0,
             "player_facing_dir": "BG_EVENT_DIR_ALL"
+        },
+        {
+            "script": "Route217_IndraCamp",
+            "type": "BG_EVENT_TYPE_FACING",
+            "x": 312,
+            "z": 360,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_NORTH"
+        },
+        {
+            "script": "Route217_IndraCamp",
+            "type": "BG_EVENT_TYPE_FACING",
+            "x": 311,
+            "z": 361,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_NORTH"
         }
     ],
     "object_events": [
