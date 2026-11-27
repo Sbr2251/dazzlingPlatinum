@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Routes 216-217 (Memorial Ridge & Indra's Camp) texture set: map_texture_set_080 = stock map_texture_set_014 (read
-from git HEAD, so reruns never append twice) + four procedurally drawn 64x64 pltt16 atlases. Pure math (NumPy):
-value noise, SDF shapes and hand-tuned 16-colour BGR555 palettes, quantised with a 4x4 Bayer ordered dither so every
-texel snaps to Platinum's pixel-art grid (atlas regions are mapped at ~16-22 texels per tile).
+"""Routes 216-217 (Memorial Ridge & Indra's Camp) texture set, v2: map_texture_set_080 = stock map_texture_set_014
+(read from git HEAD, so reruns never append twice) + five procedurally drawn 64x64 atlases. Pure math (NumPy): value
+noise, SDF shapes and hand-tuned BGR555 palettes. Opaque / c0 atlases are pltt16 pixel art with 1-texel dark outlines
+on every silhouette edge (faces map whole regions, so a region border is a face border on screen); the soft glows,
+light pools and contact shadows are one A3I5 atlas with smooth 3-bit alpha ramps (no ordered dither, no checkerboard).
 
 Usage:
   ~/.venvs/desmume/bin/python tools/routes/r216_217/textures.py                 dry run: table, VRAM, round trip
@@ -10,21 +11,17 @@ Usage:
   ~/.venvs/desmume/bin/python tools/routes/r216_217/textures.py --write         write SET_REL (refuses on FAIL)
 
 Atlases (texel boxes x0, y0, x1, y1, exclusive ends, in REGIONS; build_art.py maps faces onto them):
-  r216_stone   opaque. Snow-dusted carved grey granite ashlar ("granite"), frost-crusted slate flags in 1-tile
-               slabs ("slate"), Teo's stele face with the bevelled frame, carved emblem and the inlaid dark plaque
-               with engraved silver lines ("stele"), snow cap ("snow"), frost-crusted cairn boulder ("cairn"),
-               carved coping band ("coping") and a plain granite side ("side").
-  r216_offer   c0=1. Frozen winter-flower wreath ("wreath"), warm vigil lantern glass ("glow"), candle stub with
-               flame ("candle"), tied violet scarf with fringed tails ("scarf"), faint violet shard dust ("dust"),
-               fresh boot prints ("prints"), frozen bouquet ("bouquet"), soft amber light pool ("halo").
-  r217_tent    c0=1. Weathered dark-violet expedition canvas with seams, patches and frost ("canvas"), the front
-               flap with the faded eclipse sigil and tie-backs ("flap"), guy rope ("rope"), pole / stake wood
-               ("wood"), canvas gable end ("gable").
-  r217_camp    c0=1. Warm expedition-lantern glass ("glass") and its iron/brass frame ("iron"), snow-dusted supply
-               crate face with the Eclipse stencil ("crate") and its plain side ("crate_side"), shard-scanner case
-               lid with the violet compass screen and the needle pointing south ("screen"), the case body with its
-               violet status strip ("case"), a violet shard ("shard"), packed-snow footprint ring ("ring"), the field
-               journal ("journal") and the faint violet south-pointing trace ("beam").
+  r216_stone   opaque pltt16. Teo's monolith face (bevelled outline, carved mountain-and-falling-star emblem, inlaid
+               dark plaque with the engraved "TEO" and lines, carved base fillet) and its side, pedestal riser, step
+               top with settled snow, ashlar granite, crisp snow cap and its outlined side band, lantern stone parts.
+  r216_offer   c0=1. Evergreen & winter-blossom wreath, deep-violet knitted scarf band, knot and two fringed tails,
+               dithered snow drift wedge, snow pile, snow-cap drip lip, violet shard dust, boot prints, frozen bouquet.
+  r216_glow    A3I5. Warm amber bloom, electric-violet bloom, soft ground light pool, soft blue contact shadow
+               (shared by both chunks).
+  r217_tent    c0=1. Deep-violet canvas slope with the pale-silver Eclipse emblem, emblem overlay, front gable with the
+               open shadowed doorway, tied-back flap lining, guy rope, pole wood, heaped ridge snow.
+  r217_camp    c0=1. Expedition-lantern glass and frame, supply crate face and side, shard-scanner lid screen and case
+               body, violet shard, field journal, packed-snow clearing patch with a dithered rim.
 """
 import os
 import subprocess
@@ -41,7 +38,6 @@ SET_REL = "res/field/mapmodels/texture_sets/map_texture_set_080.nsbtx"
 BASE_REV = "HEAD"
 BASE_SET_REL = "res/field/mapmodels/texture_sets/map_texture_set_014.nsbtx"
 VRAM_TARGET = 160 * 1024
-VRAM_BUDGET = 384 * 1024
 N = 64
 
 BAYER4 = (np.array([[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]], float) + 0.5) / 16.0 - 0.5
@@ -49,20 +45,26 @@ YY, XX = np.mgrid[0:N, 0:N].astype(float)
 BAYER = BAYER4[(YY % 4).astype(int), (XX % 4).astype(int)]
 
 REGIONS = {
-    "r216_stone": {"granite": (0, 0, 32, 32), "slate": (32, 0, 64, 32), "stele": (0, 32, 24, 64),
-                   "snow": (24, 32, 40, 48), "coping": (24, 48, 40, 56), "side": (24, 56, 40, 64),
-                   "cairn": (40, 32, 64, 64)},
-    "r216_offer": {"wreath": (0, 0, 32, 32), "glow": (32, 0, 48, 32), "candle": (48, 0, 64, 32),
-                   "scarf": (0, 32, 32, 48), "dust": (32, 32, 64, 48), "prints": (0, 48, 32, 64),
-                   "bouquet": (32, 48, 48, 64), "halo": (48, 48, 64, 64)},
-    "r217_tent": {"canvas": (0, 0, 64, 32), "flap": (0, 32, 32, 64), "rope": (32, 32, 64, 36),
-                  "wood": (32, 36, 64, 44), "gable": (32, 44, 64, 64)},
+    "r216_stone": {"stele": (0, 0, 24, 48), "stele_side": (24, 0, 32, 48), "step": (32, 0, 64, 8),
+                   "step_top": (32, 8, 64, 24), "snow": (32, 24, 48, 40), "lantern": (48, 24, 64, 40),
+                   "post": (32, 40, 40, 64), "snow_side": (40, 40, 64, 48), "granite": (0, 48, 32, 64),
+                   "roof": (40, 48, 64, 56), "chamfer": (40, 56, 64, 64)},
+    "r216_offer": {"wreath": (0, 0, 32, 32), "scarf": (32, 0, 64, 8), "knot": (32, 8, 48, 24),
+                   "tail": (48, 8, 56, 40), "tail2": (56, 8, 64, 40), "bouquet": (32, 24, 48, 40),
+                   "drift": (0, 32, 32, 48), "mound": (32, 40, 48, 56), "drip": (0, 48, 32, 56),
+                   "dust": (0, 56, 32, 64), "prints": (48, 40, 64, 64), "spare": (32, 56, 48, 64)},
+    "r216_glow": {"amber": (0, 0, 32, 32), "violet": (32, 0, 64, 32), "pool": (0, 32, 32, 64),
+                  "shadow": (32, 32, 64, 64)},
+    "r217_tent": {"canvas": (0, 0, 32, 32), "emblem": (32, 0, 64, 32), "gable": (0, 32, 32, 56),
+                  "flap": (32, 32, 48, 56), "rope": (48, 32, 64, 36), "wood": (48, 36, 64, 44),
+                  "back": (48, 44, 64, 56), "ridge_snow": (0, 56, 32, 64), "wall": (32, 56, 64, 64)},
     "r217_camp": {"glass": (0, 0, 16, 16), "iron": (0, 16, 16, 32), "crate": (16, 0, 48, 24),
                   "crate_side": (16, 24, 48, 32), "screen": (48, 0, 64, 16), "case": (48, 16, 64, 32),
-                  "shard": (0, 32, 16, 48), "journal": (0, 48, 16, 64), "ring": (16, 32, 48, 64),
-                  "beam": (48, 32, 64, 64)},
+                  "shard": (0, 32, 16, 48), "journal": (0, 48, 16, 64), "clear": (16, 32, 48, 64),
+                  "lid": (48, 32, 64, 48), "spare": (48, 48, 64, 64)},
 }
 TRANSPARENT = {"r216_offer", "r217_tent", "r217_camp"}
+ALPHA_FMT = {"r216_glow"}            # A3I5 (fmt 1): 5-bit index, 3-bit alpha
 
 
 def snap(c):
@@ -76,7 +78,7 @@ def vnoise(shape, cells, seed):
     g = rng.rand(cells + 1, cells + 1)
     y, x = np.mgrid[0:h, 0:w].astype(float)
     fx, fy = x * cells / w, y * cells / h
-    x0, y0 = np.floor(fx).astype(int), np.floor(fy).astype(int)
+    x0, y0 = np.minimum(np.floor(fx).astype(int), cells - 1), np.minimum(np.floor(fy).astype(int), cells - 1)
     tx, ty = fx - x0, fy - y0
     tx, ty = tx * tx * (3 - 2 * tx), ty * ty * (3 - 2 * ty)
     a = g[y0, x0] * (1 - tx) + g[y0, x0 + 1] * tx
@@ -89,32 +91,26 @@ def fbm(shape, seed, octs=((3, 0.5), (6, 0.3), (12, 0.2))):
 
 
 class Atlas:
-    """64x64 index canvas; regions drawn in local coordinates."""
+    """64x64 index canvas (+ alpha canvas for A3I5); regions drawn in local coordinates."""
 
     def __init__(self, name, pal):
         self.name, self.pal = name, pal
         self.img = np.zeros((N, N), int)
+        self.alpha = np.zeros((N, N), int)
 
     def region(self, key):
-        x0, y0, x1, y1 = REGIONS[self.name][key]
-        return x0, y0, x1, y1
+        return REGIONS[self.name][key]
 
     def local(self, key):
         x0, y0, x1, y1 = self.region(key)
         y, x = np.mgrid[0:y1 - y0, 0:x1 - x0].astype(float)
         return x, y, BAYER[y0:y1, x0:x1]
 
-    def put(self, key, arr, mask=None):
+    def put(self, key, arr, alpha=None):
         x0, y0, x1, y1 = self.region(key)
-        sub = self.img[y0:y1, x0:x1]
-        if mask is None:
-            sub[:] = arr
-        else:
-            sub[mask] = np.broadcast_to(arr, sub.shape)[mask]
-
-    def get(self, key):
-        x0, y0, x1, y1 = self.region(key)
-        return self.img[y0:y1, x0:x1]
+        self.img[y0:y1, x0:x1] = arr
+        if alpha is not None:
+            self.alpha[y0:y1, x0:x1] = alpha
 
 
 def ramp(t, idx, b, dither=1.0):
@@ -123,525 +119,635 @@ def ramp(t, idx, b, dither=1.0):
     return np.array(idx)[v]
 
 
+def outline(img, x, y, w, h, c=0, sides="lrtb"):
+    m = np.zeros(img.shape, bool)
+    if "l" in sides:
+        m |= x == 0
+    if "r" in sides:
+        m |= x == w - 1
+    if "t" in sides:
+        m |= y == 0
+    if "b" in sides:
+        m |= y == h - 1
+    return np.where(m, c, img)
+
+
 # ---------------------------------------------------------------------------------------------------------------
-# r216_stone: carved granite, slate flags, Teo's stele face, snow, cairn
+# r216_stone: Teo's monolith, pedestal, snow cap, lantern stone (opaque)
 # ---------------------------------------------------------------------------------------------------------------
 
 STONE_PAL = [
-    (20, 22, 32),     # 0 outline / deep carved shadow
-    (44, 48, 62),     # 1 granite crevice
-    (64, 68, 84),     # 2 dark granite
-    (86, 90, 106),    # 3 granite shade
-    (108, 112, 126),  # 4 granite mid
-    (130, 134, 148),  # 5 granite light
-    (154, 158, 170),  # 6 granite lit
-    (180, 186, 198),  # 7 frost / chisel highlight
-    (204, 212, 226),  # 8 snow shade
-    (230, 236, 246),  # 9 snow
-    (250, 252, 255),  # 10 snow highlight
-    (132, 150, 184),  # 11 icy blue frost shadow
-    (28, 28, 40),     # 12 plaque black
-    (50, 52, 70),     # 13 plaque slate
-    (196, 202, 216),  # 14 engraved silver
-    (88, 94, 124),    # 15 blue-violet slate
+    (16, 18, 30),     # 0 outline / deep carved shadow
+    (40, 44, 60),     # 1 crevice
+    (64, 68, 86),     # 2 dark granite
+    (90, 94, 112),    # 3 granite shade
+    (116, 120, 138),  # 4 granite mid
+    (142, 146, 162),  # 5 granite light
+    (168, 172, 188),  # 6 granite lit
+    (196, 202, 216),  # 7 chisel highlight / frost
+    (176, 192, 222),  # 8 snow shade (cool blue)
+    (230, 236, 248),  # 9 snow
+    (252, 252, 255),  # 10 snow highlight
+    (128, 148, 192),  # 11 icy blue shadow
+    (22, 22, 34),     # 12 plaque black
+    (46, 48, 68),     # 13 plaque slate
+    (208, 214, 232),  # 14 engraved silver
+    (96, 100, 132),   # 15 blue-violet slate
 ]
 
 
-def snow_dust(x, y, b, seed, top=3.0, amount=0.5):
-    """Mask of snow texels settling on upper edges: dense on the top rows, flecks lower down."""
-    n = vnoise(x.shape, 6, seed)
-    depth = top + 2.0 * n
-    return (y < depth) | ((vnoise(x.shape, 16, seed + 1) > 1.0 - amount * 0.18) & (b > 0.1))
+def granite(x, y, b, seed, idx=(3, 4, 5, 6), amp=0.5, base=0.5):
+    t = base + amp * (fbm(x.shape, seed, ((2, 0.55), (5, 0.3), (11, 0.15))) - 0.5)
+    img = ramp(t, list(idx), b, 0.45)
+    img = np.where((vnoise(x.shape, 24, seed + 3) > 0.9), 7, img)          # frost / quartz speckle
+    img = np.where((vnoise(x.shape, 24, seed + 4) > 0.93), 2, img)         # dark mica flecks
+    return img
 
 
 def tex_stone():
     A = Atlas("r216_stone", STONE_PAL)
-    # granite ashlar: 2 courses of 16 px (1 tile), running bond, chisel speckle, snow on each course top
-    x, y, b = A.local("granite")
-    base = 0.52 + 0.55 * (fbm(x.shape, 11, ((2, 0.6), (4, 0.3), (8, 0.1))) - 0.5)
-    img = ramp(base, [3, 4, 5, 6], b, 0.55)
-    course = (y % 16)
-    off = np.where((y // 16) % 2 == 0, 0, 8)
-    jx = (x + off) % 16
-    img = np.where((course == 15) | (jx == 15), 1, img)                     # mortar joints (crevice)
-    img = np.where(((course == 14) | (jx == 14)) & (img > 2), 2, img)        # joint shade
-    img = np.where(((course == 0) | (jx == 0)) & (img < 6), np.where(b > -0.2, 6, 5), img)  # lit bevel
-    img = np.where((course <= 1) & (vnoise(x.shape, 8, 13) > 0.45), np.where(course == 0, 9, 8), img)  # snow on ledges
-    img = np.where((vnoise(x.shape, 32, 14) > 0.9) & (course > 2) & (course < 13), 7, img)  # frost speckle
-    img = np.where((vnoise(x.shape, 32, 15) > 0.92) & (course > 2) & (course < 13), 2, img)  # dark mica flecks
-    A.put("granite", img)
-
-    # slate flags: 2x2 one-tile slabs, cool slate grey-violet, frost crust at the edges, snow in the joints
-    x, y, b = A.local("slate")
-    lx, ly = x % 16, y % 16
-    slab = (x // 16) + 2 * (y // 16)
-    t = 0.45 + 0.45 * (fbm(x.shape, 21, ((2, 0.6), (4, 0.3), (8, 0.1))) - 0.5) + 0.07 * slab - 0.1
-    img = ramp(t, [15, 3, 4], b, 0.35)
-    edge = np.minimum(np.minimum(lx, 15 - lx), np.minimum(ly, 15 - ly))
-    frost = (edge <= 1) & (vnoise(x.shape, 10, 22) > 0.35)
-    img = np.where((lx == 15) | (ly == 15), 1, img)                        # carved joint (shadow S/E)
-    img = np.where(((lx == 0) | (ly == 0)) & ~((lx == 15) | (ly == 15)), 5, img)   # lit bevel (N/W)
-    img = np.where(((lx == 0) | (ly == 0)) & frost, 8, img)                # frost crust on the lit edge
-    img = np.where(((lx == 15) | (ly == 15)) & (vnoise(x.shape, 12, 26) > 0.62), 8, img)  # snow lodged in joints
-    crack = np.abs(np.sin((lx * 0.9 + ly * 0.4 + 3 * vnoise(x.shape, 4, 23)) * 0.8)) < 0.05
-    img = np.where(crack & (edge > 2), 2, img)
-    img = np.where((vnoise(x.shape, 32, 24) > 0.95) & (edge > 1), 11, img)   # icy frost flecks
-    A.put("slate", img)
-
-    # Teo's stele face (24 x 32): granite frame, carved emblem, inlaid plaque with engraved lines
+    # monolith face 24 x 48 (v down): outline, bevel, carved emblem, scarf band zone, inlaid plaque, base fillet
     x, y, b = A.local("stele")
-    t = 0.55 + 0.35 * (fbm(x.shape, 31) - 0.5)
-    img = ramp(t, [3, 4, 5, 6], b)
-    img = np.where((x == 0) | (y == 0), 7, img)                     # chamfer light
-    img = np.where((x == 23) | (y == 31), 1, img)                   # chamfer shade
-    img = np.where((x == 1) | (y == 1), np.where(img > 4, 6, img), img)
-    img = np.where(y <= 2, np.where(b > -0.25, 9, 8), img)          # snow settled on the top edge
-    # carved emblem: a small mountain peak with a falling star (Teo, lost to the mountain)
-    ex, ey = x - 11.5, y - 6.5
-    peak = (ey > -2 + np.abs(ex) * 0.9) & (ey < 2.6) & (np.abs(ex) < 5)
-    img = np.where(peak, 2, img)
-    img = np.where(peak & (ey < -0.2 + np.abs(ex) * 0.9) , 7, img)
-    img = np.where(peak & (np.abs(ex) < 1.2) & (ey < -0.8), 8, img)       # snow summit
-    star = ((np.abs(x - 17) + np.abs(y - 4)) <= 1.0)
+    W, H = 24, 48
+    img = granite(x, y, b, 31, (2, 3, 4), 0.45, 0.5)                       # charcoal granite face
+    img = np.where(y < 18, np.where(img == 2, 3, img), img)               # upper face catches more light
+    img = np.where(x == 1, 7, img)                                         # lit west bevel
+    img = np.where(x == 2, 5, img)
+    img = np.where(x == W - 2, 1, img)                                     # shaded east bevel
+    img = np.where(y == 1, 6, img)
+    img = np.where(y == H - 2, 2, img)
+    # carved recessed border panel (groove: shadow top/left, lit lip bottom/right)
+    gx0, gx1, gy0, gy1 = 4, W - 5, 3, H - 8
+    frame = ((x == gx0) | (y == gy0)) & (x >= gx0) & (x <= gx1) & (y >= gy0) & (y <= gy1)
+    lip = ((x == gx1) | (y == gy1)) & (x >= gx0) & (x <= gx1) & (y >= gy0) & (y <= gy1)
+    img = np.where(frame, 0, img)
+    img = np.where(lip & ~frame, 6, img)
+    # carved emblem: mountain peak with snow summit and a falling star (rows 5..13)
+    ex, ey = x - 11.5, y - 9.5
+    peak = (ey > -4.2 + np.abs(ex) * 0.85) & (ey < 3.5) & (np.abs(ex) < 6.5) & (x > gx0) & (x < gx1)
+    img = np.where(peak, 4, img)
+    img = np.where(peak & (ex < 0) & (ey < -1.0 + np.abs(ex) * 0.85), 7, img)   # lit west flank
+    img = np.where(peak & (np.abs(ex) < 1.6) & (ey < -2.3), 9, img)              # snow summit
+    edge = peak & ~((ey > -3.2 + np.abs(ex) * 0.85) & (ey < 2.5) & (np.abs(ex) < 5.5))
+    img = np.where(edge & (ey > -4.2 + np.abs(ex) * 0.85 + 0.0), np.where(ey > 2.4, 1, 0), img)
+    star = (np.abs(x - 17) + np.abs(y - 5)) <= 1.0
     img = np.where(star, 14, img)
-    img = np.where((y == 3) & (x >= 18) & (x <= 20), 7, img)              # star trail
-    # inlaid dark plaque rows 11..27, cols 3..20: bevel, slate field, engraved silver lines
-    px0, px1, py0, py1 = 3, 20, 11, 27
+    img[5, 17] = 10
+    img = np.where((y == 6) & (x >= 13) & (x <= 15), 7, img)                     # star trail
+    img = np.where((y == 7) & (x >= 11) & (x <= 12), 6, img)
+    # inlaid dark plaque rows 22..37 cols 6..17: recess, slate field, engraved silver TEO + lines
+    px0, px1, py0, py1 = 6, 17, 22, 37
     inside = (x >= px0) & (x <= px1) & (y >= py0) & (y <= py1)
     pl = ramp(0.5 + 0.5 * (vnoise(x.shape, 8, 33) - 0.5), [12, 13, 12], b, 0.8)
     img = np.where(inside, pl, img)
-    img = np.where(inside & ((x == px0) | (y == py0)), 0, img)            # carved recess (shadowed top/left)
-    img = np.where(inside & ((x == px1) | (y == py1)), 6, img)            # lit lower/right lip
-    # engraved lines: "TEO" as 3x5 glyphs, then two lines of smaller text strokes
+    img = np.where(inside & ((x == px0) | (y == py0)), 0, img)
+    img = np.where(inside & ((x == px1) | (y == py1)), 6, img)
     T = ["111", "010", "010", "010", "010"]
     E = ["111", "100", "110", "100", "111"]
     O = ["111", "101", "101", "101", "111"]
-    gx = 6
+    gx = 7
     for g in (T, E, O):
         for r, row in enumerate(g):
             for c, ch in enumerate(row):
                 if ch == "1":
-                    img[13 + r, gx + c] = 14
+                    img[24 + r, gx + c] = 14
         gx += 4
     rng = np.random.RandomState(34)
-    for ry in (20, 22, 24):
-        cx = 5
-        while cx < 18:
+    for ry in (31, 33):
+        cx = 8
+        while cx < 16:
             ln = rng.randint(1, 4)
-            img[ry, cx:min(cx + ln, 19)] = 14 if ry != 24 else 13 + (rng.rand() > 0.5)
+            img[ry, cx:min(cx + ln, 16)] = 14
             cx += ln + 1
-    img[24, 5:18] = np.where(np.arange(5, 18) % 2 == 0, 14, 13)               # dotted rule
-    img[29:31, 4:20] = np.where(b[29:31, 4:20] > 0.0, 5, 4)                    # carved base fillet
+    img[35, 8:16] = np.where(np.arange(8, 16) % 2 == 0, 14, 13)
+    # carved base fillet + moulding rows 41..45
+    img = np.where((y >= 41) & (y <= 42) & (x > 1) & (x < W - 2), np.where(b > -0.1, 5, 4), img)
+    img = np.where((y == 43) & (x > 1) & (x < W - 2), 0, img)
+    img = np.where((y >= 44) & (y <= 45) & (x > 1) & (x < W - 2), 2, img)
+    img = outline(img, x, y, W, H, 0)
     A.put("stele", img)
 
-    # snow cap: fresh snow, blue-grey dithered shading downwards, sparkle highlights
-    x, y, b = A.local("snow")
-    t = 1.0 - y / 15.0 * 0.6 + 0.25 * (vnoise(x.shape, 4, 41) - 0.5)
-    img = ramp(t, [11, 8, 9, 9, 10], b)
-    img = np.where((vnoise(x.shape, 16, 42) > 0.85) & (b > 0.2), 10, img)
-    A.put("snow", img)
-    # coping band: carved granite moulding (lit top roll, shadow undercut)
-    x, y, b = A.local("coping")
-    img = np.select([y == 0, y <= 2, y == 3, y <= 5, y == 6], [9, 7, 5, 4, 2], 0)
-    img = np.where((y == 4) & ((x % 8) == 7), 2, img)
-    img = np.where((y <= 1) & (vnoise(x.shape, 8, 43) > 0.5), 10, img)
-    A.put("coping", img)
-    # plain granite side
-    x, y, b = A.local("side")
-    t = 0.42 + 0.35 * (fbm(x.shape, 44) - 0.5)
-    img = ramp(t, [2, 3, 4, 5], b)
-    img = np.where(y == 0, 7, img)
-    img = np.where((vnoise(x.shape, 16, 45) > 0.85), 7, img)
-    A.put("side", img)
+    # monolith side 8 x 48: darker granite, outlined, bevel highlight on the front edge
+    x, y, b = A.local("stele_side")
+    img = granite(x, y, b, 35, (1, 2, 3), 0.45, 0.5)
+    img = np.where(x == 1, 4, img)
+    img = np.where((y >= 41) & (y <= 42), 4, img)
+    img = np.where(y == 43, 1, img)
+    img = outline(img, x, y, 8, 48, 0)
+    A.put("stele_side", img)
 
-    # cairn boulder: rounded rocks with snow caps and dark crevices
-    x, y, b = A.local("cairn")
-    img = np.zeros(x.shape, int) + 1
-    rocks = [(12, 24, 11, 7), (7, 14, 7, 5), (17, 13, 6, 5), (12, 5, 5, 4)]
-    for k, (cx, cy, rx, ry) in enumerate(rocks):
-        d = ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2
-        inside = d < 1.0
-        light = np.clip(0.55 - 0.35 * (x - cx) / rx - 0.45 * (y - cy) / ry + 0.25 * (vnoise(x.shape, 8, 50 + k) - 0.5), 0, 1)
-        r = ramp(light, [2, 3, 4, 5, 6, 7], b)
-        r = np.where(d > 0.78, np.where((y - cy) > 0, 1, 3), r)
-        cap = inside & ((y - cy) < -ry * 0.35 + 1.2 * vnoise(x.shape, 10, 60 + k))
-        r = np.where(cap, np.where(b > 0.25, 10, 9), r)
-        r = np.where(cap & ((y - cy) > -ry * 0.35), 8, r)
-        img = np.where(inside, r, img)
-    A.put("cairn", img)
+    # chamfer strip 24 x 8 (u along the edge, v across): bright bevel
+    x, y, b = A.local("chamfer")
+    img = ramp(0.6 + 0.3 * (vnoise(x.shape, 6, 36) - 0.5), [5, 6, 7], b)
+    img = np.where(y == 7, 0, img)
+    A.put("chamfer", img)
+
+    # pedestal riser 32 x 8: snow-dusted lit lip, granite, joints, dark outline foot
+    x, y, b = A.local("step")
+    img = granite(x, y, b, 41, (3, 4, 5), 0.4, 0.45)
+    img = np.where(y == 1, 7, img)
+    img = np.where(y == 0, np.where(vnoise(x.shape, 8, 42) > 0.4, 10, 9), img)
+    img = np.where((x % 16 == 15) & (y > 1), 1, img)
+    img = np.where(y == 6, 2, img)
+    img = np.where(y == 7, 0, img)
+    img = outline(img, x, y, 32, 8, 0, "lr")
+    A.put("step", img)
+
+    # step top 32 x 16: carved granite with settled snow drifts along the back and in patches
+    x, y, b = A.local("step_top")
+    img = granite(x, y, b, 43, (4, 5, 6), 0.4, 0.55)
+    sn = vnoise(x.shape, 6, 44) + 0.06 * (8 - y)
+    img = np.where(sn > 0.78, np.where(b > 0.1, 10, 9), img)
+    img = np.where((sn > 0.7) & (sn <= 0.78), 8, img)
+    img = np.where(y == 15, 7, img)                                         # lit front edge
+    img = np.where(x % 16 == 15, np.where(sn > 0.7, 8, 1), img)
+    A.put("step_top", img)
+
+    # snow cap 16 x 16: fresh snow, cool shading, sparkles
+    x, y, b = A.local("snow")
+    t = 1.0 - y / 15.0 * 0.45 + 0.25 * (vnoise(x.shape, 4, 45) - 0.5)
+    img = ramp(t, [8, 9, 9, 10], b, 0.7)
+    img = np.where((vnoise(x.shape, 16, 46) > 0.86) & (b > 0.2), 10, img)
+    img = np.where(y == 15, 11, img)                                        # cool rim on the outer edge
+    img = np.where(y == 0, 10, img)
+    A.put("snow", img)
+
+    # snow side band 24 x 8: bright lip, cool underside, dark outline row (crisp silhouette)
+    x, y, b = A.local("snow_side")
+    lip = 4 + np.round(1.2 * np.sin(x * 0.9) + vnoise(x.shape, 8, 47))
+    img = np.where(y < lip - 1, np.where(b > 0.0, 10, 9), 9)
+    img = np.where(y >= lip - 1, 8, img)
+    img = np.where(y >= lip, 11, img)
+    img = np.where(y >= lip + 1, 0, img)
+    img = np.where(y == 0, 10, img)
+    A.put("snow_side", img)
+
+    # lantern stone 16 x 16, post 8 x 24, roof 24 x 8: granite with outlines
+    x, y, b = A.local("lantern")
+    img = granite(x, y, b, 48, (3, 4, 5), 0.4, 0.5)
+    img = np.where((x == 1) | (y == 1), 6, img)
+    img = outline(img, x, y, 16, 16, 0)
+    A.put("lantern", img)
+    x, y, b = A.local("post")
+    img = granite(x, y, b, 49, (3, 4, 5), 0.4, 0.5)
+    img = np.where(x == 1, 6, img)
+    img = np.where(x == 6, 2, img)
+    img = outline(img, x, y, 8, 24, 0, "lr")
+    A.put("post", img)
+    x, y, b = A.local("roof")
+    img = granite(x, y, b, 50, (2, 3, 4), 0.4, 0.5)
+    img = np.where(y <= 1, np.where(vnoise(x.shape, 8, 51) > 0.35, 9, 7), img)
+    img = np.where(y == 7, 0, img)
+    A.put("roof", img)
+
+    # ashlar granite 32 x 16 for pedestal sides
+    x, y, b = A.local("granite")
+    img = granite(x, y, b, 52, (3, 4, 5), 0.45, 0.45)
+    img = np.where((y % 8 == 7) | (((x + np.where(y // 8 == 0, 0, 8)) % 16) == 15), 1, img)
+    img = np.where((y % 8 == 0), 6, img)
+    img = np.where(y == 0, 9, img)
+    A.put("granite", img)
     return A
 
 
 # ---------------------------------------------------------------------------------------------------------------
-# r216_offer: wreath, glow, candle, scarf, dust, prints, bouquet, halo (colour 0 transparent)
+# r216_offer: wreath, scarf, drifts, dust, prints (colour 0 transparent)
 # ---------------------------------------------------------------------------------------------------------------
 
 OFFER_PAL = [
     (255, 0, 255),    # 0 transparent
-    (24, 40, 36),     # 1 evergreen outline
-    (40, 72, 60),     # 2 dark fir
-    (64, 104, 84),    # 3 fir
-    (112, 150, 136),  # 4 frosted fir
-    (220, 232, 244),  # 5 frost white
-    (150, 190, 236),  # 6 ice-blue petal
-    (192, 48, 64),    # 7 winter berry red
-    (255, 248, 208),  # 8 flame white-hot
-    (255, 208, 96),   # 9 warm amber
-    (232, 136, 48),   # 10 deep amber / orange
-    (136, 64, 32),    # 11 ember / lantern lattice
-    (84, 60, 144),    # 12 scarf violet
-    (128, 100, 200),  # 13 scarf lilac / violet dust
-    (200, 176, 248),  # 14 pale violet sparkle
-    (148, 160, 184),  # 15 snow print shadow
+    (18, 12, 34),     # 1 outline
+    (28, 64, 44),     # 2 dark fir
+    (46, 108, 66),    # 3 fir
+    (104, 168, 120),  # 4 frosted fir
+    (248, 250, 255),  # 5 snow white
+    (186, 202, 234),  # 6 snow shade
+    (220, 36, 56),    # 7 winter berry red
+    (255, 214, 236),  # 8 winter blossom pink-white
+    (255, 196, 72),   # 9 gold
+    (58, 20, 112),    # 10 scarf deep violet
+    (96, 40, 176),    # 11 scarf violet
+    (140, 84, 228),   # 12 scarf lit
+    (192, 156, 255),  # 13 scarf highlight / dust
+    (232, 216, 255),  # 14 violet sparkle
+    (140, 158, 200),  # 15 snow hollow / print
 ]
 
 
 def tex_offer():
     A = Atlas("r216_offer", OFFER_PAL)
-    # wreath: fir ring with frost tips, ice-blue winter flowers and red berries, transparent hole and outside
+    # wreath 32 x 32: bold fir ring, dark outline, frost tips, pink-white winter blossoms, red berries, gold bow
     x, y, b = A.local("wreath")
     dx, dy = x - 15.5, y - 15.5
     r = np.hypot(dx, dy)
     ang = np.arctan2(dy, dx)
-    rough = 1.6 * np.sin(ang * 14 + 2 * vnoise(x.shape, 6, 70)) + 0.8 * vnoise(x.shape, 12, 71)
-    ring = (r > 7.0 - 0.5 * rough) & (r < 13.5 + rough * 0.6)
-    light = np.clip(0.55 - 0.35 * dx / 14 - 0.45 * dy / 14 + 0.3 * (vnoise(x.shape, 10, 72) - 0.5), 0, 1)
-    img = np.where(ring, ramp(light, [2, 3, 3, 4], b), 0)
-    edge = ring & ~((r > 7.8 - 0.5 * rough) & (r < 12.8 + rough * 0.6))
-    img = np.where(edge, 1, img)
-    tips = ring & (vnoise(x.shape, 20, 73) > 0.72) & ~edge
-    img = np.where(tips, 5, img)
-    for k in range(7):                                   # ice-blue five-petal winter flowers on the ring
-        a = k * 2 * np.pi / 7 + 0.4
+    rough = 0.9 * np.sin(ang * 16) + 0.5 * (vnoise(x.shape, 12, 71) - 0.5)
+    ring = (r > 6.0 - 0.4 * rough) & (r < 14.6 + rough * 0.6)
+    light = np.clip(0.6 - 0.35 * dx / 14 - 0.45 * dy / 14 + 0.3 * (vnoise(x.shape, 10, 72) - 0.5), 0, 1)
+    img = np.where(ring, ramp(light, [2, 3, 3, 4], b, 0.6), 0)
+    inner = (r > 7.0 - 0.4 * rough) & (r < 13.6 + rough * 0.6)
+    img = np.where(ring & ~inner, 1, img)
+    img = np.where(inner & (vnoise(x.shape, 20, 73) > 0.75), 5, img)              # frost tips
+    for k in range(6):                                                              # winter blossoms
+        a = k * 2 * np.pi / 6 + 0.3
         fx, fy = 15.5 + 10.2 * np.cos(a), 15.5 + 10.2 * np.sin(a)
         d = np.hypot(x - fx, y - fy)
-        img = np.where(d < 2.2, 6, img)
-        img = np.where(d < 0.9, 5, img)
-    for k in range(9):                                    # berries
-        a = k * 2 * np.pi / 9 + 0.9
-        fx, fy = 15.5 + 8.6 * np.cos(a), 15.5 + 8.6 * np.sin(a)
-        img = np.where(np.hypot(x - fx, y - fy) < 1.0, 7, img)
+        img = np.where(d < 2.6, 1, img)
+        img = np.where(d < 2.0, 8, img)
+        img = np.where(d < 0.8, 9, img)
+    for k in range(8):
+        a = k * 2 * np.pi / 8 + 0.75
+        fx, fy = 15.5 + 8.2 * np.cos(a), 15.5 + 8.2 * np.sin(a)
+        d = np.hypot(x - fx, y - fy)
+        img = np.where(d < 1.3, 7, img)
+        img = np.where((d < 0.5), 8, img)
+    bow = (np.abs(dx) < 4.5) & (dy > 9.5) & (dy < 14.5) & (np.abs(dy - 12) < 2.5 - 0.3 * np.abs(dx))
+    img = np.where(bow, 11, img)
+    img = np.where(bow & (np.abs(dx) < 1.2), 12, img)
     A.put("wreath", img)
 
-    # vigil lantern glass: a lattice window with a candle flame glowing behind (opaque inside the region)
-    x, y, b = A.local("glow")
-    cx, cy = 7.5, 17.0
-    d = np.hypot((x - cx) / 1.0, (y - cy) / 1.8)
-    img = ramp(1.0 - d / 10.0, [11, 10, 9, 9, 8], b)
-    flame = ((x - cx) ** 2 / 4.0 + (y - cy - 1) ** 2 / 25.0) < 1.0
-    img = np.where(flame, 8, img)
-    img = np.where((x == 0) | (x == 15) | (y == 0) | (y == 31), 11, img)       # frame
-    img = np.where((y == 10) | (y == 22) | (x == 5) | (x == 10), np.where(flame, 9, 11), img)  # lattice
-    A.put("glow", img)
-
-    # candle stub with flame
-    x, y, b = A.local("candle")
-    img = np.zeros(x.shape, int)
-    body = (np.abs(x - 7.5) <= 3) & (y >= 14) & (y <= 29)
-    img = np.where(body, ramp(0.8 - (x - 4.5) / 7.0, [15, 5, 5], b), img)
-    img = np.where(body & (y == 14), 5, img)
-    img = np.where((np.abs(x - 7.5) <= 4) & (y >= 29) & (y <= 31), 11, img)   # brass saucer
-    fl = ((x - 7.5) ** 2 / 3.0 + (y - 9) ** 2 / 16.0) < 1.0
-    img = np.where(fl, 9, img)
-    img = np.where(((x - 7.5) ** 2 / 1.2 + (y - 10) ** 2 / 6.0) < 1.0, 8, img)
-    img = np.where((np.abs(x - 7.5) < 0.6) & (y >= 12) & (y <= 13), 11, img)  # wick
-    A.put("candle", img)
-
-    # scarf: violet knitted scarf band with a knot and two fringed tails hanging to the right
+    # scarf band 32 x 8: chunky knit, lit top, outlined edges
     x, y, b = A.local("scarf")
-    img = np.zeros(x.shape, int)
-    band = (y >= 2) & (y <= 6) & (x <= 20)
-    knit = ((x + y) % 3 == 0)
-    img = np.where(band, np.where(knit, 12, 13), img)
-    img = np.where(band & (y == 2), 14, img)
-    knot = np.hypot(x - 21, y - 5) < 3.2
-    img = np.where(knot, np.where(b > 0, 13, 12), img)
-    for k, (x0, slope) in enumerate(((20, 0.25), (24, 0.45))):
-        tail = (y >= 6) & (y <= 14) & (np.abs(x - (x0 + slope * (y - 6))) <= 1.6)
-        img = np.where(tail, np.where((y + k) % 2 == 0, 12, 13), img)
-        fringe = (y == 15) & (np.abs(x - (x0 + slope * 9)) <= 1.6) & (x % 2 == 0)
-        img = np.where(fringe, 14, img)
-    img = np.where(band & (y == 6), 12, img)
+    img = np.where((x + 2 * (y // 2)) % 4 < 2, 11, 12)
+    img = np.where(y == 1, 13, img)
+    img = np.where(y >= 5, 10, img)
+    img = np.where((y == 3) & (x % 4 == 0), 10, img)
+    img = np.where((y == 0) | (y == 7), 1, img)
     A.put("scarf", img)
 
-    # faint violet shard dust: a dithered sprinkle fading out from a centre, a few bright sparkles
-    x, y, b = A.local("dust")
-    d = np.hypot((x - 15.5) / 15.0, (y - 7.5) / 7.0)
-    dens = np.clip(1.0 - d, 0, 1)
-    sp = vnoise(x.shape, 32, 80)
-    img = np.where(sp + 0.25 * b < dens * 0.62 - 0.05, 13, 0)
-    img = np.where((sp > 0.9) & (dens > 0.35), 14, img)
-    for (sx, sy) in ((12, 6), (19, 8), (15, 4)):
-        img = np.where((np.abs(x - sx) + np.abs(y - sy)) == 1, 14, img)
-        img[sy, sx] = 5
-    A.put("dust", img)
+    # knot 16 x 16: round knot with fold shading
+    x, y, b = A.local("knot")
+    d = np.hypot((x - 7.5) / 7.0, (y - 7.5) / 6.5)
+    img = np.where(d < 1.0, ramp(0.9 - 0.5 * (x / 15) - 0.4 * (y / 15), [10, 11, 12, 13], b, 0.5), 0)
+    img = np.where((d < 1.0) & (np.abs(x - 7.5 - 0.6 * (y - 7.5)) < 0.8), 10, img)
+    img = np.where((d >= 0.86) & (d < 1.0), 1, img)
+    A.put("knot", img)
 
-    # fresh boot prints: two left/right pairs walking up the region, blue-grey hollows with snow rims
-    x, y, b = A.local("prints")
-    img = np.zeros(x.shape, int)
-    for (px, py) in ((10, 2.5), (19, 5.5), (11, 9.0), (20, 12.0)):
-        sole = ((x - px) / 1.8) ** 2 + ((y - py) / 2.2) ** 2 < 1.0
-        heel = ((x - px) / 1.4) ** 2 + ((y - py - 2.6) / 1.0) ** 2 < 1.0
-        p = sole | heel
-        img = np.where(p, 15, img)
-        rim = (((x - px) / 2.6) ** 2 + ((y - py - 0.6) / 3.6) ** 2 < 1.0) & ~p & (y > py) & (b > -0.1)
-        img = np.where(rim & (img == 0), 5, img)
-    A.put("prints", img)
+    # tails 8 x 32: hanging scarf ends with a flutter curve and a pale fringe
+    for key, seed, ph in (("tail", 75, 0.0), ("tail2", 76, 1.7)):
+        x, y, b = A.local(key)
+        cx = 3.5 + 1.3 * np.sin(y / 31.0 * 3.2 + ph) * (y / 31.0)
+        hw = 2.6 - 0.4 * (y / 31.0)
+        body = (np.abs(x - cx) < hw) & (y <= 27)
+        img = np.where(body, np.where(x < cx - 0.4, 12, 11), 0)
+        img = np.where(body & ((y + int(ph)) % 4 == 0), 10, img)
+        img = np.where(body & ~(np.abs(x - cx) < hw - 1.0), 1, img)
+        fr = (y >= 28) & (y <= 31) & (np.abs(x - cx) < hw) & ((x.astype(int) + key.__len__()) % 2 == 0)
+        img = np.where(fr, 13, img)
+        img = np.where((y == 28) & (np.abs(x - cx) < hw), 1, img)
+        A.put(key, img)
 
-    # frozen bouquet: white/ice-blue flowers on dark stems, tied with a violet ribbon
+    # frozen bouquet 16 x 16
     x, y, b = A.local("bouquet")
     img = np.zeros(x.shape, int)
     for k in range(5):
         sx = 4 + k * 2
         stem = (np.abs(x - (8 + (sx - 8) * (1 - (y - 6) / 10.0))) < 0.6) & (y >= 6) & (y <= 15)
         img = np.where(stem, 2, img)
-    for (fx, fy, c) in ((4, 4, 6), (8, 2.5, 5), (12, 4, 6), (6, 6.5, 5), (10, 6.5, 6)):
+    for (fx, fy, c) in ((4, 4, 8), (8, 2.5, 5), (12, 4, 8), (6, 6.5, 5), (10, 6.5, 8)):
         d = np.hypot(x - fx, y - fy)
-        img = np.where(d < 2.0, c, img)
-        img = np.where(d < 0.7, 9, img)
-    img = np.where((y >= 10) & (y <= 11) & (np.abs(x - 8) <= 2), 12, img)
+        img = np.where(d < 2.2, 1, img)
+        img = np.where(d < 1.6, c, img)
+        img = np.where(d < 0.6, 9, img)
+    img = np.where((y >= 10) & (y <= 11) & (np.abs(x - 8) <= 2), 11, img)
     A.put("bouquet", img)
 
-    # amber light pool: a sparse ordered-dither glow fading to transparent
-    x, y, b = A.local("halo")
-    d = np.hypot(x - 7.5, y - 7.5) / 8.0
-    dens = np.clip(1.0 - d, 0, 1) ** 1.5
-    img = np.where(b + 0.5 < dens * 0.7, 9, 0)
-    A.put("halo", img)
+    # snow drift wedge 32 x 16 (v = 0 is the high / far edge): irregular dithered crest, cool lower shading
+    x, y, b = A.local("drift")
+    crest = 3.0 + 2.5 * vnoise(x.shape, 5, 77) + 1.5 * np.sin(x * 0.45)
+    side = np.minimum(x, 31 - x)
+    crest = crest + np.clip(5 - side, 0, 5) * 1.3
+    t = (y - crest)
+    body = t + 0.9 * b > 0
+    img = np.where(body, ramp(0.95 - y / 16.0 * 0.5, [6, 5, 5], b, 0.6), 0)
+    img = np.where(body & (t < 1.2), 5, img)
+    A.put("drift", img)
+
+    # snow pile 16 x 16 (flat decal): soft blob with dithered rim
+    x, y, b = A.local("mound")
+    d = np.hypot(x - 7.5, y - 7.5) / 7.5 + 0.25 * (vnoise(x.shape, 5, 78) - 0.5)
+    img = np.where(d + 0.25 * b < 0.92, np.where(d < 0.55 + 0.2 * b, 5, 6), 0)
+    A.put("mound", img)
+
+    # snow-cap drip lip 32 x 8: solid top rows, rounded icicle drips below, cool outline under the drips
+    x, y, b = A.local("drip")
+    dl = 2.5 + 2.8 * np.abs(np.sin(x * 0.55 + 0.6 * vnoise(x.shape, 6, 79))) ** 3 + 1.2 * vnoise(x.shape, 10, 80)
+    img = np.where(y < dl, 5, 0)
+    img = np.where((y < dl) & (y >= dl - 1.4), 6, img)
+    img = np.where((y >= dl) & (y < dl + 1), 15, img)
+    A.put("drip", img)
+
+    # violet shard dust 32 x 8: sparse glints with four-point sparkles
+    x, y, b = A.local("dust")
+    sp = vnoise(x.shape, 32, 81)
+    dens = np.clip(1.0 - np.hypot((x - 15.5) / 15.5, (y - 3.5) / 3.5), 0, 1)
+    img = np.where((sp > 0.82 - 0.25 * dens), 13, 0)
+    for (sx, sy) in ((6, 3), (15, 4), (24, 2), (11, 6)):
+        img = np.where((np.abs(x - sx) + np.abs(y - sy)) == 1, 13, img)
+        img[sy, sx] = 14
+    A.put("dust", img)
+
+    # boot prints 16 x 24: two left/right pairs walking up, cool hollows with bright rims
+    x, y, b = A.local("prints")
+    img = np.zeros(x.shape, int)
+    for (px, py) in ((5, 3.0), (11, 8.5), (5, 14.0), (11, 19.5)):
+        sole = ((x - px) / 1.7) ** 2 + ((y - py) / 2.0) ** 2 < 1.0
+        heel = ((x - px) / 1.3) ** 2 + ((y - py - 2.5) / 0.9) ** 2 < 1.0
+        p = sole | heel
+        img = np.where(p, 15, img)
+        rim = (((x - px) / 2.5) ** 2 + ((y - py - 0.6) / 3.4) ** 2 < 1.0) & ~p & (y > py + 1)
+        img = np.where(rim & (img == 0), 6, img)
+    A.put("prints", img)
     return A
 
 
 # ---------------------------------------------------------------------------------------------------------------
-# r217_tent: dark-violet canvas
+# r216_glow: A3I5 smooth glows, pools and shadows
+# ---------------------------------------------------------------------------------------------------------------
+
+GLOW_PAL = [
+    (255, 252, 236), (255, 240, 184), (255, 222, 132), (255, 198, 92),     # 0..3 amber white-hot -> gold
+    (248, 170, 62), (236, 140, 44), (212, 108, 32), (176, 76, 24),         # 4..7 amber -> ember
+    (252, 244, 255), (232, 214, 255), (208, 180, 255), (184, 144, 255),    # 8..11 violet white -> lilac
+    (160, 112, 252), (136, 84, 240), (112, 60, 216), (84, 40, 176),        # 12..15 electric violet -> deep
+    (14, 18, 40), (28, 34, 64), (46, 54, 92), (70, 82, 124),               # 16..19 contact shadow blues
+] + [(0, 0, 0)] * 12
+
+
+def soft(d, peak, gamma):
+    """3-bit alpha from a normalised distance (0 centre, 1 edge): a smooth quantised falloff, no dither."""
+    a = peak * np.clip(1.0 - d, 0, 1) ** gamma
+    return np.clip(np.round(a), 0, 7).astype(int)
+
+
+def tex_glow():
+    A = Atlas("r216_glow", GLOW_PAL)
+    for key, base in (("amber", 0), ("violet", 8)):
+        x, y, b = A.local(key)
+        d = np.hypot(x - 15.5, y - 15.5) / 15.5
+        al = soft(d, 7.4, 1.7)
+        idx = base + np.clip(np.floor(d * 7.0), 0, 5).astype(int)
+        A.put(key, np.where(al > 0, idx, base + 5), al)
+    x, y, b = A.local("pool")                                   # soft warm ground pool (colour from vertex tint)
+    d = np.hypot(x - 15.5, y - 15.5) / 15.5
+    al = soft(d, 5.4, 1.3)
+    idx = 1 + np.clip(np.floor(d * 6.0), 0, 5).astype(int)
+    A.put("pool", idx, al)
+    x, y, b = A.local("shadow")                                 # soft blue contact shadow, darker core
+    d = np.hypot(x - 15.5, y - 15.5) / 15.5
+    al = soft(d, 6.2, 0.9)
+    idx = 16 + np.clip(np.floor(d * 4.0), 0, 3).astype(int)
+    A.put("shadow", idx, al)
+    return A
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# r217_tent: deep-violet expedition canvas with the pale-silver Eclipse emblem
 # ---------------------------------------------------------------------------------------------------------------
 
 TENT_PAL = [
     (255, 0, 255),    # 0 transparent
-    (20, 14, 30),     # 1 outline
-    (40, 28, 58),     # 2 canvas deep
-    (58, 42, 82),     # 3 canvas dark
-    (76, 56, 106),    # 4 canvas
-    (96, 74, 128),    # 5 canvas lit
-    (120, 98, 152),   # 6 canvas worn highlight
-    (150, 132, 178),  # 7 faded sigil lilac
-    (196, 200, 220),  # 8 frost
-    (236, 240, 250),  # 9 snow
-    (64, 50, 60),     # 10 patch (darker mauve)
-    (176, 150, 110),  # 11 rope light
-    (124, 98, 70),    # 12 rope / wood mid
-    (82, 60, 44),     # 13 wood dark
-    (48, 34, 28),     # 14 wood outline
-    (156, 124, 88),   # 15 wood lit
+    (16, 8, 34),      # 1 outline
+    (36, 12, 76),     # 2 canvas deep
+    (54, 22, 112),    # 3 canvas dark
+    (76, 36, 148),    # 4 canvas
+    (102, 58, 182),   # 5 canvas lit
+    (138, 96, 214),   # 6 canvas highlight / stitching
+    (236, 240, 252),  # 7 pale silver emblem
+    (150, 156, 186),  # 8 silver shade
+    (246, 248, 255),  # 9 snow
+    (188, 200, 230),  # 10 snow shade
+    (186, 158, 112),  # 11 rope light
+    (128, 98, 66),    # 12 rope / wood mid
+    (84, 58, 40),     # 13 wood dark
+    (8, 4, 16),       # 14 doorway black
+    (160, 126, 86),   # 15 wood lit
 ]
+
+
+def canvas_base(x, y, b, seed, lit=0.55):
+    t = lit + 0.35 * (fbm(x.shape, seed, ((2, 0.6), (5, 0.3), (10, 0.1))) - 0.5) - 0.18 * (y / 31.0)
+    img = ramp(t, [3, 4, 5], b, 0.5)
+    img = np.where(x % 16 == 0, 2, img)                                     # seams
+    img = np.where((x % 16 == 1) & (y % 3 == 0), 6, img)                    # stitching
+    return img
+
+
+def eclipse(img, x, y, cx, cy, r):
+    """Pale-silver Eclipse emblem: bold ring with a crescent cut by an offset dark disc, outlined."""
+    r1 = np.hypot(x - cx, y - cy)
+    r2 = np.hypot(x - cx - r * 0.38, y - cy + r * 0.22)
+    ring = (r1 < r) & (r1 >= r - 1.6)
+    cres = (r1 < r - 2.4) & (r2 >= r * 0.62)
+    img = np.where((r1 < r + 1.0) & (r1 >= r), 1, img)
+    img = np.where(ring, 7, img)
+    img = np.where(ring & (y > cy + r * 0.5), 8, img)
+    img = np.where(cres, 7, img)
+    img = np.where(cres & (x > cx + r * 0.1) & (y > cy), 8, img)
+    img = np.where((r1 < r - 1.6) & (r1 >= r - 2.4), 1, img)
+    return img
 
 
 def tex_tent():
     A = Atlas("r217_tent", TENT_PAL)
-    x, y, b = A.local("canvas")                       # 64 x 32, v = 0 at the ridge
-    t = 0.5 + 0.45 * (fbm(x.shape, 90, ((2, 0.6), (5, 0.3), (10, 0.1))) - 0.5) - 0.22 * (y / 31.0) + 0.1
-    img = ramp(t, [2, 3, 4, 5, 6], b, 0.6)
-    seam = (x % 16 == 0)
-    img = np.where(seam, 2, img)
-    img = np.where((x % 16 == 1) & (y % 3 == 0), 6, img)              # stitching
-    # sagging fold shading between seams
-    fold = np.sin((x % 16) / 16.0 * np.pi)
-    img = np.where((fold < 0.25) & (img > 3) & ~seam, img - 1, img)
-    # patches
-    for (px, py, w, h) in ((38, 14, 7, 6), (9, 20, 6, 5)):
-        p = (x >= px) & (x < px + w) & (y >= py) & (y < py + h)
-        img = np.where(p, np.where(b > 0.1, 10, 3), img)
-        img = np.where(p & ((x == px) | (y == py) | (x == px + w - 1) | (y == py + h - 1)) & ((x + y) % 2 == 0), 6, img)
-    # frost and snow dusting thickest at the ridge, crusting at the hem
-    sn = vnoise(x.shape, 16, 91)
-    img = np.where(y < 2 + 3 * vnoise(x.shape, 8, 92), 9, img)
-    img = np.where((y < 9) & (sn + 0.06 * y > 0.78), 8, img)
-    img = np.where((y > 28) & (sn > 0.55), 8, img)
-    img = np.where(y == 31, 1, img)
+    # slope 32 x 32 (u along z, v = 0 at the ridge): canvas, emblem centred, outlined front/back/eave edges
+    x, y, b = A.local("canvas")
+    img = canvas_base(x, y, b, 90)
+    img = eclipse(img, x, y, 15.5, 16.5, 8.0)
+    img = np.where((y > 27) & (vnoise(x.shape, 12, 91) > 0.5), 10, img)    # snow crust at the hem
+    img = np.where(y >= 30, np.where(b > -0.1, 9, 10), img)
+    img = outline(img, x, y, 32, 32, 1, "lrb")
+    img = np.where(((x == 1) | (x == 30) | (y == 30)) & (img != 9), 2, img)      # 2-texel dark rim
     A.put("canvas", img)
+    # emblem overlay 32 x 32 (c0): the same Eclipse emblem alone, drawn unlit over both slopes so it stays a
+    # pale-silver focal mark in the night snow
+    x, y, b = A.local("emblem")
+    img = eclipse(np.zeros(x.shape, int), x, y, 15.5, 16.5, 8.0)
+    img = np.where((img == 1) & (np.hypot(x - 15.5, y - 16.5) < 5.0), 0, img)      # keep the canvas inside the ring
+    A.put("emblem", img)
 
-    x, y, b = A.local("flap")                         # 32 x 32 front flap: door slit, tie-backs, faded sigil
-    t = 0.5 + 0.3 * (fbm(x.shape, 93) - 0.5)
-    img = ramp(t, [3, 4, 5], b)
-    img = np.where(np.abs(x - 15.5) < 0.8, 1, img)                   # door slit
-    img = np.where((np.abs(x - 15.5) < 2.2) & (np.abs(x - 15.5) >= 0.8), 2, img)
-    for sx in (9, 22):                                                # rolled tie-backs
-        img = np.where((np.abs(x - sx) <= 2) & (np.abs(y - 18) <= 1), 12, img)
-        img = np.where((np.abs(x - sx) <= 2) & (y == 17), 11, img)
-    dx, dy = x - 15.5, y - 8.5                                        # eclipse sigil: ring + offset dark disc
-    r1, r2 = np.hypot(dx, dy), np.hypot(dx + 2.0, dy - 1.0)
-    sig = (r1 < 5.5) & (r1 > 4.2)
-    img = np.where(sig & (b > -0.3), 7, img)
-    img = np.where((r1 < 4.2) & (r2 > 3.4), 6, img)
-    img = np.where((r1 < 4.2) & (r2 <= 3.4), 3, img)
-    img = np.where((y < 3 + 2 * vnoise(x.shape, 8, 94)), 8, img)
-    img = np.where((y >= 30), 9, img)                                 # snow banked at the hem
+    # front gable 32 x 24 (triangle apex at (16, 0), base row 23): open doorway, outlined sloped edges
+    x, y, b = A.local("gable")
+    t = 0.62 + 0.25 * (fbm(x.shape, 94) - 0.5)
+    img = ramp(t, [3, 4, 5], b, 0.5)
+    slope = np.abs(x - 15.5) - (y + 0.5) * (16.0 / 24.0)
+    img = np.where(slope > -1.6, 1, img)                                    # sloped outline (2 texels)
+    door = np.abs(x - 15.5) < (y - 6.0) * (6.5 / 17.0)
+    img = np.where(door, np.where(y > 19, 2, 14), img)
+    img = np.where(door & (np.abs(x - 15.5) > (y - 6.0) * (6.5 / 17.0) - 1.0), 1, img)
+    img = np.where(door & (y > 19) & (b > 0.1), 3, img)                     # faint floor glow inside
+    rim = (~door) & (np.abs(x - 15.5) < (y - 6.0) * (6.5 / 17.0) + 1.5) & (y > 6)
+    img = np.where(rim, 6, img)                                             # lit hem of the opening
+    for sx in (6, 25):                                                      # rolled tie-backs
+        img = np.where((np.abs(x - sx) <= 1.5) & (np.abs(y - 15) <= 1), 12, img)
+        img = np.where((np.abs(x - sx) <= 1.5) & (y == 14), 11, img)
+    img = np.where(y == 23, 1, img)
+    A.put("gable", img)
+
+    # tied-back flap lining 16 x 24: lighter inner canvas with outline
+    x, y, b = A.local("flap")
+    img = ramp(0.6 + 0.3 * (vnoise(x.shape, 5, 95) - 0.5) - 0.2 * y / 23, [4, 5, 6], b, 0.5)
+    img = np.where((x + y) % 7 == 0, 4, img)
+    img = outline(img, x, y, 16, 24, 1)
     A.put("flap", img)
 
-    x, y, b = A.local("rope")                          # 32 x 4 twisted rope, transparent above/below
-    img = np.zeros(x.shape, int)
+    x, y, b = A.local("rope")                          # 16 x 4 twisted rope, dark edge
     tw = ((x + 2 * y) % 4 < 2)
-    img = np.where((y >= 1) & (y <= 2), np.where(tw, 11, 12), img)
+    img = np.where((y >= 1) & (y <= 2), np.where(tw, 11, 12), 0)
     img = np.where((y == 0) & tw, 12, img)
-    img = np.where((y == 3) & ~tw, 13, img)
+    img = np.where(y == 3, 13, img)
     A.put("rope", img)
 
-    x, y, b = A.local("wood")                          # 32 x 8 pole / stake grain
-    g = vnoise(x.shape, 4, 95)
+    x, y, b = A.local("wood")                          # 16 x 8 pole / stake grain
+    g = vnoise(x.shape, 4, 96)
     img = ramp(0.5 + 0.4 * np.sin(y * 1.3 + 3 * g) * 0.5, [13, 12, 15], b)
-    img = np.where((y == 0), 15, img)
-    img = np.where((y == 7), 14, img)
-    img = np.where((x % 13 == 5) & (y > 1) & (y < 6), 14, img)       # knots
+    img = np.where(y == 0, 15, img)
+    img = np.where(y == 7, 1, img)
     A.put("wood", img)
 
-    x, y, b = A.local("gable")                         # 32 x 20 gable end (triangle drawn by geometry)
-    t = 0.42 + 0.3 * (fbm(x.shape, 96) - 0.5) - 0.12 * y / 19.0
-    img = ramp(t, [2, 3, 4, 5], b)
-    img = np.where(x % 16 == 8, 2, img)
-    img = np.where((y < 2), 9, img)
-    img = np.where((y > 16) & (vnoise(x.shape, 12, 97) > 0.45), 8, img)
-    A.put("gable", img)
+    x, y, b = A.local("back")                          # 16 x 12 back gable / side wall
+    img = canvas_base(x, y, b, 97, 0.4)
+    img = outline(img, x, y, 16, 12, 1, "b")
+    A.put("back", img)
+
+    x, y, b = A.local("wall")                          # 32 x 8 low side wall with banked snow
+    img = ramp(0.45 + 0.3 * (vnoise(x.shape, 6, 98) - 0.5), [2, 3, 4], b)
+    bank = y > 3.5 + 1.5 * vnoise(x.shape, 6, 99) + 0.8 * b
+    img = np.where(bank, np.where(y > 5, 10, 9), img)
+    img = np.where(y == 0, 1, img)
+    A.put("wall", img)
+
+    # ridge snow 32 x 8 (v = 0 at the ridge): heaped snow, irregular dithered lower edge, cool outline below
+    x, y, b = A.local("ridge_snow")
+    low = 3.8 + 2.2 * vnoise(x.shape, 7, 100) + 0.8 * np.sin(x * 0.7)
+    img = np.where(y < low + 0.7 * b, np.where((y < 1.5) | (b > 0.3), 9, 9), 0)
+    img = np.where((img > 0) & (y >= low - 1.2), 10, img)
+    img = np.where((img == 0) & (y < low + 1.2) & (y >= low + 0.7 * b), 2, img)
+    A.put("ridge_snow", img)
     return A
 
 
 # ---------------------------------------------------------------------------------------------------------------
-# r217_camp: lantern, crate, scanner, shard, packed-snow ring, journal, beam
+# r217_camp: lantern, crate, scanner, shard, journal, packed-snow clearing
 # ---------------------------------------------------------------------------------------------------------------
 
 CAMP_PAL = [
     (255, 0, 255),    # 0 transparent
-    (20, 18, 24),     # 1 outline / iron black
-    (60, 56, 64),     # 2 iron / gunmetal
-    (104, 100, 112),  # 3 steel lit
-    (184, 140, 64),   # 4 brass
-    (255, 244, 200),  # 5 flame core
-    (255, 196, 88),   # 6 amber glow
-    (220, 120, 40),   # 7 deep amber
-    (72, 48, 34),     # 8 crate wood dark
-    (122, 88, 56),    # 9 crate wood
-    (166, 128, 84),   # 10 crate wood lit
-    (232, 238, 248),  # 11 snow
-    (168, 180, 204),  # 12 packed snow shadow
-    (96, 56, 176),    # 13 violet
-    (164, 120, 255),  # 14 violet glow
-    (226, 208, 255),  # 15 violet white
+    (18, 14, 26),     # 1 outline / iron black
+    (60, 56, 70),     # 2 iron / gunmetal
+    (108, 104, 120),  # 3 steel lit
+    (196, 150, 64),   # 4 brass
+    (255, 250, 222),  # 5 flame white-hot
+    (255, 204, 90),   # 6 amber glow
+    (236, 130, 40),   # 7 deep amber
+    (70, 44, 30),     # 8 crate wood dark
+    (124, 86, 52),    # 9 crate wood
+    (170, 128, 80),   # 10 crate wood lit
+    (240, 244, 252),  # 11 snow
+    (180, 194, 226),  # 12 packed snow
+    (104, 40, 220),   # 13 electric violet
+    (172, 120, 255),  # 14 violet glow
+    (236, 220, 255),  # 15 violet white
 ]
 
 
 def tex_camp():
     A = Atlas("r217_camp", CAMP_PAL)
-    x, y, b = A.local("glass")                         # warm glowing glass panel
+    x, y, b = A.local("glass")                         # warm glowing glass panel, white-hot flame core
     d = np.hypot(x - 7.5, (y - 8.5) / 1.3) / 8.0
-    img = ramp(1.0 - d, [7, 6, 6, 5], b)
-    img = np.where(((x - 7.5) ** 2 / 2.2 + (y - 9) ** 2 / 9.0) < 1.0, 5, img)
-    img = np.where((x == 0) | (x == 15) | (y == 0) | (y == 15), 4, img)
-    img = np.where((x == 7) | (x == 8), np.where(np.abs(y - 9) < 3, 5, 4), img)   # centre bar (thin)
+    img = ramp(1.0 - d, [7, 6, 6, 5, 5], b, 0.4)
+    img = np.where(((x - 7.5) ** 2 / 3.0 + (y - 8.5) ** 2 / 12.0) < 1.0, 5, img)
+    img = np.where((x == 0) | (x == 15) | (y == 0) | (y == 15), 1, img)
+    img = np.where((x == 1) | (x == 14) | (y == 1) | (y == 14), 4, img)
     A.put("glass", img)
 
     x, y, b = A.local("iron")                          # iron frame / cap with brass rivets
-    img = ramp(0.4 + 0.3 * (vnoise(x.shape, 4, 100) - 0.5) - 0.3 * (y / 15 - 0.5), [1, 2, 3], b)
+    img = ramp(0.4 + 0.3 * (vnoise(x.shape, 4, 101) - 0.5) - 0.3 * (y / 15 - 0.5), [1, 2, 3], b)
     img = np.where((y == 0) | (y == 15), 1, img)
     img = np.where(((x % 5) == 2) & ((y % 5) == 2), 4, img)
-    img = np.where((y <= 1) & (vnoise(x.shape, 8, 101) > 0.4), 11, img)            # frost on top
+    img = np.where((y <= 1) & (vnoise(x.shape, 8, 102) > 0.4), 11, img)
     A.put("iron", img)
 
-    x, y, b = A.local("crate")                         # 32 x 24 crate face
+    x, y, b = A.local("crate")                         # 32 x 24 crate face with the violet Eclipse stencil
     plank = (y // 6)
-    t = 0.5 + 0.3 * (vnoise(x.shape, 6, 102 + 0) - 0.5) + 0.08 * (plank % 2) + 0.15 * np.sin(x * 0.9 + plank * 2) * 0.3
+    t = 0.55 + 0.3 * (vnoise(x.shape, 6, 103) - 0.5) + 0.08 * (plank % 2)
     img = ramp(t, [8, 9, 10], b)
-    img = np.where(y % 6 == 5, 8, img)                                 # plank gaps
+    img = np.where(y % 6 == 5, 8, img)
     frame = (x <= 2) | (x >= 29) | (y <= 2) | (y >= 21)
-    img = np.where(frame, np.where((x == 0) | (y == 0) | (x == 31) | (y == 23), 8, 10), img)
+    img = np.where(frame, 10, img)
     diag = np.abs((y - 3) - (x - 3) * 18.0 / 26.0) < 1.3
     img = np.where(diag & ~frame, 10, img)
-    img = np.where(diag & ~frame & (np.abs((y - 3) - (x - 3) * 18.0 / 26.0) > 0.6) & ((y - 3) - (x - 3) * 18.0 / 26.0 > 0), 8, img)
-    for (nx, ny) in ((1, 1), (30, 1), (1, 22), (30, 22)):
-        img[ny, nx] = 3
-    # Eclipse stencil: a ring with an offset disc, sprayed violet
-    dx, dy = x - 22.5, y - 12.5
+    dx, dy = x - 21.5, y - 12.5
     r1, r2 = np.hypot(dx, dy), np.hypot(dx + 1.6, dy - 0.8)
-    sten = ((r1 < 4.5) & (r1 > 3.3)) | ((r1 < 3.3) & (r2 > 2.6))
-    img = np.where(sten & ~frame & (b > -0.35), 13, img)
-    img = np.where((y <= 1) | ((y <= 3) & (vnoise(x.shape, 10, 103) > 0.45)), 11, img)   # snow on the lid edge
+    sten = ((r1 < 5.0) & (r1 > 3.6)) | ((r1 < 3.6) & (r2 > 2.8))
+    img = np.where(sten & ~frame, 13, img)
+    img = np.where((y <= 1) | ((y <= 3) & (vnoise(x.shape, 10, 104) > 0.45)), 11, img)
+    img = outline(img, x, y, 32, 24, 1, "lrb")
     A.put("crate", img)
 
-    x, y, b = A.local("crate_side")                    # 32 x 8 plain plank side
-    img = ramp(0.45 + 0.3 * (vnoise(x.shape, 6, 104) - 0.5), [8, 9, 10], b)
-    img = np.where((y == 0) | (y == 7), 8, img)
+    x, y, b = A.local("crate_side")                    # 32 x 8 plank side / top
+    img = ramp(0.5 + 0.3 * (vnoise(x.shape, 6, 105) - 0.5), [8, 9, 10], b)
     img = np.where(y == 0, 11, img)
+    img = np.where(y == 7, 1, img)
     A.put("crate_side", img)
 
-    x, y, b = A.local("screen")                        # 16 x 16 scanner lid: violet compass, needle to the south
-    img = ramp(0.4 + 0.2 * (vnoise(x.shape, 4, 105) - 0.5), [1, 2, 2], b)
+    x, y, b = A.local("screen")                        # 16 x 16 lid screen: vivid electric-violet compass
+    img = np.full(x.shape, 1)
     d = np.hypot(x - 7.5, y - 7.5)
-    img = np.where(d < 6.0, ramp(1.0 - d / 6.0, [13, 13, 14], b), img)
-    img = np.where((d >= 6.0) & (d < 7.0), 3, img)
-    for k in range(8):                                                 # compass ticks
+    img = np.where(d < 6.6, ramp(1.0 - d / 6.6, [13, 14, 14, 15], b, 0.4), img)
+    img = np.where((d >= 6.6) & (d < 7.4), 4, img)
+    for k in range(8):
         a = k * np.pi / 4
-        tx, ty = 7.5 + 5.0 * np.cos(a), 7.5 + 5.0 * np.sin(a)
-        img[int(round(ty)), int(round(tx))] = 15 if k == 2 else 14
-    needle = (np.abs(x - 7.5) <= 0.6 + (12.5 - y) * 0.06) & (y >= 7) & (y <= 12)   # points down = south
-    img = np.where(needle, 15, img)
-    img = np.where((np.abs(x - 7.5) < 0.6) & (y >= 4) & (y < 7), 13, img)          # dim tail (north)
+        tx, ty = 7.5 + 5.2 * np.cos(a), 7.5 + 5.2 * np.sin(a)
+        img[int(round(ty)), int(round(tx))] = 15 if k == 2 else 13
+    needle = (np.abs(x - 7.5) <= 0.6 + (12.5 - y) * 0.08) & (y >= 7) & (y <= 12)
+    img = np.where(needle, 5, img)
+    img = np.where((np.abs(x - 7.5) < 0.6) & (y >= 3) & (y < 7), 13, img)
     img[7:9, 7:9] = 4
     A.put("screen", img)
 
-    x, y, b = A.local("case")                          # 16 x 16 case body with violet status strip
-    img = ramp(0.45 + 0.25 * (vnoise(x.shape, 4, 106) - 0.5) - 0.2 * (y / 15 - 0.5), [1, 2, 3], b)
-    img = np.where((y == 0) | (y == 15) | (x == 0) | (x == 15), 1, img)
-    img = np.where((y == 5) & (x >= 3) & (x <= 12), np.where(x % 3 == 0, 15, 14), img)
-    img = np.where(((y == 11) & ((x == 3) | (x == 12))), 4, img)                   # brass latches
-    img = np.where((y <= 1) & (vnoise(x.shape, 8, 107) > 0.5), 11, img)
+    x, y, b = A.local("lid")                           # 16 x 16 lid back: gunmetal with brass corners
+    img = ramp(0.45 + 0.25 * (vnoise(x.shape, 4, 106) - 0.5), [2, 2, 3], b)
+    img = np.where(((x <= 1) | (x >= 14)) & ((y <= 1) | (y >= 14)), 4, img)
+    img = outline(img, x, y, 16, 16, 1)
+    A.put("lid", img)
+
+    x, y, b = A.local("case")                          # 16 x 16 case body with a glowing violet status strip
+    img = ramp(0.45 + 0.25 * (vnoise(x.shape, 4, 107) - 0.5) - 0.2 * (y / 15 - 0.5), [1, 2, 3], b)
+    img = np.where((y >= 4) & (y <= 6) & (x >= 2) & (x <= 13), np.where(y == 5, 15, 14), img)
+    img = np.where(((y == 11) & ((x == 3) | (x == 12))), 4, img)
+    img = outline(img, x, y, 16, 16, 1)
     A.put("case", img)
 
-    x, y, b = A.local("shard")                         # violet shard facets
-    img = np.zeros(x.shape, int)
+    x, y, b = A.local("shard")                         # violet shard facets, outlined
     body = (np.abs(x - 7.5) < (1.0 + (y - 1) * 0.35)) & (y >= 1) & (y <= 11) | \
            ((np.abs(x - 7.5) < (4.5 - (y - 11) * 1.1)) & (y > 11) & (y <= 15))
-    img = np.where(body, np.where(x < 7.5, 14, 13), img)
+    img = np.where(body, np.where(x < 7.5, 14, 13), 0)
     img = np.where(body & (np.abs(x - 7.0) < 0.6) & (y < 12), 15, img)
     A.put("shard", img)
-
-    x, y, b = A.local("ring")                          # 32 x 32 packed-snow trampled patch with boot prints
-    d = np.hypot(x - 15.5, y - 15.5) / 15.5
-    n = vnoise(x.shape, 6, 108)
-    inside = d + 0.18 * (n - 0.5) + 0.12 * b < 0.92
-    img = np.where(inside, np.where(n + 0.3 * b > 0.8, 12, 11), 0)
-    rng = np.random.RandomState(109)
-    for k in range(9):
-        a = rng.rand() * 2 * np.pi
-        rr = 4 + rng.rand() * 8
-        px, py = 15.5 + rr * np.cos(a), 15.5 + rr * np.sin(a)
-        ca, sa = np.cos(a + np.pi / 2), np.sin(a + np.pi / 2)
-        u = (x - px) * ca + (y - py) * sa
-        v = -(x - px) * sa + (y - py) * ca
-        p = (u / 1.6) ** 2 + (v / 2.6) ** 2 < 1.0
-        img = np.where(p & inside, 12, img)
-        img = np.where(p & inside & (v > 1.4) & (b > 0), 11, img)
-    A.put("ring", img)
 
     x, y, b = A.local("journal")                       # 16 x 16 open field journal
     img = np.zeros(x.shape, int)
     page = (x >= 1) & (x <= 14) & (y >= 3) & (y <= 13)
     img = np.where(page, 11, img)
-    img = np.where(page & (x == 7) | page & (x == 8), 12, img)
+    img = np.where(page & ((x == 7) | (x == 8)), 12, img)
     img = np.where(page & (y % 2 == 1) & (y > 4) & (y < 12) & (x != 7) & (x != 8) & (x > 1) & (x < 14) &
-                   (vnoise(x.shape, 16, 110) > 0.3), 2, img)
-    img = np.where((y == 14) & (x >= 1) & (x <= 14), 8, img)                       # leather cover edge
-    img = np.where((x >= 10) & (x <= 11) & (y >= 1) & (y <= 6), 13, img)           # violet ribbon marker
+                   (vnoise(x.shape, 16, 108) > 0.3), 2, img)
+    img = np.where((y == 14) & (x >= 1) & (x <= 14), 8, img)
+    img = np.where((x >= 10) & (x <= 11) & (y >= 1) & (y <= 6), 13, img)
     A.put("journal", img)
 
-    x, y, b = A.local("beam")                          # 16 x 32 faint violet trace pointing south (v up)
-    w = 2.5 + y / 31.0 * 3.5
-    dens = np.clip(1.0 - np.abs(x - 7.5) / w, 0, 1) * np.clip(1.0 - y / 34.0, 0, 1)
-    sp = vnoise(x.shape, 16, 111)
-    img = np.where(sp + 0.3 * b < dens * 0.7 - 0.1, 14, 0)
-    img = np.where((img == 14) & (b > 0.3) & (dens < 0.5), 13, img)
-    img = np.where((sp > 0.88) & (dens > 0.3), 15, img)
-    A.put("beam", img)
+    # packed-snow clearing 32 x 32: trampled pale blue-grey centre, dithered rim fading into the fresh snow
+    x, y, b = A.local("clear")
+    d = np.hypot(x - 15.5, y - 15.5) / 15.5 + 0.22 * (vnoise(x.shape, 5, 109) - 0.5)
+    img = np.where(d + 0.35 * b < 0.95, 12, 0)
+    img = np.where((img == 12) & (d + 0.35 * b > 0.78), 11, img)
+    A.put("clear", img)
     return A
 
 
-TEXTURES = [("r216_stone", tex_stone), ("r216_offer", tex_offer), ("r217_tent", tex_tent), ("r217_camp", tex_camp)]
+TEXTURES = [("r216_stone", tex_stone), ("r216_offer", tex_offer), ("r216_glow", tex_glow),
+            ("r217_tent", tex_tent), ("r217_camp", tex_camp)]
 
 
 def pal_name(tex):
@@ -653,16 +759,23 @@ def generate():
     for name, fn in TEXTURES:
         A = fn()
         idx = np.asarray(A.img, int)
-        assert idx.shape == (N, N) and idx.min() >= 0 and idx.max() < 16, name
-        assert len(A.pal) == 16, name
-        out.append((name, idx, [snap(c) for c in A.pal]))
+        ncol = 32 if name in ALPHA_FMT else 16
+        assert idx.shape == (N, N) and idx.min() >= 0 and idx.max() < ncol, name
+        assert len(A.pal) == ncol, name
+        al = np.asarray(A.alpha, int) if name in ALPHA_FMT else None
+        out.append((name, idx, [snap(c) for c in A.pal], al))
     return out
 
 
-def encode(name, idx, pal):
+def encode(name, idx, pal, al):
     flat = idx.reshape(-1).tolist()
-    data = bytes(flat[i] | flat[i + 1] << 4 for i in range(0, len(flat), 2))
-    tex = dict(name=name, fmt=3, w=N, h=N, c0=1 if name in TRANSPARENT else 0, data=data)
+    if al is not None:
+        a = al.reshape(-1).tolist()
+        data = bytes(flat[i] | a[i] << 5 for i in range(len(flat)))
+        tex = dict(name=name, fmt=1, w=N, h=N, c0=0, data=data)
+    else:
+        data = bytes(flat[i] | flat[i + 1] << 4 for i in range(0, len(flat), 2))
+        tex = dict(name=name, fmt=3, w=N, h=N, c0=1 if name in TRANSPARENT else 0, data=data)
     return tex, dict(name=pal_name(name), colors=[nsbtx.bgr555(c) for c in pal], pltt4=0)
 
 
@@ -677,8 +790,8 @@ def build_set():
     names = {t["name"] for t in base["textures"]} | {p["name"] for p in base["palettes"]}
     gen = generate()
     new_t, new_p, rows = [], [], []
-    for name, idx, pal in gen:
-        t, p = encode(name, idx, pal)
+    for name, idx, pal, al in gen:
+        t, p = encode(name, idx, pal, al)
         for a in (t["name"], p["name"]):
             if a in names:
                 fails.append(f"{a} clashes with a stock set-014 entry")
@@ -686,7 +799,8 @@ def build_set():
                 fails.append(f"{a} is longer than 15 characters")
         new_t.append(t)
         new_p.append(p)
-        rows.append((name, p["name"], f"{N}x{N}", len(t["data"]), 32, t["c0"], len(set(idx.reshape(-1).tolist()))))
+        rows.append((name, p["name"], f"{N}x{N}", nsbtx.FMT_NAMES[t["fmt"]], len(t["data"]), 2 * len(pal), t["c0"],
+                     len(set(idx.reshape(-1).tolist()))))
     for t in base["textures"]:
         t.pop("off", None)
     for p in base["palettes"]:
@@ -702,13 +816,14 @@ def build_set():
     for p in sb["palettes"]:
         if p["name"] not in OP or not OP[p["name"]]["data"].startswith(p["data"]):
             fails.append(f"stock palette {p['name']} changed")
-    for name, idx, pal in gen:
+    for name, idx, pal, al in gen:
         t2, p2 = OT.get(name), OP.get(pal_name(name))
         if not t2 or not p2:
             fails.append(f"{name}: missing after build")
             continue
         rgba, ind = nsbtx.decode(t2, p2["colors"])
-        if (t2["fmt"], t2["w"], t2["h"], t2["c0"]) != (3, N, N, 1 if name in TRANSPARENT else 0):
+        want_fmt = (1, N, N, 0) if name in ALPHA_FMT else (3, N, N, 1 if name in TRANSPARENT else 0)
+        if (t2["fmt"], t2["w"], t2["h"], t2["c0"]) != want_fmt:
             fails.append(f"{name}: format/size changed in the round trip")
         if [list(r) for r in ind] != idx.tolist():
             fails.append(f"{name}: texel indices differ after the round trip")
@@ -716,14 +831,19 @@ def build_set():
         got = [tuple(px[:3]) for row in rgba for px in row]
         if got != want:
             fails.append(f"{name}: decoded colours differ from the BGR555 palette")
+        if al is not None:
+            ga = [px[3] for row in rgba for px in row]
+            if ga != [a * 255 // 7 for a in al.reshape(-1).tolist()]:
+                fails.append(f"{name}: decoded alpha differs")
+            if len(set(al.reshape(-1).tolist())) < 6:
+                fails.append(f"{name}: alpha ramp has fewer than 6 levels")
     if len(so["textures"]) != len(sb["textures"]) + len(new_t) or len(so["palettes"]) != len(sb["palettes"]) + len(new_p):
         fails.append("entry count mismatch")
-    # idempotence: rebuilding from the same inputs gives the same bytes
     vb, vo = nsbtx.vram_usage(sb), nsbtx.vram_usage(so)
     if sum(vo) > VRAM_TARGET:
         fails.append(f"set VRAM {sum(vo)} B > target {VRAM_TARGET}")
     table = {t["name"]: {"size": [t["w"], t["h"]]} for t in so["textures"]}
-    for name, _, _ in gen:
+    for name, _, _, _ in gen:
         table[name]["palette"] = pal_name(name)
     return dict(bytes=out, rows=rows, fails=fails, vram=(vb, vo), table=table, generated=gen,
                 palettes={p["name"] for p in so["palettes"]}, stock_textures=len(sb["textures"]),
@@ -735,10 +855,15 @@ def write_preview(d, gen):
     os.makedirs(d, exist_ok=True)
     S = 6
     sheet = Image.new("RGB", (len(gen) * (N * S + 8), N * S), (30, 34, 48))
-    for k, (name, idx, pal) in enumerate(gen):
-        img = Image.new("RGB", (N, N))
-        cols = [(60, 66, 84) if (name in TRANSPARENT and i == 0) else pal[i] for i in idx.reshape(-1).tolist()]
-        img.putdata(cols)
+    for k, (name, idx, pal, al) in enumerate(gen):
+        bg = np.array([60, 66, 84], float)
+        cols = np.array([pal[i] for i in idx.reshape(-1).tolist()], float)
+        if al is not None:
+            a = (al.reshape(-1, 1) / 7.0)
+            cols = cols * a + bg * (1 - a)
+        elif name in TRANSPARENT:
+            cols[idx.reshape(-1) == 0] = bg
+        img = Image.fromarray(cols.reshape(N, N, 3).astype("uint8"))
         img.save(os.path.join(d, name + ".png"))
         sheet.paste(img.resize((N * S, N * S), Image.NEAREST), (k * (N * S + 8), 0))
     sheet.save(os.path.join(d, "r216_217_textures_sheet.png"))
@@ -748,8 +873,8 @@ def report(res):
     vb, vo = res["vram"]
     print(f"map_texture_set_080 = git {BASE_REV}:{BASE_SET_REL} ({res['stock_textures']} textures, "
           f"{res['stock_palettes']} palettes) + {len(res['rows'])} Memorial Ridge / Indra's Camp atlases")
-    for name, pn, size, tb, pb, c0, nc in res["rows"]:
-        print(f"  {name:12s} {pn:15s} {size:6s} texels {tb:5d} B  palette {pb} B  c0={c0}  colours {nc}")
+    for name, pn, size, fmt, tb, pb, c0, nc in res["rows"]:
+        print(f"  {name:12s} {pn:15s} {size:6s} {fmt:6s} texels {tb:5d} B  palette {pb} B  c0={c0}  colours {nc}")
     print(f"VRAM: {sum(vb)} -> {sum(vo)} B ({sum(vo) / 1024:.1f} KB; texels {vb[0]} -> {vo[0]}, palettes {vb[1]} -> "
           f"{vo[1]}); target {VRAM_TARGET // 1024} KB")
 
@@ -765,8 +890,8 @@ def main():
     for f in res["fails"]:
         print("FAIL", f)
     if not res["fails"]:
-        print("PASS appended textures round-trip (texels + BGR555 colours); stock textures/palettes unchanged; "
-              "VRAM within target")
+        print("PASS appended textures round-trip (texels, BGR555 colours, A3I5 alpha); stock textures/palettes "
+              "unchanged; VRAM within target")
     if "--write" in args:
         if res["fails"]:
             print("refusing to write: checks failed")

@@ -42,8 +42,11 @@ def texture_cache(set_bytes):
 
 
 def render(models, set_bytes, target, path, night=False, w=640, h=384, top=False, zoom=1.0, target_h=1.0,
-           yaw=0.0, pitch_deg=None):
-    """models: [(model dict, (cx, cz))]. target (x, z) absolute tiles (tile centre +0.5 added)."""
+           yaw=0.0, pitch_deg=None, player=None):
+    """models: [(model dict, (cx, cz))]. target (x, z) absolute tiles (tile centre +0.5 added). Opaque and c0 texels
+    first (z-buffered), then translucent ones (A3I5 texel alpha or material alpha) blended without a depth write,
+    like the GX translucent pass. player=(x, z, h): a player-sized stand-in sprite (1 x 1.56 screen tiles, the
+    in-game overworld sprite) drawn on that tile, so landmark heights can be judged against the player."""
     import numpy as np
     from PIL import Image
     tex = texture_cache(set_bytes)
@@ -68,11 +71,18 @@ def render(models, set_bytes, target, path, night=False, w=640, h=384, top=False
     light = -np.array([0.463, -0.879, -0.114])
     lc = (0.36, 0.40, 0.62) if night else (0.80, 0.82, 0.88)
     amb = (0.34, 0.38, 0.58) if night else (0.58, 0.60, 0.66)
+    jobs = []
     for model, cell in models:
         mesh = nsbmd.model_to_mesh(model, cell)
         mats = {m["name"]: m for m in mesh["materials"]}
         for me in mesh["meshes"]:
             m = mats[me["material"]]
+            T = tex(m["texture"], m["palette"])
+            xlu = m.get("alpha", 31) < 31 or bool(((T[..., 3] > 0.01) & (T[..., 3] < 0.99)).any())
+            jobs.append((xlu, m, me))
+    jobs.sort(key=lambda j: j[0])
+    for xlu, m, me in jobs:
+        if True:
             lit = m["polygon_attr"]["lights"] != 0
             two = m["polygon_attr"]["cull"] != "back"
             alpha = m.get("alpha", 31) / 31.0
@@ -115,7 +125,8 @@ def render(models, set_bytes, target, path, night=False, w=640, h=384, top=False
                 pu = (w0 * UV[a, 0] / zc[a] + w1 * UV[b, 0] / zc[b] + w2 * UV[cc, 0] / zc[cc]) * depth
                 pv = (w0 * UV[a, 1] / zc[a] + w1 * UV[b, 1] / zc[b] + w2 * UV[cc, 1] / zc[cc]) * depth
                 tc = T[(np.floor(pv * th).astype(int)) % th, (np.floor(pu * tw).astype(int)) % tw]
-                msk &= tc[..., 3] > 0.5
+                ta = tc[..., 3] * alpha
+                msk &= ta > (0.01 if xlu else 0.5)
                 if not msk.any():
                     continue
                 if lit:
@@ -127,11 +138,32 @@ def render(models, set_bytes, target, path, night=False, w=640, h=384, top=False
                     vc = (w0[..., None] * CO[a] + w1[..., None] * CO[b] + w2[..., None] * CO[cc])
                     col = tc[..., :3] * vc
                 reg = img[by0:by1, bx0:bx1]
-                if alpha < 0.99:
-                    reg[msk] = reg[msk] * (1 - alpha) + np.clip(col[msk], 0, 1) * alpha
+                if xlu:
+                    a = ta[msk][..., None]
+                    reg[msk] = reg[msk] * (1 - a) + np.clip(col[msk], 0, 1) * a
                 else:
                     reg[msk] = np.clip(col[msk], 0, 1)
                     sub[msk] = depth[msk]
+    if player:
+        px, pz, ph = player
+        def proj(p):
+            r = np.array(p) * 16.0 + [0, 16, 0] - cam
+            zc = r @ fwd
+            return w / 2 + (r @ right) / zc * f * h / 2, h / 2 - (r @ up) / zc * f * h / 2
+        ax, ay = proj((px + 0.5, ph, pz + 0.62))
+        bx_, _ = proj((px + 1.5, ph, pz + 0.62))
+        s = abs(bx_ - ax)
+        sw, shh = 0.9 * s, 1.56 * s
+        x0, y1 = int(round(ax - sw / 2)), int(round(ay))
+        y0 = int(round(ay - shh))
+        rows = [(0.0, 0.22, (0.86, 0.14, 0.16)), (0.22, 0.42, (0.98, 0.84, 0.70)), (0.42, 0.78, (0.20, 0.30, 0.62)),
+                (0.78, 1.0, (0.16, 0.16, 0.22))]
+        for a, b_, c in rows:
+            ya, yb = y0 + int(a * shh), y0 + int(b_ * shh)
+            img[max(ya, 0):max(yb, 0), max(x0, 0):max(x0 + int(sw), 0)] = c
+        img[max(y0, 0):y1, max(x0, 0)] = 0.05
+        img[max(y0, 0):y1, max(x0 + int(sw) - 1, 0)] = 0.05
+        img[max(y0, 0), max(x0, 0):max(x0 + int(sw), 0)] = 0.05
     Image.fromarray((img * 255).astype("uint8")).resize((w * 2, h * 2), Image.NEAREST).save(path)
 
 
