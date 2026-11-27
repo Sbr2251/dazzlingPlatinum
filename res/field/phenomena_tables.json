@@ -1,0 +1,6058 @@
+{
+  "source": "Platinum Reforged (origin/gh-pages encounters/{routes,caves,places})",
+  "eternaChateauClearing": {
+    "minX": 60,
+    "maxZ": 32
+  },
+  "honeyTreeSlots": [
+    {
+      "species": "SPECIES_COMBEE",
+      "weight": 32,
+      "minLevel": 0
+    },
+    {
+      "species": "SPECIES_BURMY",
+      "weight": 26,
+      "minLevel": 0
+    },
+    {
+      "species": "SPECIES_WURMPLE",
+      "weight": 13,
+      "minLevel": 0
+    },
+    {
+      "species": "SPECIES_CHERUBI",
+      "weight": 13,
+      "minLevel": 0
+    },
+    {
+      "species": "SPECIES_AIPOM",
+      "weight": 12,
+      "minLevel": 0
+    },
+    {
+      "species": "SPECIES_HERACROSS",
+      "weight": 3,
+      "minLevel": 0
+    },
+    {
+      "species": "SPECIES_MUNCHLAX",
+      "weight": 1,
+      "minLevel": 0
+    }
+  ],
+  "dustCloudItems": [
+    {
+      "item": "ITEM_HEART_SCALE",
+      "weight": 16
+    },
+    {
+      "item": "ITEM_STARDUST",
+      "weight": 12
+    },
+    {
+      "item": "ITEM_RED_SHARD",
+      "weight": 11
+    },
+    {
+      "item": "ITEM_BLUE_SHARD",
+      "weight": 11
+    },
+    {
+      "item": "ITEM_YELLOW_SHARD",
+      "weight": 11
+    },
+    {
+      "item": "ITEM_GREEN_SHARD",
+      "weight": 11
+    },
+    {
+      "item": "ITEM_HARD_STONE",
+      "weight": 6
+    },
+    {
+      "item": "ITEM_STAR_PIECE",
+      "weight": 5
+    },
+    {
+      "item": "ITEM_EVERSTONE",
+      "weight": 5
+    },
+    {
+      "item": "ITEM_RARE_BONE",
+      "weight": 2
+    },
+    {
+      "item": "ITEM_SUN_STONE",
+      "weight": 1
+    },
+    {
+      "item": "ITEM_MOON_STONE",
+      "weight": 1
+    },
+    {
+      "item": "ITEM_FIRE_STONE",
+      "weight": 1
+    },
+    {
+      "item": "ITEM_THUNDERSTONE",
+      "weight": 1
+    },
+    {
+      "item": "ITEM_WATER_STONE",
+      "weight": 1
+    },
+    {
+      "item": "ITEM_LEAF_STONE",
+      "weight": 1
+    },
+    {
+      "item": "ITEM_SHINY_STONE",
+      "weight": 1
+    },
+    {
+      "item": "ITEM_DUSK_STONE",
+      "weight": 1
+    },
+    {
+      "item": "ITEM_DAWN_STONE",
+      "weight": 1
+    },
+    {
+      "item": "ITEM_OVAL_STONE",
+      "weight": 1
+    }
+  ],
+  "shadowItems": [
+    {
+      "item": "ITEM_HP_UP",
+      "weight": 15
+    },
+    {
+      "item": "ITEM_PROTEIN",
+      "weight": 15
+    },
+    {
+      "item": "ITEM_IRON",
+      "weight": 15
+    },
+    {
+      "item": "ITEM_CALCIUM",
+      "weight": 15
+    },
+    {
+      "item": "ITEM_ZINC",
+      "weight": 15
+    },
+    {
+      "item": "ITEM_CARBOS",
+      "weight": 15
+    },
+    {
+      "item": "ITEM_PEARL",
+      "weight": 10
+    }
+  ],
+  "maps": {
+    "MAP_HEADER_ACUITY_LAKEFRONT": {
+      "grass": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_CHANSEY",
+            "weight": 75,
+            "minLevel": 35
+          },
+          {
+            "species": "SPECIES_PACHIRISU",
+            "weight": 10,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MAMOSWINE",
+            "weight": 5,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_FROSLASS",
+            "weight": 5,
+            "minLevel": 35
+          },
+          {
+            "species": "SPECIES_ALTARIA",
+            "weight": 4,
+            "minLevel": 35
+          },
+          {
+            "species": "SPECIES_BLISSEY",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_CANALAVE_CITY": {
+      "surf": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_BUIZEL",
+            "weight": 60,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_PSYDUCK",
+            "weight": 30,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MARILL",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_FLOATZEL",
+            "weight": 4,
+            "minLevel": 26
+          },
+          {
+            "species": "SPECIES_VAPOREON",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "fish": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_MAGIKARP",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_FINNEON",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_REMORAID",
+            "weight": 15,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MANTYKE",
+            "weight": 4,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_RELICANTH",
+            "weight": 1,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_CELESTIC_TOWN": {
+      "surf": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_PSYDUCK",
+            "weight": 60,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MARILL",
+            "weight": 30,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_BUIZEL",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDUCK",
+            "weight": 4,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_VAPOREON",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "fish": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_MAGIKARP",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDEEN",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_SEAKING",
+            "weight": 15,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_GYARADOS",
+            "weight": 4,
+            "minLevel": 20
+          },
+          {
+            "species": "SPECIES_WHISCASH",
+            "weight": 1,
+            "minLevel": 30
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_ETERNA_CITY": {
+      "surf": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_PSYDUCK",
+            "weight": 60,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MARILL",
+            "weight": 30,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_BUIZEL",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDUCK",
+            "weight": 4,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_VAPOREON",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "fish": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_MAGIKARP",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDEEN",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_SEAKING",
+            "weight": 15,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_GYARADOS",
+            "weight": 4,
+            "minLevel": 20
+          },
+          {
+            "species": "SPECIES_BARBOACH",
+            "weight": 1,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_ETERNA_FOREST": {
+      "grass": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_HAPPINY",
+            "weight": 55,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_PACHIRISU",
+            "weight": 10,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MURKROW",
+            "weight": 10,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MISDREAVUS",
+            "weight": 10,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_KRICKETUNE",
+            "weight": 5,
+            "minLevel": 10
+          },
+          {
+            "species": "SPECIES_LEAFEON",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_ROSELIA",
+            "weight": 4,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_ROTOM",
+            "weight": 1,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_FUEGO_IRONWORKS_OUTSIDE": {
+      "grass": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_HAPPINY",
+            "weight": 75,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_PACHIRISU",
+            "weight": 10,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MAGNEZONE",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_PORYGON",
+            "weight": 4,
+            "minLevel": 0
+          },
+          {
+            "species": "PHENOMENON_SPECIES_HONEY_TREE",
+            "weight": 4,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_LUXRAY",
+            "weight": 2,
+            "minLevel": 30
+          }
+        ]
+      },
+      "surf": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_BUIZEL",
+            "weight": 60,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_PSYDUCK",
+            "weight": 30,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MARILL",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_FLOATZEL",
+            "weight": 4,
+            "minLevel": 26
+          },
+          {
+            "species": "SPECIES_VAPOREON",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "fish": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_MAGIKARP",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_FINNEON",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_REMORAID",
+            "weight": 15,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MANTYKE",
+            "weight": 4,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_RELICANTH",
+            "weight": 1,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_IRON_ISLAND": {
+      "surf": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_BUIZEL",
+            "weight": 60,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_PSYDUCK",
+            "weight": 30,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MARILL",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_FLOATZEL",
+            "weight": 4,
+            "minLevel": 26
+          },
+          {
+            "species": "SPECIES_VAPOREON",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "fish": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_MAGIKARP",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_FINNEON",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_REMORAID",
+            "weight": 15,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MANTYKE",
+            "weight": 4,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_RELICANTH",
+            "weight": 1,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_IRON_ISLAND_1F": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 86,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_RIOLU",
+            "weight": 10,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_LUCARIO",
+            "weight": 4,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_IRON_ISLAND_B1F_LEFT_ROOM": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 86,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_RIOLU",
+            "weight": 10,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_LUCARIO",
+            "weight": 4,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_IRON_ISLAND_B1F_RIGHT_ROOM": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 81,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_RIOLU",
+            "weight": 10,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_LUCARIO",
+            "weight": 9,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_IRON_ISLAND_B2F_LEFT_ROOM": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 86,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_RIOLU",
+            "weight": 10,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_LUCARIO",
+            "weight": 4,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_IRON_ISLAND_B2F_RIGHT_ROOM": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 86,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_RIOLU",
+            "weight": 10,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_LUCARIO",
+            "weight": 4,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_IRON_ISLAND_B3F": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 95,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_RIOLU",
+            "weight": 4,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_LUCARIO",
+            "weight": 1,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_LAKE_ACUITY": {
+      "grass": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_CHANSEY",
+            "weight": 75,
+            "minLevel": 35
+          },
+          {
+            "species": "SPECIES_PACHIRISU",
+            "weight": 10,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GALLADE",
+            "weight": 5,
+            "minLevel": 35
+          },
+          {
+            "species": "SPECIES_MAMOSWINE",
+            "weight": 5,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_ALTARIA",
+            "weight": 4,
+            "minLevel": 35
+          },
+          {
+            "species": "SPECIES_BLISSEY",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "surf": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_PSYDUCK",
+            "weight": 60,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MARILL",
+            "weight": 30,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_BUIZEL",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDUCK",
+            "weight": 4,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_VAPOREON",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "fish": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_MAGIKARP",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDEEN",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_SEAKING",
+            "weight": 15,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_GYARADOS",
+            "weight": 4,
+            "minLevel": 20
+          },
+          {
+            "species": "SPECIES_WHISCASH",
+            "weight": 1,
+            "minLevel": 30
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_LAKE_VALOR": {
+      "grass": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_CHANSEY",
+            "weight": 75,
+            "minLevel": 35
+          },
+          {
+            "species": "SPECIES_PACHIRISU",
+            "weight": 10,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GALLADE",
+            "weight": 5,
+            "minLevel": 35
+          },
+          {
+            "species": "SPECIES_ROSERADE",
+            "weight": 5,
+            "minLevel": 35
+          },
+          {
+            "species": "SPECIES_TOGEKISS",
+            "weight": 4,
+            "minLevel": 35
+          },
+          {
+            "species": "SPECIES_BLISSEY",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "surf": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_PSYDUCK",
+            "weight": 60,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MARILL",
+            "weight": 30,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_BUIZEL",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDUCK",
+            "weight": 4,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_VAPOREON",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "fish": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_MAGIKARP",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDEEN",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_SEAKING",
+            "weight": 15,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_GYARADOS",
+            "weight": 4,
+            "minLevel": 20
+          },
+          {
+            "species": "SPECIES_WHISCASH",
+            "weight": 1,
+            "minLevel": 30
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_LAKE_VERITY": {
+      "grass": {
+        "floorMinLv": 8,
+        "floorMaxLv": 10,
+        "slots": [
+          {
+            "species": "SPECIES_HAPPINY",
+            "weight": 75,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_PACHIRISU",
+            "weight": 20,
+            "minLevel": 9
+          },
+          {
+            "species": "SPECIES_MARILL",
+            "weight": 5,
+            "minLevel": 10
+          }
+        ]
+      },
+      "surf": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_PSYDUCK",
+            "weight": 60,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MARILL",
+            "weight": 30,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_BUIZEL",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDUCK",
+            "weight": 4,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_VAPOREON",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "fish": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_MAGIKARP",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDEEN",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_SEAKING",
+            "weight": 15,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_GYARADOS",
+            "weight": 4,
+            "minLevel": 20
+          },
+          {
+            "species": "SPECIES_BARBOACH",
+            "weight": 1,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_LAKE_VERITY_LOW_WATER": {
+      "grass": {
+        "floorMinLv": 8,
+        "floorMaxLv": 10,
+        "slots": [
+          {
+            "species": "SPECIES_HAPPINY",
+            "weight": 75,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_PACHIRISU",
+            "weight": 20,
+            "minLevel": 9
+          },
+          {
+            "species": "SPECIES_MARILL",
+            "weight": 5,
+            "minLevel": 9
+          }
+        ]
+      },
+      "surf": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_PSYDUCK",
+            "weight": 60,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MARILL",
+            "weight": 30,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_BUIZEL",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDUCK",
+            "weight": 4,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_VAPOREON",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "fish": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_MAGIKARP",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDEEN",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_SEAKING",
+            "weight": 15,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_GYARADOS",
+            "weight": 4,
+            "minLevel": 20
+          },
+          {
+            "species": "SPECIES_BARBOACH",
+            "weight": 1,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_MANIAC_TUNNEL": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 100,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_MT_CORONET_1F_NORTH_ROOM_1": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 100,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_MT_CORONET_1F_NORTH_ROOM_2": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 100,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_MT_CORONET_1F_SOUTH": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 100,
+            "minLevel": 0
+          }
+        ]
+      },
+      "surf": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_PSYDUCK",
+            "weight": 60,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MARILL",
+            "weight": 30,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_BUIZEL",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDUCK",
+            "weight": 4,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_VAPOREON",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "fish": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_MAGIKARP",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDEEN",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_SEAKING",
+            "weight": 15,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_GYARADOS",
+            "weight": 4,
+            "minLevel": 20
+          },
+          {
+            "species": "SPECIES_BARBOACH",
+            "weight": 1,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_MT_CORONET_1F_TUNNEL_ROOM": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 94,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_STEELIX",
+            "weight": 5,
+            "minLevel": 38
+          },
+          {
+            "species": "SPECIES_GABITE",
+            "weight": 1,
+            "minLevel": 24
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_MT_CORONET_2F": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 94,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_STEELIX",
+            "weight": 5,
+            "minLevel": 38
+          },
+          {
+            "species": "SPECIES_GABITE",
+            "weight": 1,
+            "minLevel": 24
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_MT_CORONET_3F": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 94,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_STEELIX",
+            "weight": 5,
+            "minLevel": 38
+          },
+          {
+            "species": "SPECIES_GABITE",
+            "weight": 1,
+            "minLevel": 24
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_MT_CORONET_4F_ROOMS_1_AND_2": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 94,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_STEELIX",
+            "weight": 5,
+            "minLevel": 38
+          },
+          {
+            "species": "SPECIES_GABITE",
+            "weight": 1,
+            "minLevel": 24
+          }
+        ]
+      },
+      "surf": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_PSYDUCK",
+            "weight": 60,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MARILL",
+            "weight": 30,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_BUIZEL",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDUCK",
+            "weight": 4,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_VAPOREON",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "fish": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_MAGIKARP",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDEEN",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_SEAKING",
+            "weight": 15,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_GYARADOS",
+            "weight": 4,
+            "minLevel": 20
+          },
+          {
+            "species": "SPECIES_WHISCASH",
+            "weight": 1,
+            "minLevel": 30
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_MT_CORONET_4F_ROOM_3": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 94,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_STEELIX",
+            "weight": 5,
+            "minLevel": 38
+          },
+          {
+            "species": "SPECIES_GABITE",
+            "weight": 1,
+            "minLevel": 24
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_MT_CORONET_5F": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 94,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_STEELIX",
+            "weight": 5,
+            "minLevel": 38
+          },
+          {
+            "species": "SPECIES_GABITE",
+            "weight": 1,
+            "minLevel": 24
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_MT_CORONET_6F": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 94,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_STEELIX",
+            "weight": 5,
+            "minLevel": 38
+          },
+          {
+            "species": "SPECIES_GABITE",
+            "weight": 1,
+            "minLevel": 24
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_MT_CORONET_B1F": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 100,
+            "minLevel": 0
+          }
+        ]
+      },
+      "surf": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_PSYDUCK",
+            "weight": 60,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MARILL",
+            "weight": 30,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_BUIZEL",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDUCK",
+            "weight": 4,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_VAPOREON",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "fish": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_MAGIKARP",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDEEN",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_SEAKING",
+            "weight": 15,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_FEEBAS",
+            "weight": 4,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MILOTIC",
+            "weight": 1,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_MT_CORONET_OUTSIDE_NORTH": {
+      "grass": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_CHANSEY",
+            "weight": 75,
+            "minLevel": 35
+          },
+          {
+            "species": "SPECIES_PACHIRISU",
+            "weight": 10,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_SNORUNT",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MAMOSWINE",
+            "weight": 5,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_ALTARIA",
+            "weight": 4,
+            "minLevel": 35
+          },
+          {
+            "species": "SPECIES_BLISSEY",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_MT_CORONET_OUTSIDE_SOUTH": {
+      "grass": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_CHANSEY",
+            "weight": 75,
+            "minLevel": 35
+          },
+          {
+            "species": "SPECIES_PACHIRISU",
+            "weight": 10,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GALLADE",
+            "weight": 5,
+            "minLevel": 35
+          },
+          {
+            "species": "SPECIES_MAMOSWINE",
+            "weight": 5,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_ALTARIA",
+            "weight": 4,
+            "minLevel": 35
+          },
+          {
+            "species": "SPECIES_BLISSEY",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_OREBURGH_GATE_1F": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 100,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_OREBURGH_GATE_B1F": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 100,
+            "minLevel": 0
+          }
+        ]
+      },
+      "surf": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_PSYDUCK",
+            "weight": 60,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MARILL",
+            "weight": 30,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_BUIZEL",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDUCK",
+            "weight": 4,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_VAPOREON",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "fish": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_MAGIKARP",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDEEN",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_SEAKING",
+            "weight": 15,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_GYARADOS",
+            "weight": 4,
+            "minLevel": 20
+          },
+          {
+            "species": "SPECIES_BARBOACH",
+            "weight": 1,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_OREBURGH_MINE_B1F": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 88,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_CRANIDOS",
+            "weight": 6,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_SHIELDON",
+            "weight": 6,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_OREBURGH_MINE_B2F": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 88,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_CRANIDOS",
+            "weight": 6,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_SHIELDON",
+            "weight": 6,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_OREBURGH_MINE_SIDE_TUNNEL": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 88,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_CRANIDOS",
+            "weight": 6,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_SHIELDON",
+            "weight": 6,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_PASTORIA_CITY": {
+      "surf": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_BUIZEL",
+            "weight": 60,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_PSYDUCK",
+            "weight": 30,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MARILL",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_FLOATZEL",
+            "weight": 4,
+            "minLevel": 26
+          },
+          {
+            "species": "SPECIES_VAPOREON",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "fish": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_MAGIKARP",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_FINNEON",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_REMORAID",
+            "weight": 15,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MANTYKE",
+            "weight": 4,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_RELICANTH",
+            "weight": 1,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_POKEMON_LEAGUE": {
+      "surf": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_BUIZEL",
+            "weight": 60,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_PSYDUCK",
+            "weight": 30,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MARILL",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_FLOATZEL",
+            "weight": 4,
+            "minLevel": 26
+          },
+          {
+            "species": "SPECIES_VAPOREON",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "fish": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_MAGIKARP",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_FINNEON",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_REMORAID",
+            "weight": 15,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MANTYKE",
+            "weight": 4,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_RELICANTH",
+            "weight": 1,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_RAVAGED_PATH": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 100,
+            "minLevel": 0
+          }
+        ]
+      },
+      "surf": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_PSYDUCK",
+            "weight": 60,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MARILL",
+            "weight": 30,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_BUIZEL",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDUCK",
+            "weight": 4,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_VAPOREON",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "fish": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_MAGIKARP",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDEEN",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_SEAKING",
+            "weight": 15,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_GYARADOS",
+            "weight": 4,
+            "minLevel": 20
+          },
+          {
+            "species": "SPECIES_BARBOACH",
+            "weight": 1,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_RESORT_AREA": {
+      "surf": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_PSYDUCK",
+            "weight": 60,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MARILL",
+            "weight": 30,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_BUIZEL",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDUCK",
+            "weight": 4,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_VAPOREON",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "fish": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_MAGIKARP",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDEEN",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_SEAKING",
+            "weight": 15,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_GYARADOS",
+            "weight": 4,
+            "minLevel": 20
+          },
+          {
+            "species": "SPECIES_WHISCASH",
+            "weight": 1,
+            "minLevel": 30
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_ROUTE_201": {
+      "grass": {
+        "floorMinLv": 8,
+        "floorMaxLv": 10,
+        "slots": [
+          {
+            "species": "SPECIES_HAPPINY",
+            "weight": 85,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_PACHIRISU",
+            "weight": 10,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MARILL",
+            "weight": 5,
+            "minLevel": 9
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_ROUTE_202": {
+      "grass": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_HAPPINY",
+            "weight": 85,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_PACHIRISU",
+            "weight": 10,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MARILL",
+            "weight": 5,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_ROUTE_203": {
+      "grass": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_HAPPINY",
+            "weight": 85,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_PACHIRISU",
+            "weight": 10,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_BUNEARY",
+            "weight": 5,
+            "minLevel": 0
+          }
+        ]
+      },
+      "surf": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_PSYDUCK",
+            "weight": 60,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MARILL",
+            "weight": 30,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_BUIZEL",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDUCK",
+            "weight": 4,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_VAPOREON",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "fish": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_MAGIKARP",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDEEN",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_SEAKING",
+            "weight": 15,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_GYARADOS",
+            "weight": 4,
+            "minLevel": 20
+          },
+          {
+            "species": "SPECIES_BARBOACH",
+            "weight": 1,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_ROUTE_204_NORTH": {
+      "grass": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_HAPPINY",
+            "weight": 100,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_ROUTE_204_SOUTH": {
+      "grass": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_HAPPINY",
+            "weight": 100,
+            "minLevel": 0
+          }
+        ]
+      },
+      "surf": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_PSYDUCK",
+            "weight": 60,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MARILL",
+            "weight": 30,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_BUIZEL",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDUCK",
+            "weight": 4,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_VAPOREON",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "fish": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_MAGIKARP",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDEEN",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_SEAKING",
+            "weight": 15,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_GYARADOS",
+            "weight": 4,
+            "minLevel": 20
+          },
+          {
+            "species": "SPECIES_BARBOACH",
+            "weight": 1,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_ROUTE_205_NORTH": {
+      "grass": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_HAPPINY",
+            "weight": 77,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_PACHIRISU",
+            "weight": 10,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_LUXIO",
+            "weight": 5,
+            "minLevel": 15
+          },
+          {
+            "species": "SPECIES_KRICKETUNE",
+            "weight": 4,
+            "minLevel": 10
+          },
+          {
+            "species": "PHENOMENON_SPECIES_HONEY_TREE",
+            "weight": 4,
+            "minLevel": 0
+          }
+        ]
+      },
+      "surf": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_PSYDUCK",
+            "weight": 60,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MARILL",
+            "weight": 30,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_BUIZEL",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDUCK",
+            "weight": 4,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_VAPOREON",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "fish": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_MAGIKARP",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDEEN",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_SEAKING",
+            "weight": 15,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_GYARADOS",
+            "weight": 4,
+            "minLevel": 20
+          },
+          {
+            "species": "SPECIES_BARBOACH",
+            "weight": 1,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_ROUTE_205_SOUTH": {
+      "grass": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_HAPPINY",
+            "weight": 77,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_PACHIRISU",
+            "weight": 10,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MARILL",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_ROSELIA",
+            "weight": 4,
+            "minLevel": 0
+          },
+          {
+            "species": "PHENOMENON_SPECIES_HONEY_TREE",
+            "weight": 4,
+            "minLevel": 0
+          }
+        ]
+      },
+      "surf": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_BUIZEL",
+            "weight": 60,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_PSYDUCK",
+            "weight": 30,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MARILL",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_FLOATZEL",
+            "weight": 4,
+            "minLevel": 26
+          },
+          {
+            "species": "SPECIES_VAPOREON",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "fish": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_MAGIKARP",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_FINNEON",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_REMORAID",
+            "weight": 15,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MANTYKE",
+            "weight": 4,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_RELICANTH",
+            "weight": 1,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_ROUTE_206": {
+      "grass": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_HAPPINY",
+            "weight": 67,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_PACHIRISU",
+            "weight": 10,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_STUNKY",
+            "weight": 10,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_CHIMECHO",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_HOUNDOUR",
+            "weight": 4,
+            "minLevel": 0
+          },
+          {
+            "species": "PHENOMENON_SPECIES_HONEY_TREE",
+            "weight": 4,
+            "minLevel": 0
+          }
+        ]
+      },
+      "shadow_day": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_STARAVIA",
+            "weight": 99,
+            "minLevel": 14
+          },
+          {
+            "species": "SPECIES_CHATOT",
+            "weight": 1,
+            "minLevel": 0
+          }
+        ]
+      },
+      "shadow_night": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_MURKROW",
+            "weight": 100,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_ROUTE_207": {
+      "grass": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_HAPPINY",
+            "weight": 81,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_PACHIRISU",
+            "weight": 10,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_PICHU",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "PHENOMENON_SPECIES_HONEY_TREE",
+            "weight": 4,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_ROUTE_208": {
+      "grass": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_HAPPINY",
+            "weight": 96,
+            "minLevel": 0
+          },
+          {
+            "species": "PHENOMENON_SPECIES_HONEY_TREE",
+            "weight": 4,
+            "minLevel": 0
+          }
+        ]
+      },
+      "surf": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_PSYDUCK",
+            "weight": 60,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MARILL",
+            "weight": 30,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_BUIZEL",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDUCK",
+            "weight": 4,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_VAPOREON",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "fish": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_MAGIKARP",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDEEN",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_SEAKING",
+            "weight": 15,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_GYARADOS",
+            "weight": 4,
+            "minLevel": 20
+          },
+          {
+            "species": "SPECIES_BARBOACH",
+            "weight": 1,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_ROUTE_209": {
+      "grass": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_HAPPINY",
+            "weight": 76,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_PACHIRISU",
+            "weight": 10,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_KIRLIA",
+            "weight": 9,
+            "minLevel": 20
+          },
+          {
+            "species": "PHENOMENON_SPECIES_HONEY_TREE",
+            "weight": 4,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_SPIRITOMB",
+            "weight": 1,
+            "minLevel": 0
+          }
+        ]
+      },
+      "surf": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_PSYDUCK",
+            "weight": 60,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MARILL",
+            "weight": 30,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_BUIZEL",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDUCK",
+            "weight": 4,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_VAPOREON",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "fish": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_MAGIKARP",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDEEN",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_SEAKING",
+            "weight": 15,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_GYARADOS",
+            "weight": 4,
+            "minLevel": 20
+          },
+          {
+            "species": "SPECIES_BARBOACH",
+            "weight": 1,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_ROUTE_210_NORTH": {
+      "grass": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_HAPPINY",
+            "weight": 75,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_PACHIRISU",
+            "weight": 10,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_TOGETIC",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_KIRLIA",
+            "weight": 5,
+            "minLevel": 20
+          },
+          {
+            "species": "PHENOMENON_SPECIES_HONEY_TREE",
+            "weight": 4,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GARDEVOIR",
+            "weight": 1,
+            "minLevel": 30
+          }
+        ]
+      },
+      "surf": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_PSYDUCK",
+            "weight": 60,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MARILL",
+            "weight": 30,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_BUIZEL",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDUCK",
+            "weight": 4,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_VAPOREON",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "fish": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_MAGIKARP",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDEEN",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_SEAKING",
+            "weight": 15,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_GYARADOS",
+            "weight": 4,
+            "minLevel": 20
+          },
+          {
+            "species": "SPECIES_WHISCASH",
+            "weight": 1,
+            "minLevel": 30
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_ROUTE_210_SOUTH": {
+      "grass": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_HAPPINY",
+            "weight": 75,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_PACHIRISU",
+            "weight": 10,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_KRICKETUNE",
+            "weight": 5,
+            "minLevel": 10
+          },
+          {
+            "species": "SPECIES_BEAUTIFLY",
+            "weight": 4,
+            "minLevel": 10
+          },
+          {
+            "species": "PHENOMENON_SPECIES_HONEY_TREE",
+            "weight": 4,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_BUDEW",
+            "weight": 2,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_ROUTE_211_EAST": {
+      "grass": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_HAPPINY",
+            "weight": 75,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_PACHIRISU",
+            "weight": 10,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_PROBOPASS",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_CLEFAIRY",
+            "weight": 4,
+            "minLevel": 0
+          },
+          {
+            "species": "PHENOMENON_SPECIES_HONEY_TREE",
+            "weight": 4,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_CHIMECHO",
+            "weight": 2,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_ROUTE_211_WEST": {
+      "grass": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_HAPPINY",
+            "weight": 80,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_PACHIRISU",
+            "weight": 10,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_KRICKETUNE",
+            "weight": 5,
+            "minLevel": 10
+          },
+          {
+            "species": "SPECIES_CLEFAIRY",
+            "weight": 5,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_ROUTE_212_NORTH": {
+      "grass": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_HAPPINY",
+            "weight": 75,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_PACHIRISU",
+            "weight": 10,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_LOPUNNY",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_TOGETIC",
+            "weight": 4,
+            "minLevel": 0
+          },
+          {
+            "species": "PHENOMENON_SPECIES_HONEY_TREE",
+            "weight": 4,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MR_MIME",
+            "weight": 2,
+            "minLevel": 0
+          }
+        ]
+      },
+      "surf": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_PSYDUCK",
+            "weight": 60,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MARILL",
+            "weight": 30,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_BUIZEL",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDUCK",
+            "weight": 4,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_VAPOREON",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "fish": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_MAGIKARP",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDEEN",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_SEAKING",
+            "weight": 15,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_GYARADOS",
+            "weight": 4,
+            "minLevel": 20
+          },
+          {
+            "species": "SPECIES_BARBOACH",
+            "weight": 1,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_ROUTE_212_SOUTH": {
+      "grass": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_HAPPINY",
+            "weight": 75,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_PACHIRISU",
+            "weight": 10,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_AZUMARILL",
+            "weight": 5,
+            "minLevel": 18
+          },
+          {
+            "species": "SPECIES_ROSELIA",
+            "weight": 4,
+            "minLevel": 0
+          },
+          {
+            "species": "PHENOMENON_SPECIES_HONEY_TREE",
+            "weight": 4,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_FLOATZEL",
+            "weight": 2,
+            "minLevel": 26
+          }
+        ]
+      },
+      "surf": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_BUIZEL",
+            "weight": 60,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_PSYDUCK",
+            "weight": 30,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MARILL",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_FLOATZEL",
+            "weight": 4,
+            "minLevel": 26
+          },
+          {
+            "species": "SPECIES_VAPOREON",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "fish": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_MAGIKARP",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_FINNEON",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_REMORAID",
+            "weight": 15,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MANTYKE",
+            "weight": 4,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_RELICANTH",
+            "weight": 1,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_ROUTE_213": {
+      "grass": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_HAPPINY",
+            "weight": 75,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_PACHIRISU",
+            "weight": 10,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_TOGETIC",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_PIKACHU",
+            "weight": 4,
+            "minLevel": 0
+          },
+          {
+            "species": "PHENOMENON_SPECIES_HONEY_TREE",
+            "weight": 4,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_AZUMARILL",
+            "weight": 2,
+            "minLevel": 18
+          }
+        ]
+      },
+      "surf": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_BUIZEL",
+            "weight": 65,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_FLOATZEL",
+            "weight": 35,
+            "minLevel": 26
+          }
+        ]
+      },
+      "fish": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_MAGIKARP",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_FINNEON",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_REMORAID",
+            "weight": 15,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MANTYKE",
+            "weight": 4,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_RELICANTH",
+            "weight": 1,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_ROUTE_214": {
+      "grass": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_HAPPINY",
+            "weight": 65,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_PACHIRISU",
+            "weight": 10,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_STUNKY",
+            "weight": 10,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_PORYGON",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_HOUNDOOM",
+            "weight": 4,
+            "minLevel": 24
+          },
+          {
+            "species": "PHENOMENON_SPECIES_HONEY_TREE",
+            "weight": 4,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_SUDOWOODO",
+            "weight": 2,
+            "minLevel": 0
+          }
+        ]
+      },
+      "surf": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_PSYDUCK",
+            "weight": 60,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MARILL",
+            "weight": 30,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_BUIZEL",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDUCK",
+            "weight": 4,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_VAPOREON",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "fish": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_MAGIKARP",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDEEN",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_SEAKING",
+            "weight": 15,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_GYARADOS",
+            "weight": 4,
+            "minLevel": 20
+          },
+          {
+            "species": "SPECIES_BARBOACH",
+            "weight": 1,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_ROUTE_215": {
+      "grass": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_HAPPINY",
+            "weight": 75,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_PACHIRISU",
+            "weight": 10,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_PORYGON",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_TOGETIC",
+            "weight": 4,
+            "minLevel": 0
+          },
+          {
+            "species": "PHENOMENON_SPECIES_HONEY_TREE",
+            "weight": 4,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_PIKACHU",
+            "weight": 2,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_ROUTE_216": {
+      "grass": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_CHANSEY",
+            "weight": 75,
+            "minLevel": 35
+          },
+          {
+            "species": "SPECIES_PACHIRISU",
+            "weight": 10,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MAMOSWINE",
+            "weight": 5,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_FROSLASS",
+            "weight": 5,
+            "minLevel": 35
+          },
+          {
+            "species": "SPECIES_ALTARIA",
+            "weight": 4,
+            "minLevel": 35
+          },
+          {
+            "species": "SPECIES_BLISSEY",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_ROUTE_217": {
+      "grass": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_CHANSEY",
+            "weight": 75,
+            "minLevel": 35
+          },
+          {
+            "species": "SPECIES_PACHIRISU",
+            "weight": 10,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MAMOSWINE",
+            "weight": 5,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_ALTARIA",
+            "weight": 4,
+            "minLevel": 35
+          },
+          {
+            "species": "SPECIES_FROSLASS",
+            "weight": 4,
+            "minLevel": 35
+          },
+          {
+            "species": "SPECIES_GLACEON",
+            "weight": 1,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_BLISSEY",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_ROUTE_218": {
+      "grass": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_HAPPINY",
+            "weight": 65,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_PACHIRISU",
+            "weight": 10,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GLAMEOW",
+            "weight": 10,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_TOGETIC",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_LUXIO",
+            "weight": 4,
+            "minLevel": 15
+          },
+          {
+            "species": "PHENOMENON_SPECIES_HONEY_TREE",
+            "weight": 4,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_AZUMARILL",
+            "weight": 2,
+            "minLevel": 18
+          }
+        ]
+      },
+      "surf": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_BUIZEL",
+            "weight": 60,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_PSYDUCK",
+            "weight": 30,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MARILL",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_FLOATZEL",
+            "weight": 4,
+            "minLevel": 26
+          },
+          {
+            "species": "SPECIES_VAPOREON",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "fish": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_MAGIKARP",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_FINNEON",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_REMORAID",
+            "weight": 15,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MANTYKE",
+            "weight": 4,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_RELICANTH",
+            "weight": 1,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_ROUTE_219": {
+      "surf": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_BUIZEL",
+            "weight": 60,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_PSYDUCK",
+            "weight": 30,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MARILL",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_FLOATZEL",
+            "weight": 4,
+            "minLevel": 26
+          },
+          {
+            "species": "SPECIES_VAPOREON",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "fish": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_MAGIKARP",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_FINNEON",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_REMORAID",
+            "weight": 15,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MANTYKE",
+            "weight": 4,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_RELICANTH",
+            "weight": 1,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_ROUTE_220": {
+      "surf": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_BUIZEL",
+            "weight": 60,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_PSYDUCK",
+            "weight": 30,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MARILL",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_FLOATZEL",
+            "weight": 4,
+            "minLevel": 26
+          },
+          {
+            "species": "SPECIES_VAPOREON",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "fish": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_MAGIKARP",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_FINNEON",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_REMORAID",
+            "weight": 15,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MANTYKE",
+            "weight": 4,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_RELICANTH",
+            "weight": 1,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_ROUTE_221": {
+      "grass": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_HAPPINY",
+            "weight": 55,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_PACHIRISU",
+            "weight": 10,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_STUNKY",
+            "weight": 10,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_SKUNTANK",
+            "weight": 10,
+            "minLevel": 34
+          },
+          {
+            "species": "SPECIES_TOGETIC",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_LOPUNNY",
+            "weight": 4,
+            "minLevel": 0
+          },
+          {
+            "species": "PHENOMENON_SPECIES_HONEY_TREE",
+            "weight": 4,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_HOUNDOOM",
+            "weight": 2,
+            "minLevel": 24
+          }
+        ]
+      },
+      "surf": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_BUIZEL",
+            "weight": 60,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_PSYDUCK",
+            "weight": 30,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MARILL",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_FLOATZEL",
+            "weight": 4,
+            "minLevel": 26
+          },
+          {
+            "species": "SPECIES_VAPOREON",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "fish": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_MAGIKARP",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_FINNEON",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_REMORAID",
+            "weight": 15,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MANTYKE",
+            "weight": 4,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_RELICANTH",
+            "weight": 1,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_ROUTE_222": {
+      "grass": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_CHANSEY",
+            "weight": 55,
+            "minLevel": 35
+          },
+          {
+            "species": "SPECIES_PACHIRISU",
+            "weight": 10,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GLAMEOW",
+            "weight": 10,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_PURUGLY",
+            "weight": 10,
+            "minLevel": 38
+          },
+          {
+            "species": "SPECIES_TOGEKISS",
+            "weight": 5,
+            "minLevel": 35
+          },
+          {
+            "species": "SPECIES_LOPUNNY",
+            "weight": 4,
+            "minLevel": 0
+          },
+          {
+            "species": "PHENOMENON_SPECIES_HONEY_TREE",
+            "weight": 4,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_ELECTIVIRE",
+            "weight": 1,
+            "minLevel": 38
+          },
+          {
+            "species": "SPECIES_BLISSEY",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "surf": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_BUIZEL",
+            "weight": 60,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_PSYDUCK",
+            "weight": 30,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MARILL",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_FLOATZEL",
+            "weight": 4,
+            "minLevel": 26
+          },
+          {
+            "species": "SPECIES_VAPOREON",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "fish": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_MAGIKARP",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_FINNEON",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_REMORAID",
+            "weight": 15,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MANTYKE",
+            "weight": 4,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_RELICANTH",
+            "weight": 1,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_ROUTE_223": {
+      "surf": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_BUIZEL",
+            "weight": 60,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_PSYDUCK",
+            "weight": 30,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MARILL",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_FLOATZEL",
+            "weight": 4,
+            "minLevel": 26
+          },
+          {
+            "species": "SPECIES_VAPOREON",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "fish": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_MAGIKARP",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_FINNEON",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_REMORAID",
+            "weight": 15,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MANTYKE",
+            "weight": 4,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_RELICANTH",
+            "weight": 1,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_ROUTE_224": {
+      "grass": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_CHANSEY",
+            "weight": 75,
+            "minLevel": 35
+          },
+          {
+            "species": "SPECIES_PACHIRISU",
+            "weight": 10,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_TOGEKISS",
+            "weight": 5,
+            "minLevel": 35
+          },
+          {
+            "species": "SPECIES_ROSERADE",
+            "weight": 5,
+            "minLevel": 35
+          },
+          {
+            "species": "SPECIES_LOPUNNY",
+            "weight": 4,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_BLISSEY",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "surf": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_BUIZEL",
+            "weight": 60,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_PSYDUCK",
+            "weight": 30,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MARILL",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_FLOATZEL",
+            "weight": 4,
+            "minLevel": 26
+          },
+          {
+            "species": "SPECIES_VAPOREON",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "fish": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_MAGIKARP",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_FINNEON",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_REMORAID",
+            "weight": 15,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MANTYKE",
+            "weight": 4,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_RELICANTH",
+            "weight": 1,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_ROUTE_225": {
+      "grass": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_CHANSEY",
+            "weight": 75,
+            "minLevel": 35
+          },
+          {
+            "species": "SPECIES_PACHIRISU",
+            "weight": 10,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GALLADE",
+            "weight": 5,
+            "minLevel": 35
+          },
+          {
+            "species": "SPECIES_MACHAMP",
+            "weight": 5,
+            "minLevel": 38
+          },
+          {
+            "species": "SPECIES_GARCHOMP",
+            "weight": 4,
+            "minLevel": 48
+          },
+          {
+            "species": "SPECIES_BLISSEY",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "surf": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_PSYDUCK",
+            "weight": 60,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MARILL",
+            "weight": 30,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_BUIZEL",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDUCK",
+            "weight": 4,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_VAPOREON",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "fish": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_MAGIKARP",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDEEN",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_SEAKING",
+            "weight": 15,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_GYARADOS",
+            "weight": 4,
+            "minLevel": 20
+          },
+          {
+            "species": "SPECIES_WHISCASH",
+            "weight": 1,
+            "minLevel": 30
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_ROUTE_226": {
+      "grass": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_CHANSEY",
+            "weight": 75,
+            "minLevel": 35
+          },
+          {
+            "species": "SPECIES_PACHIRISU",
+            "weight": 10,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_HONCHKROW",
+            "weight": 5,
+            "minLevel": 38
+          },
+          {
+            "species": "SPECIES_ELECTIVIRE",
+            "weight": 5,
+            "minLevel": 38
+          },
+          {
+            "species": "SPECIES_GARCHOMP",
+            "weight": 4,
+            "minLevel": 48
+          },
+          {
+            "species": "SPECIES_BLISSEY",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "surf": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_BUIZEL",
+            "weight": 60,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_PSYDUCK",
+            "weight": 30,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MARILL",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_FLOATZEL",
+            "weight": 4,
+            "minLevel": 26
+          },
+          {
+            "species": "SPECIES_VAPOREON",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "fish": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_MAGIKARP",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_FINNEON",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_REMORAID",
+            "weight": 15,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MANTYKE",
+            "weight": 4,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_RELICANTH",
+            "weight": 1,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_ROUTE_227": {
+      "grass": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_CHANSEY",
+            "weight": 75,
+            "minLevel": 35
+          },
+          {
+            "species": "SPECIES_PACHIRISU",
+            "weight": 10,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MAGNEZONE",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GARCHOMP",
+            "weight": 5,
+            "minLevel": 48
+          },
+          {
+            "species": "SPECIES_MAGMORTAR",
+            "weight": 4,
+            "minLevel": 38
+          },
+          {
+            "species": "SPECIES_BLISSEY",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "surf": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_PSYDUCK",
+            "weight": 60,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MARILL",
+            "weight": 30,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_BUIZEL",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDUCK",
+            "weight": 4,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_VAPOREON",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "fish": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_MAGIKARP",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDEEN",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_SEAKING",
+            "weight": 15,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_GYARADOS",
+            "weight": 4,
+            "minLevel": 20
+          },
+          {
+            "species": "SPECIES_WHISCASH",
+            "weight": 1,
+            "minLevel": 30
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_ROUTE_228": {
+      "grass": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_CHANSEY",
+            "weight": 75,
+            "minLevel": 35
+          },
+          {
+            "species": "SPECIES_PACHIRISU",
+            "weight": 10,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_BASTIODON",
+            "weight": 5,
+            "minLevel": 30
+          },
+          {
+            "species": "SPECIES_GARCHOMP",
+            "weight": 5,
+            "minLevel": 48
+          },
+          {
+            "species": "SPECIES_BLISSEY",
+            "weight": 4,
+            "minLevel": 35
+          },
+          {
+            "species": "SPECIES_RAMPARDOS",
+            "weight": 1,
+            "minLevel": 30
+          }
+        ]
+      },
+      "surf": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_PSYDUCK",
+            "weight": 60,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MARILL",
+            "weight": 30,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_BUIZEL",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDUCK",
+            "weight": 4,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_VAPOREON",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "fish": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_MAGIKARP",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDEEN",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_SEAKING",
+            "weight": 15,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_GYARADOS",
+            "weight": 4,
+            "minLevel": 20
+          },
+          {
+            "species": "SPECIES_WHISCASH",
+            "weight": 1,
+            "minLevel": 30
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_ROUTE_229": {
+      "grass": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_CHANSEY",
+            "weight": 75,
+            "minLevel": 35
+          },
+          {
+            "species": "SPECIES_PACHIRISU",
+            "weight": 10,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_TOGEKISS",
+            "weight": 5,
+            "minLevel": 35
+          },
+          {
+            "species": "SPECIES_SCIZOR",
+            "weight": 5,
+            "minLevel": 38
+          },
+          {
+            "species": "SPECIES_ROSERADE",
+            "weight": 4,
+            "minLevel": 35
+          },
+          {
+            "species": "SPECIES_BLISSEY",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "surf": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_PSYDUCK",
+            "weight": 60,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MARILL",
+            "weight": 30,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_BUIZEL",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDUCK",
+            "weight": 4,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_VAPOREON",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "fish": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_MAGIKARP",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDEEN",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_SEAKING",
+            "weight": 15,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_GYARADOS",
+            "weight": 4,
+            "minLevel": 20
+          },
+          {
+            "species": "SPECIES_WHISCASH",
+            "weight": 1,
+            "minLevel": 30
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_ROUTE_230": {
+      "grass": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_CHANSEY",
+            "weight": 75,
+            "minLevel": 35
+          },
+          {
+            "species": "SPECIES_PACHIRISU",
+            "weight": 10,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_TOGEKISS",
+            "weight": 5,
+            "minLevel": 35
+          },
+          {
+            "species": "SPECIES_LOPUNNY",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_TOGETIC",
+            "weight": 4,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_BLISSEY",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "surf": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_BUIZEL",
+            "weight": 60,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_PSYDUCK",
+            "weight": 30,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MARILL",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_FLOATZEL",
+            "weight": 4,
+            "minLevel": 26
+          },
+          {
+            "species": "SPECIES_VAPOREON",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "fish": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_MAGIKARP",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_FINNEON",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_REMORAID",
+            "weight": 15,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MANTYKE",
+            "weight": 4,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_RELICANTH",
+            "weight": 1,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_RUIN_MANIAC_CAVE_LONG": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 100,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_RUIN_MANIAC_CAVE_SHORT": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 100,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_SENDOFF_SPRING": {
+      "grass": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_CHANSEY",
+            "weight": 75,
+            "minLevel": 35
+          },
+          {
+            "species": "SPECIES_PACHIRISU",
+            "weight": 10,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GENGAR",
+            "weight": 5,
+            "minLevel": 38
+          },
+          {
+            "species": "SPECIES_DUSKNOIR",
+            "weight": 5,
+            "minLevel": 38
+          },
+          {
+            "species": "SPECIES_MISMAGIUS",
+            "weight": 4,
+            "minLevel": 38
+          },
+          {
+            "species": "SPECIES_BLISSEY",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "surf": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_PSYDUCK",
+            "weight": 60,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MARILL",
+            "weight": 30,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_BUIZEL",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDUCK",
+            "weight": 4,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_VAPOREON",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "fish": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_MAGIKARP",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDEEN",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_SEAKING",
+            "weight": 15,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_GYARADOS",
+            "weight": 4,
+            "minLevel": 20
+          },
+          {
+            "species": "SPECIES_WHISCASH",
+            "weight": 1,
+            "minLevel": 30
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_SNOWPOINT_TEMPLE_1F": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 94,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_STEELIX",
+            "weight": 5,
+            "minLevel": 38
+          },
+          {
+            "species": "SPECIES_GARCHOMP",
+            "weight": 1,
+            "minLevel": 48
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_SNOWPOINT_TEMPLE_B1F": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 94,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_STEELIX",
+            "weight": 5,
+            "minLevel": 38
+          },
+          {
+            "species": "SPECIES_GARCHOMP",
+            "weight": 1,
+            "minLevel": 48
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_SNOWPOINT_TEMPLE_B2F": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 94,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_STEELIX",
+            "weight": 5,
+            "minLevel": 38
+          },
+          {
+            "species": "SPECIES_GARCHOMP",
+            "weight": 1,
+            "minLevel": 48
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_SNOWPOINT_TEMPLE_B3F": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 94,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_STEELIX",
+            "weight": 5,
+            "minLevel": 38
+          },
+          {
+            "species": "SPECIES_GARCHOMP",
+            "weight": 1,
+            "minLevel": 48
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_SNOWPOINT_TEMPLE_B4F": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 94,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_STEELIX",
+            "weight": 5,
+            "minLevel": 38
+          },
+          {
+            "species": "SPECIES_GARCHOMP",
+            "weight": 1,
+            "minLevel": 48
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_SNOWPOINT_TEMPLE_B5F": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 94,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_STEELIX",
+            "weight": 5,
+            "minLevel": 38
+          },
+          {
+            "species": "SPECIES_GARCHOMP",
+            "weight": 1,
+            "minLevel": 48
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_SOLACEON_RUINS_MANIAC_TUNNEL_ROOM": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 100,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_SOLACEON_RUINS_ROOM_1_NORTHWEST_DEAD_END": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 100,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_SOLACEON_RUINS_ROOM_1_SOUTHEAST_DEAD_END": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 100,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_SOLACEON_RUINS_ROOM_2": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 100,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_SOLACEON_RUINS_ROOM_2_NORTHEAST_DEAD_END": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 100,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_SOLACEON_RUINS_ROOM_2_SOUTHEAST_DEAD_END": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 100,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_SOLACEON_RUINS_ROOM_3": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 100,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_SOLACEON_RUINS_ROOM_3_NORTHWEST_DEAD_END": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 100,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_SOLACEON_RUINS_ROOM_3_SOUTHWEST_DEAD_END": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 100,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_SOLACEON_RUINS_ROOM_4": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 100,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_SOLACEON_RUINS_ROOM_4_SOUTHEAST_DEAD_END": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 100,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_SOLACEON_RUINS_ROOM_5": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 100,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_SOLACEON_RUINS_ROOM_5_SOUTHEAST_DEADEND": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 100,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_SOLACEON_RUINS_ROOM_5_SOUTHWEST_DEAD_END": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 100,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_SOLACEON_RUINS_ROOM_6": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 100,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_SOLACEON_RUINS_ROOM_6_NORTHWEST_DEAD_END": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 100,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_SOLACEON_RUINS_ROOM_6_SOUTHEAST_DEAD_END": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 100,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_SOLACEON_RUINS_ROOM_7": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 100,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_STARK_MOUNTAIN_OUTSIDE": {
+      "grass": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_CHANSEY",
+            "weight": 75,
+            "minLevel": 35
+          },
+          {
+            "species": "SPECIES_PACHIRISU",
+            "weight": 10,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MAGNEZONE",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GARCHOMP",
+            "weight": 5,
+            "minLevel": 48
+          },
+          {
+            "species": "SPECIES_MAGMORTAR",
+            "weight": 4,
+            "minLevel": 38
+          },
+          {
+            "species": "SPECIES_BLISSEY",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_STARK_MOUNTAIN_ROOM_1": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 94,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_STEELIX",
+            "weight": 5,
+            "minLevel": 38
+          },
+          {
+            "species": "SPECIES_GARCHOMP",
+            "weight": 1,
+            "minLevel": 48
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_STARK_MOUNTAIN_ROOM_2": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 94,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_STEELIX",
+            "weight": 5,
+            "minLevel": 38
+          },
+          {
+            "species": "SPECIES_GARCHOMP",
+            "weight": 1,
+            "minLevel": 48
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_SUNYSHORE_CITY": {
+      "surf": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_BUIZEL",
+            "weight": 60,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_PSYDUCK",
+            "weight": 30,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MARILL",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_FLOATZEL",
+            "weight": 4,
+            "minLevel": 26
+          },
+          {
+            "species": "SPECIES_VAPOREON",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "fish": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_MAGIKARP",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_FINNEON",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_REMORAID",
+            "weight": 15,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MANTYKE",
+            "weight": 4,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_RELICANTH",
+            "weight": 1,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_TURNBACK_CAVE_ENTRANCE": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 100,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_TURNBACK_CAVE_PILLAR_1_ROOM_1": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 100,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_TURNBACK_CAVE_PILLAR_1_ROOM_2": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 100,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_TURNBACK_CAVE_PILLAR_1_ROOM_3": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 100,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_TURNBACK_CAVE_PILLAR_1_ROOM_4": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 100,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_TURNBACK_CAVE_PILLAR_1_ROOM_5": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 100,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_TURNBACK_CAVE_PILLAR_1_ROOM_6": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 100,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_TURNBACK_CAVE_PILLAR_2_ROOM_1": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 100,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_TURNBACK_CAVE_PILLAR_2_ROOM_2": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 100,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_TURNBACK_CAVE_PILLAR_2_ROOM_3": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 100,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_TURNBACK_CAVE_PILLAR_2_ROOM_4": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 100,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_TURNBACK_CAVE_PILLAR_2_ROOM_5": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 100,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_TURNBACK_CAVE_PILLAR_2_ROOM_6": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 100,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_TURNBACK_CAVE_PILLAR_3_ROOM_1": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 95,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_STEELIX",
+            "weight": 5,
+            "minLevel": 38
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_TURNBACK_CAVE_PILLAR_3_ROOM_2": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 95,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_STEELIX",
+            "weight": 5,
+            "minLevel": 38
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_TURNBACK_CAVE_PILLAR_3_ROOM_3": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 95,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_STEELIX",
+            "weight": 5,
+            "minLevel": 38
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_TURNBACK_CAVE_PILLAR_3_ROOM_4": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 95,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_STEELIX",
+            "weight": 5,
+            "minLevel": 38
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_TURNBACK_CAVE_PILLAR_3_ROOM_5": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 95,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_STEELIX",
+            "weight": 5,
+            "minLevel": 38
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_TURNBACK_CAVE_PILLAR_3_ROOM_6": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 95,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_STEELIX",
+            "weight": 5,
+            "minLevel": 38
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_TURNBACK_CAVE_PILLAR_ROOM": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 95,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_STEELIX",
+            "weight": 5,
+            "minLevel": 38
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_TWINLEAF_TOWN": {
+      "surf": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_PSYDUCK",
+            "weight": 60,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MARILL",
+            "weight": 30,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_BUIZEL",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDUCK",
+            "weight": 4,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_VAPOREON",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "fish": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_MAGIKARP",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDEEN",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_SEAKING",
+            "weight": 15,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_GYARADOS",
+            "weight": 4,
+            "minLevel": 20
+          },
+          {
+            "species": "SPECIES_BARBOACH",
+            "weight": 1,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_VALLEY_WINDWORKS_OUTSIDE": {
+      "grass": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_HAPPINY",
+            "weight": 76,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_PACHIRISU",
+            "weight": 10,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_PIKACHU",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_PICHU",
+            "weight": 4,
+            "minLevel": 0
+          },
+          {
+            "species": "PHENOMENON_SPECIES_HONEY_TREE",
+            "weight": 4,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_DRIFLOON",
+            "weight": 1,
+            "minLevel": 0
+          }
+        ]
+      },
+      "surf": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_BUIZEL",
+            "weight": 60,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_PSYDUCK",
+            "weight": 30,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MARILL",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_FLOATZEL",
+            "weight": 4,
+            "minLevel": 26
+          },
+          {
+            "species": "SPECIES_VAPOREON",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "fish": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_MAGIKARP",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_FINNEON",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_REMORAID",
+            "weight": 15,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MANTYKE",
+            "weight": 4,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_RELICANTH",
+            "weight": 1,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_VALOR_LAKEFRONT": {
+      "grass": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_HAPPINY",
+            "weight": 75,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_PACHIRISU",
+            "weight": 10,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_LUXRAY",
+            "weight": 5,
+            "minLevel": 30
+          },
+          {
+            "species": "SPECIES_HOUNDOOM",
+            "weight": 5,
+            "minLevel": 24
+          },
+          {
+            "species": "SPECIES_LOPUNNY",
+            "weight": 5,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_VICTORY_ROAD_1F": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 94,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_STEELIX",
+            "weight": 5,
+            "minLevel": 38
+          },
+          {
+            "species": "SPECIES_GABITE",
+            "weight": 1,
+            "minLevel": 24
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_VICTORY_ROAD_1F_ROOM_1": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 94,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_STEELIX",
+            "weight": 5,
+            "minLevel": 38
+          },
+          {
+            "species": "SPECIES_GARCHOMP",
+            "weight": 1,
+            "minLevel": 48
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_VICTORY_ROAD_1F_ROOM_2": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 94,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_STEELIX",
+            "weight": 5,
+            "minLevel": 38
+          },
+          {
+            "species": "SPECIES_GARCHOMP",
+            "weight": 1,
+            "minLevel": 48
+          }
+        ]
+      },
+      "surf": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_PSYDUCK",
+            "weight": 60,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MARILL",
+            "weight": 30,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_BUIZEL",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDUCK",
+            "weight": 4,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_VAPOREON",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "fish": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_MAGIKARP",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDEEN",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_SEAKING",
+            "weight": 15,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_GYARADOS",
+            "weight": 4,
+            "minLevel": 20
+          },
+          {
+            "species": "SPECIES_WHISCASH",
+            "weight": 1,
+            "minLevel": 30
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_VICTORY_ROAD_1F_ROOM_3": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 94,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_STEELIX",
+            "weight": 5,
+            "minLevel": 38
+          },
+          {
+            "species": "SPECIES_GARCHOMP",
+            "weight": 1,
+            "minLevel": 48
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_VICTORY_ROAD_2F": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 94,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_STEELIX",
+            "weight": 5,
+            "minLevel": 38
+          },
+          {
+            "species": "SPECIES_GABITE",
+            "weight": 1,
+            "minLevel": 24
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_VICTORY_ROAD_B1F": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 94,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_STEELIX",
+            "weight": 5,
+            "minLevel": 38
+          },
+          {
+            "species": "SPECIES_GABITE",
+            "weight": 1,
+            "minLevel": 24
+          }
+        ]
+      },
+      "surf": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_PSYDUCK",
+            "weight": 60,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_MARILL",
+            "weight": 30,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_BUIZEL",
+            "weight": 5,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDUCK",
+            "weight": 4,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_VAPOREON",
+            "weight": 1,
+            "minLevel": 35
+          }
+        ]
+      },
+      "fish": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_MAGIKARP",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_GOLDEEN",
+            "weight": 40,
+            "minLevel": 0
+          },
+          {
+            "species": "SPECIES_SEAKING",
+            "weight": 15,
+            "minLevel": 33
+          },
+          {
+            "species": "SPECIES_GYARADOS",
+            "weight": 4,
+            "minLevel": 20
+          },
+          {
+            "species": "SPECIES_WHISCASH",
+            "weight": 1,
+            "minLevel": 30
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_WAYWARD_CAVE_1F": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 100,
+            "minLevel": 0
+          }
+        ]
+      }
+    },
+    "MAP_HEADER_WAYWARD_CAVE_B1F": {
+      "dust": {
+        "floorMinLv": 0,
+        "floorMaxLv": 0,
+        "slots": [
+          {
+            "species": "SPECIES_ONIX",
+            "weight": 100,
+            "minLevel": 0
+          }
+        ]
+      }
+    }
+  }
+}

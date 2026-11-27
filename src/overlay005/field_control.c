@@ -18,6 +18,7 @@
 #include "field/field_system.h"
 #include "field/field_system_sub2_t.h"
 #include "overlay005/daycare.h"
+#include "overlay005/field_phenomena.h"
 #include "overlay005/honey_tree.h"
 #include "overlay005/ov5_021DFB54.h"
 #include "overlay005/ov5_021E1154.h"
@@ -601,6 +602,11 @@ static BOOL Field_CheckWildEncounter(FieldSystem *fieldSystem)
         } else {
             return FALSE;
         }
+    }
+
+    int phenomResult = FieldPhenomena_CheckStepTrigger(fieldSystem);
+    if (phenomResult != 0) {
+        return (phenomResult > 0);
     }
 
     return MapHeader_HasWildEncounters(fieldSystem->location->mapHeaderID) && WildEncounters_TryWildEncounter(fieldSystem) == TRUE;

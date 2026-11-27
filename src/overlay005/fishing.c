@@ -8,6 +8,7 @@
 #include "struct_decls/map_object.h"
 
 #include "field/field_system.h"
+#include "overlay005/field_phenomena.h"
 #include "overlay005/ov5_021DFB54.h"
 #include "overlay005/ov5_021F5A10.h"
 #include "overlay006/wild_encounters.h"
@@ -125,7 +126,11 @@ BOOL FieldTask_Fishing(FieldTask *taskMan)
     case 0:
         MapObjectMan_PauseAllMovement(fieldSystem->mapObjMan);
         fishingContext->fishEncounterDTO = NULL;
-        fishingContext->isFishEncountered = WildEncounters_TryFishingEncounter(fieldSystem, fishingContext->rodType, &fishingContext->fishEncounterDTO);
+        if (FieldPhenomena_TrySuperRodEncounter(fieldSystem, fishingContext->rodType, &fishingContext->fishEncounterDTO) == TRUE) {
+            fishingContext->isFishEncountered = TRUE;
+        } else {
+            fishingContext->isFishEncountered = WildEncounters_TryFishingEncounter(fieldSystem, fishingContext->rodType, &fishingContext->fishEncounterDTO);
+        }
         fishingContext->sysTask = StartFishingTask(fieldSystem, fishingContext->rodType, fishingContext->isFishEncountered);
         fishingContext->state++;
         break;

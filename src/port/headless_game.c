@@ -17,6 +17,7 @@
 
 #include "field/field_system.h"
 #include "field/field_system_sub2_t.h"
+#include "overlay005/field_phenomena.h"
 #include "overlay005/land_data.h"
 #include "overlay005/map_name_popup.h"
 #include "field_map_change.h"
@@ -432,6 +433,59 @@ static void CmdReloadScripts(const char *line, char *reply, size_t cap) {
              mapName ? mapName : "MAP_HEADER_?", r.mapHeader, r.scriptArchive, r.textBank, r.scriptBytes, r.textBytes);
 }
 
+static const char *PhenomenonTypeName(enum PhenomenonType type) {
+    switch (type) {
+    case PHENOMENON_GRASS:  return "grass";
+    case PHENOMENON_DUST:   return "dust";
+    case PHENOMENON_WATER:  return "water";
+    case PHENOMENON_SHADOW: return "shadow";
+    default:                return "none";
+    }
+}
+
+static void CmdSpawnPhenomenon(const char *line, char *reply, size_t cap) {
+    char typeStr[32] = { 0 };
+    FieldSystem *fsys = DEBUG_GetFieldSystem();
+    if (!fsys) { ErrOut(reply, cap, "not in the field"); return; }
+    if (!JsonStr(line, "type", typeStr, sizeof(typeStr))) {
+        ErrOut(reply, cap, "spawn_phenomenon needs type"); return;
+    }
+    enum PhenomenonType ptype = PHENOMENON_NONE;
+    if (strcmp(typeStr, "grass") == 0) ptype = PHENOMENON_GRASS;
+    else if (strcmp(typeStr, "dust") == 0) ptype = PHENOMENON_DUST;
+    else if (strcmp(typeStr, "water") == 0) ptype = PHENOMENON_WATER;
+    else if (strcmp(typeStr, "shadow") == 0) ptype = PHENOMENON_SHADOW;
+    else { ErrOut(reply, cap, "unknown phenomenon type"); return; }
+
+    long tx = 0, tz = 0;
+    BOOL hasX = JsonLong(line, "x", &tx);
+    BOOL hasZ = JsonLong(line, "z", &tz);
+    BOOL hasCoords = (hasX && hasZ);
+
+    if (!FieldPhenomena_DebugForceSpawn(fsys, ptype, hasCoords, (int)tx, (int)tz)) {
+        ErrOut(reply, cap, "spawn_phenomenon failed"); return;
+    }
+
+    BOOL active = FALSE;
+    enum PhenomenonType outType = PHENOMENON_NONE;
+    int mapId = 0, outX = 0, outZ = 0, steps = 0;
+    FieldPhenomena_GetState(&active, &outType, &mapId, &outX, &outZ, &steps);
+    snprintf(reply, cap,
+        "{\"ok\":true,\"active\":%s,\"type\":\"%s\",\"map\":%d,\"x\":%d,\"z\":%d,\"steps\":%d}",
+        active ? "true" : "false", PhenomenonTypeName(outType), mapId, outX, outZ, steps);
+}
+
+static void CmdPhenomenonState(const char *line, char *reply, size_t cap) {
+    (void)line;
+    BOOL active = FALSE;
+    enum PhenomenonType outType = PHENOMENON_NONE;
+    int mapId = 0, outX = 0, outZ = 0, steps = 0;
+    FieldPhenomena_GetState(&active, &outType, &mapId, &outX, &outZ, &steps);
+    snprintf(reply, cap,
+        "{\"ok\":true,\"active\":%s,\"type\":\"%s\",\"map\":%d,\"x\":%d,\"z\":%d,\"steps\":%d}",
+        active ? "true" : "false", PhenomenonTypeName(outType), mapId, outX, outZ, steps);
+}
+
 int HeadlessGame_Command(const char *line, char *reply, size_t cap) {
     char cmd[64];
     if (!JsonStr(line, "cmd", cmd, sizeof(cmd))) return 0;
@@ -469,6 +523,8 @@ int HeadlessGame_Command(const char *line, char *reply, size_t cap) {
         OutFmt(&o, "}");
     }
     else if (strcmp(cmd, "start_battle") == 0) return HeadlessBattle_Start(line, reply, cap);
+    else if (strcmp(cmd, "spawn_phenomenon") == 0) CmdSpawnPhenomenon(line, reply, cap);
+    else if (strcmp(cmd, "phenomenon_state") == 0) CmdPhenomenonState(line, reply, cap);
     else return 0;
     return 1;
 }
