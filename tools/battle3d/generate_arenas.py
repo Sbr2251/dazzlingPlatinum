@@ -146,6 +146,7 @@ def build_plain_route() -> ArenaScene:
     bark_tex = scene.add_texture(128, 128, make_bark_texture(128, 106), B3D_TEX_FLAG_REPEAT)
 
     sky_sm = scene.add_submesh(sky_tex, SKY_FLAGS, roughness=1.0, fog_factor=0.0)
+    mtn_sm = scene.add_submesh(rock_tex, B3D_SUBMESH_RECEIVE_SHADOW, roughness=0.95, fog_factor=1.0)
     ground_sm = scene.add_submesh(ground_tex, B3D_SUBMESH_RECEIVE_SHADOW, roughness=0.9, fog_factor=0.72)
     rock_sm = scene.add_submesh(rock_tex, SHADOW_BOTH, roughness=0.88, fog_factor=0.85)
     cap_sm = scene.add_submesh(ground_tex, SHADOW_BOTH, roughness=0.85, fog_factor=0.82)
@@ -155,6 +156,7 @@ def build_plain_route() -> ArenaScene:
     tuft_sm = scene.add_submesh(-1, B3D_SUBMESH_RECEIVE_SHADOW | B3D_SUBMESH_DOUBLE_SIDED, roughness=0.8, fog_factor=0.82)
 
     add_sky_dome(sky_sm, radius=74.0, segs_u=32, segs_v=12)
+    add_mountain_ring(mtn_sm, rng, r_inner=40.0, r_peak=52.0, r_outer=64.0, segs=72)
 
     # Smooth flat clearing (r <= 9.2) rising into rolling green hills behind cliffs.
     def height_fn(x: float, z: float) -> float:
@@ -188,18 +190,18 @@ def build_plain_route() -> ArenaScene:
     # Camera looks along (+0.37, -0.09, -0.92), so z=-10..-16, x=-10..+18 is hero framing.
     cliff_specs = [
         # Hero back cliffs directly behind opponent & framing left/right
-        (-7.5, -10.8, 6.2, 4.4, 2.35, 0.25),
-        (-1.4, -12.6, 6.8, 4.6, 2.05, -0.10),
-        (5.6, -12.4, 7.2, 4.8, 2.55, -0.32),
-        (11.8, -9.8, 6.6, 4.5, 2.45, -0.68),
-        (14.6, -3.6, 6.0, 4.4, 2.15, -1.25),
-        (-12.2, -5.8, 6.2, 4.4, 2.25, 0.85),
+        (-7.5, -10.8, 6.2, 4.4, 1.75, 0.25),
+        (-1.4, -12.6, 6.8, 4.6, 1.60, -0.10),
+        (5.6, -12.4, 7.2, 4.8, 1.85, -0.32),
+        (11.8, -9.8, 6.6, 4.5, 1.80, -0.68),
+        (14.6, -3.6, 6.0, 4.4, 1.65, -1.25),
+        (-12.2, -5.8, 6.2, 4.4, 1.75, 0.85),
         # Rear wrap cliffs so orbits have zero holes
-        (13.2, 4.0, 6.2, 4.2, 1.95, -1.85),
-        (8.0, 11.2, 6.6, 4.4, 1.85, -2.55),
-        (-1.5, 13.0, 7.0, 4.4, 1.80, 3.05),
-        (-10.2, 9.8, 6.4, 4.4, 1.95, 2.35),
-        (-14.2, 2.4, 6.0, 4.2, 2.00, 1.60),
+        (13.2, 4.0, 6.2, 4.2, 1.55, -1.85),
+        (8.0, 11.2, 6.6, 4.4, 1.50, -2.55),
+        (-1.5, 13.0, 7.0, 4.4, 1.50, 3.05),
+        (-10.2, 9.8, 6.4, 4.4, 1.55, 2.35),
+        (-14.2, 2.4, 6.0, 4.2, 1.60, 1.60),
     ]
     for cx, cz, cw, cd, ch, yaw in cliff_specs:
         by = max(0.0, height_fn(cx, cz) - 0.55)
@@ -209,44 +211,45 @@ def build_plain_route() -> ArenaScene:
             cap_top_color=(0.48, 0.84, 0.34, 1.0),
             cap_lip_color=(0.30, 0.62, 0.24, 1.0),
             n_sides=9,
-            cap_thickness=0.44,
+            cap_thickness=0.38,
         )
 
-    # Hero foreground/midground stylized Sinnoh pine trees (exact BDSP layered silhouette).
+    # Hero foreground/midground stylized Sinnoh pine trees (treetops in-frame + window to mountain peak).
     hero_pines = [
-        (-8.6, -11.2, 9.4, 2.45),
-        (-4.8, -14.8, 8.6, 2.25),
-        (2.4, -12.8, 10.2, 2.65),
-        (8.8, -11.2, 8.4, 2.20),
-        (12.2, -9.4, 10.6, 2.75),
-        (15.2, -5.4, 8.8, 2.30),
-        (-12.4, -6.2, 9.0, 2.35),
-        (-1.2, -17.5, 9.8, 2.50),
-        (5.8, -16.8, 10.8, 2.70),
-        (10.8, -15.6, 9.2, 2.35),
-        (-10.4, -15.8, 9.6, 2.45),
+        (-13.2, -6.6, 7.2, 2.15, 6),
+        (-10.4, -12.2, 7.8, 2.30, 6),
+        (-5.6, -15.0, 6.6, 1.95, 5),
+        (-1.2, -16.2, 8.0, 2.35, 6),
+        (2.8, -15.6, 6.8, 2.00, 5),
+        (7.0, -14.2, 6.0, 1.85, 5),
+        (14.8, -9.6, 7.4, 2.20, 6),
+        (16.8, -4.6, 6.8, 2.00, 5),
+        (-14.8, -1.6, 7.0, 2.05, 6),
+        (-11.2, -16.0, 7.6, 2.20, 6),
     ]
-    for px, pz, ph, pr in hero_pines:
-        py = height_fn(px, pz) + 0.9
+    for px, pz, ph, pr, tiers in hero_pines:
+        py = height_fn(px, pz) - 0.1
         add_pine_tree(
             bark_sm, pine_sm, px, py, pz, ph, pr, rng,
-            tiers=5, lobes=7,
+            tiers=tiers, lobes=9, curved=True,
             tint_dark=(0.46, 0.68, 0.62, 1.0),
             tint_lit=(0.96, 1.00, 0.90, 1.0),
         )
 
-    # Outer forest ring (r = 17..35) for atmospheric blue haze depth & 360 orbit wrap.
+    # Outer forest ring (r = 18.5..34) for atmospheric blue haze depth & 360 orbit wrap.
     for i in range(30):
         ang = (i / 30.0) * math.tau + rng.uniform(-0.08, 0.08)
-        dist = rng.uniform(18.0, 33.5)
+        if abs((ang - (-0.42) + math.pi) % math.tau - math.pi) < 0.20:
+            continue
+        dist = rng.uniform(18.5, 34.0)
         px = math.cos(ang) * dist
         pz = math.sin(ang) * dist
         py = height_fn(px, pz) - 0.15
-        ph = rng.uniform(7.2, 12.2)
-        pr = ph * rng.uniform(0.24, 0.28)
+        ph = rng.uniform(6.6, 10.4)
+        pr = ph * rng.uniform(0.23, 0.27)
         add_pine_tree(
             bark_sm, pine_sm, px, py, pz, ph, pr, rng,
-            tiers=4, lobes=6,
+            tiers=4, lobes=7, curved=False,
             tint_dark=(0.42, 0.64, 0.62, 1.0),
             tint_lit=(0.90, 0.98, 0.90, 1.0),
         )
@@ -520,6 +523,7 @@ def build_water_lake() -> ArenaScene:
     bark_tex = scene.add_texture(128, 128, make_bark_texture(128, 306), B3D_TEX_FLAG_REPEAT)
 
     sky_sm = scene.add_submesh(sky_tex, SKY_FLAGS, 1.0, 0.0)
+    mtn_sm = scene.add_submesh(rock_tex, B3D_SUBMESH_RECEIVE_SHADOW, 0.95, 1.0)
     ground_sm = scene.add_submesh(ground_tex, B3D_SUBMESH_RECEIVE_SHADOW, 0.88, 0.72)
     water_sm = scene.add_submesh(water_tex, B3D_SUBMESH_RECEIVE_SHADOW, 0.25, 0.82)
     rock_sm = scene.add_submesh(rock_tex, SHADOW_BOTH, 0.85, 0.88)
@@ -528,6 +532,7 @@ def build_water_lake() -> ArenaScene:
     pine_sm = scene.add_submesh(pine_tex, SHADOW_BOTH, 0.85, 1.0)
 
     add_sky_dome(sky_sm, 74.0)
+    add_mountain_ring(mtn_sm, rng, r_inner=42.0, r_peak=54.0, r_outer=65.0, segs=72)
 
     def shore_h(x, z):
         r = math.hypot(x, z)
@@ -616,6 +621,7 @@ def build_snow() -> ArenaScene:
     bark_tex = scene.add_texture(128, 128, make_bark_texture(128, 505, (0.24, 0.20, 0.20), (0.44, 0.38, 0.36)), B3D_TEX_FLAG_REPEAT)
 
     sky_sm = scene.add_submesh(sky_tex, SKY_FLAGS, 1.0, 0.0)
+    mtn_sm = scene.add_submesh(rock_tex, B3D_SUBMESH_RECEIVE_SHADOW, 0.92, 1.0)
     ground_sm = scene.add_submesh(snow_tex, B3D_SUBMESH_RECEIVE_SHADOW, 0.78, 0.78)
     rock_sm = scene.add_submesh(rock_tex, SHADOW_BOTH, 0.85, 0.88)
     cap_sm = scene.add_submesh(snow_tex, SHADOW_BOTH, 0.75, 0.85)
@@ -623,6 +629,7 @@ def build_snow() -> ArenaScene:
     pine_sm = scene.add_submesh(pine_tex, SHADOW_BOTH, 0.82, 1.0)
 
     add_sky_dome(sky_sm, 74.0)
+    add_mountain_ring(mtn_sm, rng, r_inner=40.0, r_peak=52.0, r_outer=64.0, segs=72, c_base=(0.45, 0.56, 0.74, 1.0), c_peak=(0.82, 0.90, 0.98, 1.0))
 
     def hfn(x, z):
         r = math.hypot(x, z)
@@ -642,9 +649,11 @@ def build_snow() -> ArenaScene:
 
     for i in range(34):
         ang = (i / 34.0) * math.tau + rng.uniform(-0.08, 0.08)
-        dist = rng.uniform(11.5, 32.0)
+        if abs((ang - (-0.42) + math.pi) % math.tau - math.pi) < 0.20:
+            continue
+        dist = rng.uniform(12.5, 32.0)
         px, pz = math.cos(ang) * dist, math.sin(ang) * dist
-        add_pine_tree(bark_sm, pine_sm, px, hfn(px, pz) + 0.3, pz, rng.uniform(7.5, 11.5), rng.uniform(2.1, 2.7), rng, tiers=5, snow_dusted=True)
+        add_pine_tree(bark_sm, pine_sm, px, hfn(px, pz) + 0.1, pz, rng.uniform(6.8, 10.2), rng.uniform(1.9, 2.5), rng, tiers=5, lobes=8, curved=(dist < 22.0), snow_dusted=True)
     return scene
 
 
