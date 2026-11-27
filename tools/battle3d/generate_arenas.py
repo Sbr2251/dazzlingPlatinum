@@ -37,6 +37,7 @@ from geometry import (  # noqa: E402
     add_grass_tuft,
     add_icosphere_blob,
     add_leafy_bush,
+    add_mountain_ring,
     add_pine_tree,
     add_pitched_house,
     add_radial_ground,
@@ -287,7 +288,7 @@ def build_plain_route() -> ArenaScene:
 
 
 def build_forest() -> ArenaScene:
-    """Eterna Forest deep emerald canopy clearing."""
+    """Eterna Forest BDSP-parity clearing: dense 3-band pine forest, mossy cliffs, flowers, distant mountains."""
     rng = random.Random(20202)
     scene = ArenaScene("forest")
 
@@ -295,62 +296,214 @@ def build_forest() -> ArenaScene:
         256, 128,
         make_sky_dome_texture(
             256, 128, 201,
-            zenith=(0.14, 0.42, 0.64), mid_sky=(0.30, 0.62, 0.74), horizon=(0.54, 0.78, 0.74),
-            cloud_amount=0.35,
+            zenith=(0.16, 0.46, 0.78), mid_sky=(0.36, 0.68, 0.88), horizon=(0.64, 0.84, 0.86),
+            cloud_amount=0.40,
         ),
         B3D_TEX_FLAG_REPEAT,
     )
-    ground_tex = scene.add_texture(256, 256, make_painterly_ground_texture(256, 202, (0.84, 0.92, 0.82), (0.56, 0.70, 0.56)), B3D_TEX_FLAG_REPEAT)
-    rock_tex = scene.add_texture(128, 128, make_rock_cliff_texture(128, 203, (0.52, 0.60, 0.48), (0.38, 0.46, 0.38), (0.24, 0.30, 0.24)), B3D_TEX_FLAG_REPEAT)
-    pine_tex = scene.add_texture(128, 128, make_foliage_texture(128, 204, (0.10, 0.28, 0.24), (0.18, 0.44, 0.34), (0.34, 0.64, 0.40), True), B3D_TEX_FLAG_REPEAT)
-    leaf_tex = scene.add_texture(128, 128, make_foliage_texture(128, 205, (0.12, 0.36, 0.22), (0.24, 0.56, 0.32), (0.46, 0.78, 0.42), False), B3D_TEX_FLAG_REPEAT)
+    ground_tex = scene.add_texture(
+        256, 256,
+        make_painterly_ground_texture(
+            256, 202,
+            base_tint=(0.86, 0.92, 0.84),
+            dark_tint=(0.60, 0.72, 0.58),
+            speck_tint=(0.96, 0.98, 0.88),
+        ),
+        B3D_TEX_FLAG_REPEAT,
+    )
+    rock_tex = scene.add_texture(
+        128, 128,
+        make_rock_cliff_texture(
+            128, 203,
+            rock_light=(0.56, 0.62, 0.54),
+            rock_mid=(0.38, 0.44, 0.39),
+            rock_dark=(0.22, 0.27, 0.25),
+            strata_freq=8,
+        ),
+        B3D_TEX_FLAG_REPEAT,
+    )
+    pine_tex = scene.add_texture(
+        128, 128,
+        make_foliage_texture(
+            128, 204,
+            dark=(0.09, 0.28, 0.28),
+            mid=(0.16, 0.44, 0.38),
+            bright=(0.32, 0.64, 0.44),
+            needle_style=True,
+        ),
+        B3D_TEX_FLAG_REPEAT,
+    )
+    bush_tex = scene.add_texture(
+        128, 128,
+        make_foliage_texture(
+            128, 205,
+            dark=(0.12, 0.34, 0.32),
+            mid=(0.22, 0.52, 0.40),
+            bright=(0.40, 0.72, 0.46),
+            needle_style=False,
+        ),
+        B3D_TEX_FLAG_REPEAT,
+    )
     bark_tex = scene.add_texture(128, 128, make_bark_texture(128, 206, (0.22, 0.16, 0.12), (0.40, 0.30, 0.22)), B3D_TEX_FLAG_REPEAT)
 
     sky_sm = scene.add_submesh(sky_tex, SKY_FLAGS, 1.0, 0.0)
-    ground_sm = scene.add_submesh(ground_tex, B3D_SUBMESH_RECEIVE_SHADOW, 0.92, 0.82)
-    rock_sm = scene.add_submesh(rock_tex, SHADOW_BOTH, 0.90, 0.90)
+    mtn_sm = scene.add_submesh(rock_tex, B3D_SUBMESH_RECEIVE_SHADOW, 0.95, 1.0)
+    ground_sm = scene.add_submesh(ground_tex, B3D_SUBMESH_RECEIVE_SHADOW, 0.92, 0.80)
+    rock_sm = scene.add_submesh(rock_tex, SHADOW_BOTH, 0.90, 0.88)
+    cap_sm = scene.add_submesh(ground_tex, SHADOW_BOTH, 0.86, 0.85)
     bark_sm = scene.add_submesh(bark_tex, SHADOW_BOTH, 0.92, 0.95)
     pine_sm = scene.add_submesh(pine_tex, SHADOW_BOTH, 0.86, 1.0)
-    leaf_sm = scene.add_submesh(leaf_tex, SHADOW_BOTH, 0.84, 0.92)
-    tuft_sm = scene.add_submesh(-1, B3D_SUBMESH_RECEIVE_SHADOW | B3D_SUBMESH_DOUBLE_SIDED, 0.85, 0.85)
+    bush_sm = scene.add_submesh(bush_tex, SHADOW_BOTH, 0.84, 0.90)
+    tuft_sm = scene.add_submesh(-1, B3D_SUBMESH_RECEIVE_SHADOW | B3D_SUBMESH_DOUBLE_SIDED, 0.82, 0.84)
 
-    add_sky_dome(sky_sm, 72.0)
+    add_sky_dome(sky_sm, 72.0, segs_u=32, segs_v=12)
+    add_mountain_ring(mtn_sm, rng, r_inner=40.0, r_peak=52.0, r_outer=64.0, segs=72)
 
-    def hfn(x, z):
+    def hfn(x: float, z: float) -> float:
         r = math.hypot(x, z)
-        return 0.0 if r <= 9.0 else 1.8 * _smoothstep(9.0, 32.0, r)
+        if r <= 9.2:
+            return 0.0
+        t = _smoothstep(9.2, 34.0, r)
+        hill = 2.4 * t + 1.2 * t * (math.sin(x * 0.15 + 0.4) * math.cos(z * 0.14 - 0.5) + 0.5)
+        if z < -10.0:
+            hill += 1.2 * _smoothstep(-10.0, -34.0, z)
+        return hill
 
-    def cfn(x, z, r, y):
-        moss = (0.46, 0.68, 0.36, 1.0)
-        deep = (0.20, 0.44, 0.26, 1.0)
-        path = (0.64, 0.66, 0.42, 1.0)
-        return _lerp4(path, moss, _smoothstep(2.0, 6.5, r)) if r < 6.5 else _lerp4(moss, deep, _smoothstep(6.5, 22.0, r))
+    def cfn(x: float, z: float, r: float, y: float):
+        n = 0.5 + 0.5 * math.sin(x * 0.36 + z * 0.31) * math.cos(z * 0.41 - x * 0.24)
+        clearing = (0.58, 0.64, 0.38, 1.0)
+        grass = (0.36, 0.64, 0.32, 1.0)
+        moss = (0.24, 0.52, 0.28, 1.0)
+        deep = (0.14, 0.34, 0.20, 1.0)
+        rw = r + (n - 0.5) * 1.6
+        if rw < 5.5:
+            return _lerp4(clearing, grass, _smoothstep(2.2, 5.5, rw))
+        if rw < 13.5:
+            return _lerp4(grass, moss, _smoothstep(5.5, 13.5, rw))
+        return _lerp4(moss, deep, _smoothstep(13.5, 26.0, rw))
 
-    add_radial_ground(ground_sm, [0.0, 2.0, 4.5, 7.0, 9.5, 13.0, 18.0, 25.0, 36.0], 40, hfn, cfn, 0.22)
+    add_radial_ground(ground_sm, [0.0, 1.8, 3.6, 5.5, 7.4, 9.2, 11.8, 15.0, 19.5, 25.0, 32.0, 39.0], 44, hfn, cfn, 0.20)
 
-    for i in range(38):
-        ang = (i / 38.0) * math.tau + rng.uniform(-0.08, 0.08)
-        dist = rng.uniform(10.2, 29.0)
+    # Sculpted mossy rock cliff ledges framing the clearing (low enough to show treetops & sky)
+    cliff_specs = [
+        (-8.2, -10.2, 6.4, 4.4, 1.75, 0.25),
+        (-2.2, -12.4, 6.8, 4.6, 1.60, -0.10),
+        (4.8, -12.2, 6.8, 4.6, 1.80, -0.32),
+        (11.6, -8.8, 6.4, 4.4, 1.75, -0.75),
+        (14.4, -3.2, 6.0, 4.2, 1.65, -1.25),
+        (-12.2, -5.2, 6.2, 4.4, 1.70, 0.85),
+        (12.8, 4.2, 6.2, 4.2, 1.55, -1.85),
+        (7.6, 11.2, 6.6, 4.4, 1.50, -2.55),
+        (-1.5, 13.0, 7.0, 4.4, 1.50, 3.05),
+        (-10.2, 9.8, 6.4, 4.4, 1.55, 2.35),
+    ]
+    for cx, cz, w, d, ch, yaw in cliff_specs:
+        add_sculpted_cliff(
+            rock_sm, cap_sm, cx, cz, hfn(cx, cz), w, d, ch, yaw, rng,
+            rock_tint=(0.86, 0.90, 0.88, 1.0),
+            cap_top_color=(0.36, 0.68, 0.34, 1.0),
+            cap_lip_color=(0.22, 0.48, 0.24, 1.0),
+            n_sides=9,
+            cap_thickness=0.38,
+        )
+
+    def _near_cam(px: float, pz: float) -> bool:
+        return math.hypot(px - (-4.2), pz - 6.8) < 4.5 or (-6.5 < px < -0.5 and 3.0 < pz < 10.5)
+
+    # Band 1: Hero foreground/midground curved 6-tier pines framing left, back, and right
+    # Heights 6.2..8.0m so treetops sit cleanly in-frame against the starry sky,
+    # leaving a scenic window on the right-back for the distant mountain peak.
+    hero_pines = [
+        (-13.4, -6.8, 7.2, 2.2, 6), (-10.8, -12.6, 8.0, 2.4, 6), (-6.2, -15.2, 6.8, 2.0, 5),
+        (-1.4, -16.4, 8.2, 2.4, 6), (2.8, -16.0, 6.8, 2.0, 5), (6.8, -14.8, 6.0, 1.9, 5),
+        (15.2, -9.8, 7.4, 2.2, 6), (17.2, -4.4, 6.8, 2.0, 5), (16.8, 1.0, 6.4, 1.9, 5),
+        (-15.2, -1.2, 7.2, 2.1, 6), (-14.4, 4.4, 6.6, 2.0, 5),
+    ]
+    for px, pz, h, rad, tiers in hero_pines:
+        add_pine_tree(
+            bark_sm, pine_sm, px, hfn(px, pz) - 0.1, pz, h, rad, rng,
+            tiers=tiers, lobes=9, curved=True,
+            tint_dark=(0.42, 0.62, 0.58, 1.0),
+            tint_lit=(0.94, 1.0, 0.88, 1.0),
+        )
+
+    # Band 2: Mid-back forest wall (24 trees)
+    for k in range(24):
+        ang = (k / 24.0) * math.tau + rng.uniform(-0.08, 0.08)
+        # Keep scenic valley window toward hero mountain (-0.42 rad)
+        if abs((ang - (-0.42) + math.pi) % math.tau - math.pi) < 0.24:
+            continue
+        dist = rng.uniform(18.5, 25.5)
         tx, tz = math.cos(ang) * dist, math.sin(ang) * dist
-        ty = hfn(tx, tz) - 0.1
-        if i % 3 == 0:
-            add_broadleaf_tree(bark_sm, leaf_sm, tx, ty, tz, rng.uniform(6.2, 9.2), rng.uniform(2.2, 3.2), rng)
-        else:
-            add_pine_tree(bark_sm, pine_sm, tx, ty, tz, rng.uniform(7.5, 12.0), rng.uniform(2.0, 2.8), rng, tiers=5)
+        if _near_cam(tx, tz):
+            continue
+        h = rng.uniform(7.0, 10.2)
+        add_pine_tree(
+            bark_sm, pine_sm, tx, hfn(tx, tz) - 0.1, tz, h, h * rng.uniform(0.23, 0.27), rng,
+            tiers=5, lobes=8, curved=True,
+            tint_dark=(0.40, 0.60, 0.58, 1.0),
+            tint_lit=(0.90, 0.98, 0.88, 1.0),
+        )
 
-    for i in range(14):
-        ang = (i / 14.0) * math.tau
-        dist = rng.uniform(8.8, 12.0)
-        bx, bz = math.cos(ang) * dist, math.sin(ang) * dist
-        add_leafy_bush(leaf_sm, bx, hfn(bx, bz), bz, rng.uniform(1.0, 1.5), rng, puffs=4)
-        if i % 2 == 0:
-            add_icosphere_blob(rock_sm, bx * 0.92, hfn(bx, bz) + 0.35, bz * 0.92, 1.0, 0.65, 0.9, rng, (0.45, 0.52, 0.42, 1.0), (0.62, 0.78, 0.52, 1.0), flatten_bottom=0.4)
+    # Band 3: Far silhouette treeline (28 LOD trees bathed in atmospheric haze)
+    for k in range(28):
+        ang = (k / 28.0) * math.tau + rng.uniform(-0.07, 0.07)
+        if abs((ang - (-0.42) + math.pi) % math.tau - math.pi) < 0.18:
+            continue
+        dist = rng.uniform(27.5, 36.5)
+        tx, tz = math.cos(ang) * dist, math.sin(ang) * dist
+        h = rng.uniform(7.8, 11.2)
+        add_pine_tree(
+            bark_sm, pine_sm, tx, hfn(tx, tz) - 0.1, tz, h, h * rng.uniform(0.22, 0.26), rng,
+            tiers=4, lobes=7, curved=False,
+            tint_dark=(0.38, 0.56, 0.60, 1.0),
+            tint_lit=(0.82, 0.92, 0.90, 1.0),
+        )
 
-    for i in range(24):
-        ang = (i / 24.0) * math.tau
-        dist = rng.uniform(7.2, 10.0)
+    # Lush bushes & mossy boulders tucked along cliff bases
+    bush_spots = [
+        (-5.2, -9.8, 1.25), (0.8, -10.8, 1.35), (4.6, -10.4, 1.15),
+        (9.2, -8.6, 1.30), (11.6, -4.4, 1.20), (-9.6, -6.2, 1.20),
+        (-3.0, -11.2, 1.05), (7.6, -10.0, 1.00), (-7.8, -8.6, 1.05),
+        (10.8, 1.2, 1.25), (6.4, 9.6, 1.15), (-5.8, 10.0, 1.20),
+    ]
+    for bx, bz, br in bush_spots:
+        add_leafy_bush(
+            bush_sm, bx, hfn(bx, bz) - 0.04, bz, br, rng,
+            c_bot=(0.20, 0.48, 0.44, 1.0),
+            c_top=(0.64, 0.92, 0.60, 1.0),
+            puffs=4,
+        )
+
+    for i in range(12):
+        ang = (i / 12.0) * math.tau + rng.uniform(-0.15, 0.15)
+        dist = rng.uniform(8.8, 11.0)
+        rx, rz = math.cos(ang) * dist, math.sin(ang) * dist
+        if _near_cam(rx, rz):
+            continue
+        add_icosphere_blob(
+            rock_sm, rx, hfn(rx, rz) + 0.25, rz,
+            rng.uniform(0.45, 0.85), rng.uniform(0.30, 0.50), rng.uniform(0.42, 0.78),
+            rng, (0.38, 0.44, 0.40, 1.0), (0.56, 0.72, 0.52, 1.0), flatten_bottom=0.45,
+        )
+
+    # Grass tufts & tiny white/blue wildflowers along cliff base
+    for i in range(44):
+        ang = (i / 44.0) * math.tau + rng.uniform(-0.08, 0.08)
+        dist = rng.uniform(7.4, 10.2)
         gx, gz = math.cos(ang) * dist, math.sin(ang) * dist
-        add_grass_tuft(tuft_sm, gx, hfn(gx, gz), gz, rng.uniform(0.9, 1.3), rng)
+        if _near_cam(gx, gz):
+            continue
+        gy = hfn(gx, gz)
+        add_grass_tuft(
+            tuft_sm, gx, gy, gz, rng.uniform(0.80, 1.30), rng,
+            c_root=(0.18, 0.44, 0.22, 1.0),
+            c_tip=(0.48, 0.82, 0.36, 1.0),
+        )
+        if i % 2 == 0:
+            petal = (0.96, 0.98, 1.0, 1.0) if (i % 4 == 0) else (0.76, 0.88, 1.0, 1.0)
+            add_wildflower(tuft_sm, gx + rng.uniform(-0.35, 0.35), gy, gz + rng.uniform(-0.35, 0.35), rng.uniform(1.2, 1.5), petal, rng)
+
     return scene
 
 
