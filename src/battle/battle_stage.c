@@ -1725,6 +1725,8 @@ static void SubmitBdspFrame(void)
     int br;
     float baseEye[3] = { -3.6f, 2.35f, 8.4f };
     float baseTarget[3] = { 0.5f, 1.35f, -1.8f };
+    float baseFov = 36.0f;
+    BOOL heightSizing = BattleStageSprites_IsHeightSizingEnabled();
     float off[3];
     float target[3];
     float eye[3];
@@ -1763,6 +1765,16 @@ static void SubmitBdspFrame(void)
     frame.alpha = alpha;
     frame.timeSec = timeSec;
     frame.brightness = (float)br / 16.0f;
+
+    if (heightSizing) {
+        baseEye[0] = -3.6f;
+        baseEye[1] = 2.55f;
+        baseEye[2] = 8.8f;
+        baseTarget[0] = 0.6f;
+        baseTarget[1] = 1.45f;
+        baseTarget[2] = -2.0f;
+        baseFov = 38.0f;
+    }
 
     BattleStageCamera_GetBdspDeltas(&yawDeg, &pitchDeg, &distScale, &fovScale, &shakeX, &shakeY, &isIdle);
 
@@ -1861,7 +1873,7 @@ static void SubmitBdspFrame(void)
     frame.camTarget[1] = target[1];
     frame.camTarget[2] = target[2];
 
-    frame.camFovDeg = 36.0f * fovScale;
+    frame.camFovDeg = baseFov * fovScale;
     if (frame.camFovDeg < 18.0f) {
         frame.camFovDeg = 18.0f;
     } else if (frame.camFovDeg > 56.0f) {
@@ -1958,6 +1970,18 @@ static void SubmitBdspFrame(void)
                 dst->worldY = elev;
                 dst->worldZ = wz;
                 dst->alpha = (float)tr->alpha / 31.0f;
+
+                if (heightSizing) {
+                    float spScale = BattleStageSprites_GetSpeciesScale(i);
+                    float refBase = isPlayer ? 1.0f : 0.45f;
+                    float ratio = spScale / refBase;
+                    if (ratio < 0.65f) {
+                        ratio = 0.65f;
+                    } else if (ratio > 2.2f) {
+                        ratio = 2.2f;
+                    }
+                    dst->shadowRadius *= ratio;
+                }
 
                 if (sc < MON_AFFINE_SCALE(1)) {
                     float sf = (float)sc / (float)MON_AFFINE_SCALE(1);

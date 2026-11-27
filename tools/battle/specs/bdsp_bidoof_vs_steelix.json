@@ -1,0 +1,10 @@
+{
+  "battle_type": "wild",
+  "seed": 11,
+  "player": [
+    {"species": "SPECIES_BIDOOF", "level": 35, "moves": ["MOVE_TACKLE", "MOVE_HEADBUTT"]}
+  ],
+  "opponent": [
+    {"species": "SPECIES_STEELIX", "level": 35, "moves": ["MOVE_IRON_TAIL", "MOVE_ROCK_THROW"]}
+  ]
+}
