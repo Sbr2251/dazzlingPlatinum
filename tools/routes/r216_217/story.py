@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Routes 216-217 story pass: the two inspectable BG events (Teo's Memorial Marker on Route 216, Indra's camp
-journal / scanner crate on Route 217), their scripts and their text. Idempotent: entries are added or replaced by
+scanner case and campfire on Route 217), their scripts and their text. Idempotent: entries are added or replaced by
 label / message id; existing events, scripts and message order are kept (new messages are appended at the end).
 Straight ASCII apostrophes only (msgenc has no em dash, so the inscription uses ' - ').
 
@@ -15,7 +15,7 @@ ROOT = os.path.normpath(os.path.join(HERE, "..", "..", ".."))
 sys.path.insert(0, HERE)
 
 TEO_MARKER = (317, 401)
-CAMP_EVENTS = [(312, 360), (311, 360)]
+CAMP_EVENTS = [(312, 360), (311, 361)]       # scanner case; campfire (read from (311, 362) facing north)
 
 TEXT = {
     "route_216": [
@@ -34,6 +34,7 @@ TEXT = {
     "route_217": [
         ("Route217_Text_IndraCampTent", [
             "A weathered violet expedition tent\n", "stands in the snow. Nobody is here.\r",
+            "Embers still glow in a ring of\n", "stones beside a split-log bench.\r",
             "A lantern still burns on a supply\n", "crate, beside an open field journal.\r"]),
         ("Route217_Text_IndraCampJournal", [
             "The handwriting is small and neat.\r",

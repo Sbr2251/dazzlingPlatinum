@@ -11,9 +11,10 @@ Usage:
   ~/.venvs/desmume/bin/python tools/routes/r216_217/textures.py --write         write SET_REL (refuses on FAIL)
 
 Atlases (texel boxes x0, y0, x1, y1, exclusive ends, in REGIONS; build_art.py maps faces onto them):
-  r216_stone   opaque pltt16. Teo's monolith face (bevelled outline, carved mountain-and-falling-star emblem, inlaid
-               dark plaque with the engraved "TEO" and lines, carved base fillet) and its side, pedestal riser, step
-               top with settled snow, ashlar granite, crisp snow cap and its outlined side band, lantern stone parts.
+  r216_stone   opaque pltt16. Teo's stele face (bevels, small carved peak-and-star emblem, recessed dark-slate
+               memorial tablet in a raised carved frame with delicate etched inscription lines, base moulding), its
+               side and chamfer bevel, plinth riser, step top with settled snow, the cap pediment (carved diamond),
+               crisp snow and its outlined side band, lantern stone parts.
   r216_offer   c0=1. Evergreen & winter-blossom wreath, deep-violet knitted scarf band, knot and two fringed tails,
                dithered snow drift wedge, snow pile, snow-cap drip lip, violet shard dust, boot prints, frozen bouquet.
   r216_glow    A3I5. Warm amber bloom, electric-violet bloom, soft ground light pool, soft blue contact shadow
@@ -21,7 +22,8 @@ Atlases (texel boxes x0, y0, x1, y1, exclusive ends, in REGIONS; build_art.py ma
   r217_tent    c0=1. Deep-violet canvas slope with the pale-silver Eclipse emblem, emblem overlay, front gable with the
                open shadowed doorway, tied-back flap lining, guy rope, pole wood, heaped ridge snow.
   r217_camp    c0=1. Expedition-lantern glass and frame, supply crate face and side, shard-scanner lid screen and case
-               body, violet shard, field journal, packed-snow clearing patch with a dithered rim.
+               body, violet shard, field journal, packed-snow clearing patch with a dithered rim, split-log end grain,
+               glowing campfire ember bed.
 """
 import os
 import subprocess
@@ -47,7 +49,7 @@ BAYER = BAYER4[(YY % 4).astype(int), (XX % 4).astype(int)]
 REGIONS = {
     "r216_stone": {"stele": (0, 0, 24, 48), "stele_side": (24, 0, 32, 48), "step": (32, 0, 64, 8),
                    "step_top": (32, 8, 64, 24), "snow": (32, 24, 48, 40), "lantern": (48, 24, 64, 40),
-                   "post": (32, 40, 40, 64), "snow_side": (40, 40, 64, 48), "granite": (0, 48, 32, 64),
+                   "post": (32, 40, 40, 64), "snow_side": (40, 40, 64, 48), "pediment": (0, 48, 32, 64),
                    "roof": (40, 48, 64, 56), "chamfer": (40, 56, 64, 64)},
     "r216_offer": {"wreath": (0, 0, 32, 32), "scarf": (32, 0, 64, 8), "knot": (32, 8, 48, 24),
                    "tail": (48, 8, 56, 40), "tail2": (56, 8, 64, 40), "bouquet": (32, 24, 48, 40),
@@ -61,7 +63,7 @@ REGIONS = {
     "r217_camp": {"glass": (0, 0, 16, 16), "iron": (0, 16, 16, 32), "crate": (16, 0, 48, 24),
                   "crate_side": (16, 24, 48, 32), "screen": (48, 0, 64, 16), "case": (48, 16, 64, 32),
                   "shard": (0, 32, 16, 48), "journal": (0, 48, 16, 64), "clear": (16, 32, 48, 64),
-                  "lid": (48, 32, 64, 48), "spare": (48, 48, 64, 64)},
+                  "log_end": (48, 32, 64, 48), "embers": (48, 48, 64, 64)},
 }
 TRANSPARENT = {"r216_offer", "r217_tent", "r217_camp"}
 ALPHA_FMT = {"r216_glow"}            # A3I5 (fmt 1): 5-bit index, 3-bit alpha
@@ -166,71 +168,72 @@ def granite(x, y, b, seed, idx=(3, 4, 5, 6), amp=0.5, base=0.5):
 
 def tex_stone():
     A = Atlas("r216_stone", STONE_PAL)
-    # monolith face 24 x 48 (v down): outline, bevel, carved emblem, scarf band zone, inlaid plaque, base fillet
+    # stele face 24 x 48 (v down), v3: warm light granite, lit west / shaded east bevels, small carved emblem, a
+    # recessed dark-slate memorial tablet inside a raised carved stone frame (lit top-left lip, shaded bottom-right
+    # lip, inner groove) carrying delicate etched inscription lines (no block letters), carved base moulding
     x, y, b = A.local("stele")
     W, H = 24, 48
-    img = granite(x, y, b, 31, (2, 3, 4), 0.45, 0.5)                       # charcoal granite face
-    img = np.where(y < 18, np.where(img == 2, 3, img), img)               # upper face catches more light
+    img = granite(x, y, b, 31, (3, 4, 5), 0.45, 0.52)
+    img = np.where(y < 14, np.where(img == 3, 4, img), img)               # upper face catches more light
     img = np.where(x == 1, 7, img)                                         # lit west bevel
-    img = np.where(x == 2, 5, img)
-    img = np.where(x == W - 2, 1, img)                                     # shaded east bevel
-    img = np.where(y == 1, 6, img)
-    img = np.where(y == H - 2, 2, img)
-    # carved recessed border panel (groove: shadow top/left, lit lip bottom/right)
-    gx0, gx1, gy0, gy1 = 4, W - 5, 3, H - 8
-    frame = ((x == gx0) | (y == gy0)) & (x >= gx0) & (x <= gx1) & (y >= gy0) & (y <= gy1)
-    lip = ((x == gx1) | (y == gy1)) & (x >= gx0) & (x <= gx1) & (y >= gy0) & (y <= gy1)
-    img = np.where(frame, 0, img)
-    img = np.where(lip & ~frame, 6, img)
-    # carved emblem: mountain peak with snow summit and a falling star (rows 5..13)
-    ex, ey = x - 11.5, y - 9.5
-    peak = (ey > -4.2 + np.abs(ex) * 0.85) & (ey < 3.5) & (np.abs(ex) < 6.5) & (x > gx0) & (x < gx1)
-    img = np.where(peak, 4, img)
-    img = np.where(peak & (ex < 0) & (ey < -1.0 + np.abs(ex) * 0.85), 7, img)   # lit west flank
-    img = np.where(peak & (np.abs(ex) < 1.6) & (ey < -2.3), 9, img)              # snow summit
-    edge = peak & ~((ey > -3.2 + np.abs(ex) * 0.85) & (ey < 2.5) & (np.abs(ex) < 5.5))
-    img = np.where(edge & (ey > -4.2 + np.abs(ex) * 0.85 + 0.0), np.where(ey > 2.4, 1, 0), img)
-    star = (np.abs(x - 17) + np.abs(y - 5)) <= 1.0
-    img = np.where(star, 14, img)
-    img[5, 17] = 10
-    img = np.where((y == 6) & (x >= 13) & (x <= 15), 7, img)                     # star trail
-    img = np.where((y == 7) & (x >= 11) & (x <= 12), 6, img)
-    # inlaid dark plaque rows 22..37 cols 6..17: recess, slate field, engraved silver TEO + lines
-    px0, px1, py0, py1 = 6, 17, 22, 37
-    inside = (x >= px0) & (x <= px1) & (y >= py0) & (y <= py1)
-    pl = ramp(0.5 + 0.5 * (vnoise(x.shape, 8, 33) - 0.5), [12, 13, 12], b, 0.8)
-    img = np.where(inside, pl, img)
-    img = np.where(inside & ((x == px0) | (y == py0)), 0, img)
-    img = np.where(inside & ((x == px1) | (y == py1)), 6, img)
-    T = ["111", "010", "010", "010", "010"]
-    E = ["111", "100", "110", "100", "111"]
-    O = ["111", "101", "101", "101", "111"]
-    gx = 7
-    for g in (T, E, O):
-        for r, row in enumerate(g):
-            for c, ch in enumerate(row):
-                if ch == "1":
-                    img[24 + r, gx + c] = 14
-        gx += 4
+    img = np.where(x == 2, 6, img)
+    img = np.where(x == W - 2, 2, img)                                     # shaded east bevel
+    img = np.where(y == 1, 7, img)
+    img = np.where(y == 2, 6, img)
+    # small carved emblem: mountain peak with a snow summit and a falling star (rows 4..11)
+    ex, ey = x - 11.5, y - 8.0
+    peak = (ey > -3.4 + np.abs(ex) * 0.85) & (ey < 2.5) & (np.abs(ex) < 5.0)
+    img = np.where(peak, 3, img)
+    img = np.where(peak & (ex < 0) & (ey < -0.6 + np.abs(ex) * 0.85), 6, img)   # lit west flank
+    img = np.where(peak & (np.abs(ex) < 1.4) & (ey < -1.8), 9, img)              # snow summit
+    rim = peak & ~((ey > -2.4 + np.abs(ex) * 0.85) & (ey < 1.5) & (np.abs(ex) < 4.0))
+    img = np.where(rim, np.where(ey > 1.4, 6, 0), img)                           # carved groove, lit lower lip
+    img[4, 17] = 10
+    img[3, 17] = img[5, 17] = img[4, 16] = img[4, 18] = 7
+    img = np.where((y == 5) & (x >= 14) & (x <= 15), 6, img)                     # star trail
+    # raised carved frame x 3..20, y 13..38 (2-texel band), inner groove, recessed slate tablet x 6..17, y 16..35
+    fx0, fx1, fy0, fy1 = 3, 20, 13, 38
+    fr = (x >= fx0) & (x <= fx1) & (y >= fy0) & (y <= fy1)
+    img = np.where(fr, granite(x, y, b, 37, (4, 5, 6), 0.35, 0.5), img)
+    img = np.where(fr & ((x == fx0) | (y == fy0)), 7, img)                       # lit outer lip
+    img = np.where(fr & ((x == fx1) | (y == fy1)), 1, img)                       # shaded outer lip
+    img = np.where((y == fy0 - 1) & (x >= fx0) & (x <= fx1), 2, img)                 # shadow line above the frame
+    tx0, tx1, ty0, ty1 = 6, 17, 16, 35
+    gr = (x >= tx0 - 1) & (x <= tx1 + 1) & (y >= ty0 - 1) & (y <= ty1 + 1)
+    img = np.where(gr, 0, img)                                                   # carved groove round the tablet
+    tab = (x >= tx0) & (x <= tx1) & (y >= ty0) & (y <= ty1)
+    sl = ramp(0.5 + 0.6 * (vnoise(x.shape, 6, 33) - 0.5) - 0.15 * (y - ty0) / (ty1 - ty0), [13, 12, 13, 13], b, 0.7)
+    img = np.where(tab, sl, img)
+    img = np.where(tab & ((x == tx0) | (y == ty0)), 12, img)                     # shadowed recess walls (top / left)
+    img = np.where(tab & ((x == tx1) | (y == ty1)), 15, img)                     # catch-light on the lower lip
+    img = np.where(gr & ~tab & ((x == tx1 + 1) | (y == ty1 + 1)), 5, img)        # lit groove edge
+    # delicate etched inscription: a centred title line, a fine rule, five verse lines and a small star
     rng = np.random.RandomState(34)
-    for ry in (31, 33):
-        cx = 8
-        while cx < 16:
-            ln = rng.randint(1, 4)
-            img[ry, cx:min(cx + ln, 16)] = 14
-            cx += ln + 1
-    img[35, 8:16] = np.where(np.arange(8, 16) % 2 == 0, 14, 13)
-    # carved base fillet + moulding rows 41..45
-    img = np.where((y >= 41) & (y <= 42) & (x > 1) & (x < W - 2), np.where(b > -0.1, 5, 4), img)
+    def etch(row, xa, xb_, col, gap=1):
+        cx_ = xa
+        while cx_ <= xb_:
+            ln = rng.randint(1, 3)
+            for k in range(ln):
+                if cx_ + k <= xb_:
+                    img[row, cx_ + k] = col
+            cx_ += ln + gap
+    etch(18, 9, 14, 14)
+    img[20, 8:16] = np.where(np.arange(8, 16) % 2 == 0, 15, 13)
+    for row, (xa, xb_) in zip((22, 24, 26, 28, 30), ((8, 15), (8, 16), (8, 14), (8, 16), (9, 14))):
+        etch(row, xa, xb_, 15)
+    img[33, 11] = img[33, 12] = 14
+    img[32, 11] = img[34, 12] = 15
+    # carved base moulding rows 41..45
+    img = np.where((y >= 41) & (y <= 42) & (x > 1) & (x < W - 2), np.where(b > -0.1, 6, 5), img)
     img = np.where((y == 43) & (x > 1) & (x < W - 2), 0, img)
-    img = np.where((y >= 44) & (y <= 45) & (x > 1) & (x < W - 2), 2, img)
+    img = np.where((y >= 44) & (y <= 45) & (x > 1) & (x < W - 2), 3, img)
     img = outline(img, x, y, W, H, 0)
     A.put("stele", img)
 
     # monolith side 8 x 48: darker granite, outlined, bevel highlight on the front edge
     x, y, b = A.local("stele_side")
-    img = granite(x, y, b, 35, (1, 2, 3), 0.45, 0.5)
-    img = np.where(x == 1, 4, img)
+    img = granite(x, y, b, 35, (2, 3, 4), 0.45, 0.5)
+    img = np.where(x == 1, 5, img)
     img = np.where((y >= 41) & (y <= 42), 4, img)
     img = np.where(y == 43, 1, img)
     img = outline(img, x, y, 8, 48, 0)
@@ -238,8 +241,9 @@ def tex_stone():
 
     # chamfer strip 24 x 8 (u along the edge, v across): bright bevel
     x, y, b = A.local("chamfer")
-    img = ramp(0.6 + 0.3 * (vnoise(x.shape, 6, 36) - 0.5), [5, 6, 7], b)
-    img = np.where(y == 7, 0, img)
+    img = ramp(0.6 + 0.3 * (vnoise(x.shape, 6, 36) - 0.5), [5, 6, 6, 7], b, 0.5)
+    img = np.where(y == 1, 7, img)
+    img = np.where((y == 0) | (y == 7), 0, img)
     A.put("chamfer", img)
 
     # pedestal riser 32 x 8: snow-dusted lit lip, granite, joints, dark outline foot
@@ -300,13 +304,22 @@ def tex_stone():
     img = np.where(y == 7, 0, img)
     A.put("roof", img)
 
-    # ashlar granite 32 x 16 for pedestal sides
-    x, y, b = A.local("granite")
-    img = granite(x, y, b, 52, (3, 4, 5), 0.45, 0.45)
-    img = np.where((y % 8 == 7) | (((x + np.where(y // 8 == 0, 0, 8)) % 16) == 15), 1, img)
-    img = np.where((y % 8 == 0), 6, img)
-    img = np.where(y == 0, 9, img)
-    A.put("granite", img)
+    # pediment 32 x 16 (triangle apex (16, 0), base row 15): carved granite gable with outlined rakes (lit west,
+    # shaded east inner rim), a carved roundel with a four-point star, and a dark base line on the cornice
+    x, y, b = A.local("pediment")
+    img = granite(x, y, b, 52, (4, 5, 6), 0.4, 0.5)
+    rake = np.abs(x - 15.5) - (y + 0.5) * (16.0 / 16.0)
+    img = np.where(rake > -1.2, 0, img)
+    img = np.where((rake <= -1.2) & (rake > -2.4), np.where(x < 15.5, 7, 2), img)
+    # carved inset diamond (the falling-star motif): recessed field, shadowed upper rims, lit lower rims, bright star
+    dd = np.abs(x - 15.5) + np.abs(y - 9.5)
+    img = np.where(dd <= 3.6, 3, img)
+    img = np.where((dd > 2.6) & (dd <= 3.6) & (y < 9.5), 0, img)
+    img = np.where((dd > 2.6) & (dd <= 3.6) & (y >= 9.5), 7, img)
+    img = np.where(dd <= 1.1, 9, img)
+    img = np.where(dd <= 0.6, 10, img)
+    img = np.where(y == 15, 1, img)
+    A.put("pediment", img)
     return A
 
 
@@ -644,7 +657,7 @@ CAMP_PAL = [
     (124, 86, 52),    # 9 crate wood
     (170, 128, 80),   # 10 crate wood lit
     (240, 244, 252),  # 11 snow
-    (180, 194, 226),  # 12 packed snow
+    (206, 216, 240),  # 12 packed snow
     (104, 40, 220),   # 13 electric violet
     (172, 120, 255),  # 14 violet glow
     (236, 220, 255),  # 15 violet white
@@ -706,11 +719,21 @@ def tex_camp():
     img[7:9, 7:9] = 4
     A.put("screen", img)
 
-    x, y, b = A.local("lid")                           # 16 x 16 lid back: gunmetal with brass corners
-    img = ramp(0.45 + 0.25 * (vnoise(x.shape, 4, 106) - 0.5), [2, 2, 3], b)
-    img = np.where(((x <= 1) | (x >= 14)) & ((y <= 1) | (y >= 14)), 4, img)
-    img = outline(img, x, y, 16, 16, 1)
-    A.put("lid", img)
+    x, y, b = A.local("log_end")                       # 16 x 16 split-log end grain: rings, bark outline
+    d = np.hypot(x - 7.5, y - 7.5)
+    img = np.where(d < 7.4, ramp(0.5 + 0.35 * np.cos(d * 1.6), [8, 9, 10], b, 0.4), 0)
+    img = np.where((d >= 6.2) & (d < 7.4), 8, img)
+    img = np.where((d >= 6.9) & (d < 7.4), 1, img)
+    img = np.where((d < 1.0), 9, img)
+    A.put("log_end", img)
+
+    x, y, b = A.local("embers")                        # 16 x 16 glowing campfire bed: white-hot core, amber, char
+    d = np.hypot(x - 7.5, y - 7.5) / 7.5 + 0.25 * (vnoise(x.shape, 6, 110) - 0.5)
+    img = np.where(d < 0.98, ramp(1.0 - d, [1, 8, 7, 6, 6, 5], b, 0.5), 0)
+    img = np.where((d < 0.98) & (vnoise(x.shape, 16, 111) > 0.78), 7, img)
+    img = np.where((d < 0.5) & (vnoise(x.shape, 16, 112) > 0.7), 5, img)
+    img = np.where((d >= 0.86) & (d < 0.98), 1, img)
+    A.put("embers", img)
 
     x, y, b = A.local("case")                          # 16 x 16 case body with a glowing violet status strip
     img = ramp(0.45 + 0.25 * (vnoise(x.shape, 4, 107) - 0.5) - 0.2 * (y / 15 - 0.5), [1, 2, 3], b)

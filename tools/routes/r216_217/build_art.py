@@ -13,24 +13,26 @@ Chunks 106, 107, 108, 111, 112 are not touched (checked byte-identical to BASE_R
 kept whole (no cuts); everything below is added on top of it.
 
 Teo's Memorial Ridge, map_data_110, on the Route 216 cliff ledge (h 2) at the foot of the lowest stock terrace,
-facing south to Mt. Coronet: a monumental carved granite monolith (2.78 tiles to the top of its snow cap, ~2x the
-player on the DS camera) on a two-step pedestal. The thick bevelled shaft leans back 25 degrees toward the cliff, so
-it rises tall on the CAMERA_TYPE_DEFAULT view; its face carries the outlined mountain-and-falling-star emblem and the
-inlaid dark "TEO" plaque. A crisp snow cap with a drip lip rests on top, a bold deep-violet knotted scarf wraps the
-upper shaft with two fluttering tails down the east flank, a large evergreen & winter-blossom wreath leans on the
-front steps, a ~1.4-tile stone vigil lantern stands at (316.2, 401.3) with warm unlit glass, a soft A3I5 amber bloom
-and light pool. Dithered c0 snow drifts creep over the steps, soft A3I5 contact shadows sit under the pedestal and
-lantern, boot prints lead in from the west beside glinting violet shard dust. Blocked: (316..318, 401). Standing
-tile: (317, 402) facing north; the trampled approach (315..319, 402) is shallow snow.
+facing south to Mt. Coronet (v3): a carved alpine stele, 2.6 tiles to its snow crest. A wide two-tier stepped plinth
+with chamfered corners and a bevelled moulded collar carries a tapered shaft with chamfered front edges (leaning back 22
+degrees so the carved face turns up to the CAMERA_TYPE_DEFAULT view); a snow-lipped cornice and a peaked stone cap
+(pyramidion: carved diamond pediment, snow-laden flanks, sculpted snow crest) top it. The face has a recessed
+dark-slate memorial tablet in a raised carved frame with delicate etched inscription lines under a small carved
+peak-and-star emblem. The deep-violet scarf drapes diagonally over the shoulders to a knot and two tails on the east
+shoulder; evergreen & winter-blossom wreath and bouquet on the steps; ~1.4-tile stone vigil lantern at (316.2, 401.3)
+with warm unlit glass, A3I5 amber bloom and pool; c0 snow drifts nestled against the steps and heaped at the corners;
+boot prints and violet shard dust lead in from the west. Blocked: (316..318, 401). The BG event is read from
+(317, 402) facing north; showcase (319, 402) facing west, approach (318, 404) facing north.
 
-Indra's Snowy Camp, map_data_109, in the sheltered north-east corner of the Route 217 snowfield (backed by the tree
-mass at z 363+): a deep-violet A-frame expedition tent (x 313..317, z 360..362, ridge 1.9) with dark pixel outlines,
-heaped ridge snow, the pale-silver Eclipse emblem on both roof slopes, an open shadowed doorway with tied-back flaps
-facing south, staked guy ropes; a supply crate with a bright expedition lantern (warm unlit glass + A3I5 amber bloom
-and pool) and the field journal (311, 360); the open Eclipse shard-scanner case on two stacked crates (312, 360)
-with its electric-violet compass lid, violet bloom and pool; packed-snow clearing patches with dithered rims and
-soft contact shadows under the tent and crates. Blocked: (313..316, 360..362), (311..312, 360). Packed snow
-(behaviour 0xA8) on the clearing x 309..316, z 357..362.
+Indra's Snowy Camp, map_data_109, in the sheltered north-east corner of the Route 217 snowfield (v3): the deep-violet
+A-frame tent (x 313..317, z 360..362, ridge 1.9; outlines, ridge snow, silver Eclipse emblem, open doorway, guy ropes)
+with a rolled sleeping bag at the door; stacked Eclipse supply crates + rope coil (310, 360); the lantern crate and
+field journal (311, 360); the raised shard-scanner case (312, 360) with its violet lid, bloom, a faint violet beam onto
+the snow and a ground trace running south-south-west toward Mt. Coronet; a stone-ringed campfire with a glowing ember
+bed, crossed logs, A3I5 amber bloom and pool (311, 361); a split-log bench (309, 361); the Eclipse survey pole with a
+pennant and two plank trail-marker arrows on a snow cairn (308, 360); trampled packed-snow paths, boot prints and
+contact shadows. BG events: scanner (312, 360) read from (312, 361), campfire (311, 361) read from (311, 362).
+Showcase (310, 363) facing north, approach (309, 365). Packed snow (behaviour 0xA8) on x 307..317, z 357..365.
 """
 import json
 import math
@@ -60,16 +62,22 @@ SNOW_DEEP, SNOW_SHALLOW = 0xA1, 0xA8
 TEO_MARKER = (317, 401)
 TEO_STAND = (317, 402)
 CAMP_EVENT = (312, 360)
-CAMP_EVENT2 = (311, 360)
-CAMP_STAND = (312, 361)
-TEO_APPROACH = (315, 404)                  # walking up the Route 216 ledge, memorial ahead to the north-east
-CAMP_APPROACH = (309, 364)                 # coming up the Route 217 snowfield from the south-west
+CAMP_EVENT2 = (311, 361)                   # v3: the campfire (the journal crate's old reading tile)
+CAMP_STAND = (312, 361)                    # reading Indra's scanner / journal (BG events face north)
+TEO_SHOWCASE = (319, 402)                  # v3 showcase: beside the memorial, facing west (face + plinth unhidden)
+CAMP_SHOWCASE = (310, 363)                 # v3 showcase: back + south-west of the camp, facing north
+TEO_APPROACH = (318, 404)                  # walking up the Route 216 ledge, memorial straight ahead (clear of Skier Edward)
+CAMP_APPROACH = (309, 365)                 # coming up the Route 217 snowfield from the south-west
 G216, G217 = 2.0, 1.0
 
 TEO_BLOCK = [(316, 401), (317, 401), (318, 401)]
 TEO_PACKED = (315, 402, 320, 403)          # trampled approach (x0, z0, x1, z1 exclusive): shallow snow
-CAMP_BLOCK = [(x, z) for x in range(313, 317) for z in range(360, 363)] + [(311, 360), (312, 360)]
-CAMP_PACKED = (309, 357, 317, 363)
+CAMP_BLOCK = [(x, z) for x in range(313, 317) for z in range(360, 363)] + \
+    [(310, 360), (311, 360), (312, 360),          # supply crate stack, lantern crate, scanner case
+     (311, 361),                                  # stone-ringed campfire
+     (309, 361),                                  # split-log bench
+     (308, 360)]                                  # Eclipse survey pole + trail marker
+CAMP_PACKED = (307, 357, 318, 366)
 
 CAM = (0.0, 0.857, 0.515)
 
@@ -121,6 +129,10 @@ MATS = {
     "rr_pool": ("r216_glow", False, "none", 21),
     "rr_poolv": ("r216_glow", False, "none", 22),
     "rr_shadow": ("r216_glow", False, "none", 23),
+    "rr_beam": ("r216_glow", False, "none", 24),
+    "rr_fire": ("r216_glow", False, "none", 25),
+    "rr_pool2": ("r216_glow", False, "none", 26),
+    "rr_trace": ("r216_glow", False, "none", 27),
     "rr_tent": ("r217_tent", True, "back", 0),
     "rr_tent2": ("r217_tent", True, "none", 0),
     "rr_tent_u": ("r217_tent", False, "none", 0),
@@ -313,105 +325,172 @@ def wedge_x(B, key, z0, z1, x_lo, h_lo, x_hi, h_hi, box, group="drift"):
 # unlit offering tints: the scarf and wreath keep their colour by day and read as focal accents in the night snow
 SCARF, WREATH, EMBLEM = (214, 206, 232), (206, 210, 216), (206, 210, 226)
 
-# Teo's monolith (absolute tiles / heights above the G216 ground)
-STELE = dict(cx=317.62, xb=0.56, xt=0.5, zf=401.72, depth_b=0.5, depth_t=0.38, hb=0.42, ht=2.56, lean=25.0)
+# Teo's memorial stele (absolute tiles / heights above the G216 ground): tapered, bevelled shaft leaning back toward
+# the cliff (so its carved face turns up to the DS camera), chamfered front edges, on a moulded collar
+STELE = dict(cx=317.65, xb=0.5, xt=0.39, zf=401.7, depth_b=0.44, depth_t=0.34, hb=0.46, ht=2.0, lean=22.0, ch=0.075)
+PLINTH = ((316.45, 401.04, 318.85, 401.98, 0.0, 0.17, 0.17),     # (x0, z0, x1, z1, h0, h1, chamfer) tier 1
+          (316.8, 401.16, 318.5, 401.86, 0.17, 0.34, 0.13),      # tier 2
+          (317.07, 401.27, 318.23, 401.8, 0.34, 0.46, 0.08))     # moulded collar under the shaft
+
+
+def chamfer_rect(x0, z0, x1, z1, c):
+    """Octagon (x, z) round a rectangle with chamfered corners: the south edge first (west -> east), then
+    round through east, north and west."""
+    return [(x0 + c, z1), (x1 - c, z1), (x1, z1 - c), (x1, z0 + c), (x1 - c, z0), (x0 + c, z0), (x0, z0 + c),
+            (x0, z1 - c)]
+
+
+def prism(B, key, poly, h0, h1, side, top, group, dens=2.4, inset=0.0):
+    """Extruded convex footprint: outward side faces (those facing north are never seen and are skipped), a
+    fan-triangulated top with planar UVs over `top`; `inset` pulls the top ring in (a bevelled / tapered block)."""
+    n = len(poly)
+    cxp, czp = sum(p[0] for p in poly) / n, sum(p[1] for p in poly) / n
+    topr = [(cxp + (x - cxp) * (1 - inset), czp + (z - czp) * (1 - inset)) for x, z in poly]
+    u0, v0, u1, v1 = side
+    for i in range(n):
+        (xa, za), (xb, zb) = poly[i], poly[(i + 1) % n]
+        (ta, sa), (tb, sb) = topr[i], topr[(i + 1) % n]
+        ex, ez = xb - xa, zb - za
+        L = math.hypot(ex, ez)
+        nx, nz = -ez / L, ex / L                         # outward (the ring runs south edge west -> east first)
+        if nz < -0.5:
+            continue
+        uu = u0 + (u1 - u0) * min(1.0, L / dens)
+        B.quad(key, [(ta, h1, sa), (tb, h1, sb), (xb, h0, zb), (xa, h0, za)], (u0, v0, uu, v1), (nx, 0.25, nz),
+               group=group)
+    tu0, tv0, tu1, tv1 = top
+    xs, zs = [p[0] for p in topr], [p[1] for p in topr]
+    X0, X1, Z0, Z1 = min(xs), max(xs), min(zs), max(zs)
+    UV = lambda x, z: (tu0 + (tu1 - tu0) * (x - X0) / (X1 - X0), tv0 + (tv1 - tv0) * (z - Z0) / (Z1 - Z0))  # noqa: E731
+    for i in range(n):
+        a_, b_ = topr[i], topr[(i + 1) % n]
+        B.add(key, [(cxp, h1, czp), (a_[0], h1, a_[1]), (b_[0], h1, b_[1])], [UV(cxp, czp), UV(*a_), UV(*b_)],
+              (0, 1, 0), group=group, solid=False)
 
 
 def build_teo(B):
     S, O, GL = "r216_stone", "r216_offer", "r216_glow"
     G = G216
     snow, snow_side, step, step_top = R(S, "snow"), R(S, "snow_side"), R(S, "step"), R(S, "step_top")
-    lant, post, roof, gran = R(S, "lantern"), R(S, "post"), R(S, "roof"), R(S, "granite")
+    lant, post, roof = R(S, "lantern"), R(S, "post"), R(S, "roof")
+    chamf, ped, side = R(S, "chamfer"), R(S, "pediment"), R(S, "stele_side")
     drift, mound, drip = R(O, "drift"), R(O, "mound"), R(O, "drip")
     shadow, amber, poolb = R(GL, "shadow"), R(GL, "amber"), R(GL, "pool")
 
-    # soft contact shadows (A3I5) under the pedestal (spilling east, away from the light) and the lantern
+    # soft contact shadows (A3I5) under the plinth (spilling east, away from the light) and the lantern
     pool(B, "rr_shadow", 317.78, 401.6, 3.1, 1.6, G + 0.010, shadow, (255, 255, 255), group="shadow")
     pool(B, "rr_shadow", 316.26, 401.36, 0.85, 0.7, G + 0.011, shadow, (255, 255, 255), group="shadow")
 
-    # stepped pedestal: two outlined granite steps with snow-dusted tops
-    sx0, sz0, sx1, sz1, sh1 = 316.45, 401.06, 318.86, 401.98, 0.2
-    tx0, tz0, tx1, tz1, sh2 = 316.8, 401.18, 318.5, 401.84, 0.42
-    B.box("rr_stone", sx0, sz0, sx1, sz1, G, G + sh1, {"s": step, "e": step, "w": step}, sides="swet",
-          top_uv=step_top, group="pedestal")
-    B.box("rr_stone", tx0, tz0, tx1, tz1, G + sh1, G + sh2, {"s": step, "e": step, "w": step}, sides="swet",
-          top_uv=step_top, group="pedestal")
+    # wide 2-tier stepped plinth with chamfered corners + a bevelled moulded collar (snow settled on the step tops)
+    for k, (x0, z0, x1, z1, h0, h1, c) in enumerate(PLINTH):
+        prism(B, "rr_stone", chamfer_rect(x0, z0, x1, z1, c), G + h0, G + h1, step, step_top, "plinth",
+              inset=0.06 if k == 2 else 0.0)
+    sh1, sh2 = PLINTH[0][5], PLINTH[1][5]
 
-    # the monolith: thick bevelled tapered shaft leaning back toward the cliff (so it rises tall on the DS camera)
+    # the stele: tapered, bevelled shaft (chamfered front edges) leaning back toward the cliff
     st = STELE
-    cx, hb, ht = st["cx"], G + st["hb"], G + st["ht"]
-    tl = math.tan(math.radians(st["lean"]))
-    zf = st["zf"]
-    fz = lambda h: zf - (h - hb) * tl                      # noqa: E731  front face z at height h
-    hw = lambda h: st["xb"] + (st["xt"] - st["xb"]) * (h - hb) / (ht - hb)  # noqa: E731
+    cx, hb, ht, c = st["cx"], G + st["hb"], G + st["ht"], st["ch"]
+    lean = math.radians(st["lean"])
+    tl = math.tan(lean)
+    fz = lambda h: st["zf"] - (h - hb) * tl                                     # noqa: E731  front face z
+    hw = lambda h: st["xb"] + (st["xt"] - st["xb"]) * (h - hb) / (ht - hb)      # noqa: E731
     dp = lambda h: st["depth_b"] + (st["depth_t"] - st["depth_b"]) * (h - hb) / (ht - hb)  # noqa: E731
-    fn = (0, math.sin(math.radians(st["lean"])), math.cos(math.radians(st["lean"])))
-    B.quad("rr_stone", [(cx - hw(ht), ht, fz(ht)), (cx + hw(ht), ht, fz(ht)), (cx + hw(hb), hb, fz(hb)),
-                        (cx - hw(hb), hb, fz(hb))], R(S, "stele"), fn, group="stele")
-    side = R(S, "stele_side")
-    for sgn in (-1, 1):
-        B.quad("rr_stone", [(cx + sgn * hw(ht), ht, fz(ht) - dp(ht)), (cx + sgn * hw(ht), ht, fz(ht)),
-                            (cx + sgn * hw(hb), hb, fz(hb)), (cx + sgn * hw(hb), hb, fz(hb) - dp(hb))][::-sgn],
-               side if sgn < 0 else (side[2], side[1], side[0], side[3]), (sgn, 0, 0), group="stele")
-    # crisp snow cap: outlined slab with a rounded mound, and a drip lip hanging over the face
-    o = 0.045
-    zF, zB = fz(ht) + 0.06, fz(ht) - dp(ht) - 0.04
-    xa, xb_ = cx - hw(ht) - o, cx + hw(ht) + o
-    hc0, hc1, hr = ht - 0.03, ht + 0.05, ht + 0.16
-    B.box("rr_stone", xa, zB, xb_, zF, hc0, hc1, snow_side, sides="swe", group="cap")
-    # pillow-shaped snow mound: raised inner top + four bevels running down to the slab edges
-    i = 0.17
-    ia, ib, iF, iB = xa + i, xb_ - i, zF - i * 0.6, zB + i * 0.6
+    fn = (0, math.sin(lean), math.cos(lean))
+
+    def ring(h, g=0.0):
+        """Shaft cross-section at height h grown by g: LB, LF, FL, FR, RF, RB (front chamfers only)."""
+        w, f, d = hw(h) + g, fz(h) + g, dp(h) + 2 * g
+        return [(cx - w, f - d), (cx - w, f - c), (cx - w + c, f), (cx + w - c, f), (cx + w, f - c), (cx + w, f - d)]
+
+    rb, rt = ring(hb), ring(ht)
+    faces = ((2, 3, R(S, "stele"), fn), (1, 2, None, (-0.7, 0.3, 0.7)), (3, 4, None, (0.7, 0.3, 0.7)),
+             (0, 1, side, (-1, 0, 0)), (4, 5, side, (1, 0, 0)))
+    for i, j, box_, nrm in faces:
+        P = [(rt[i][0], ht, rt[i][1]), (rt[j][0], ht, rt[j][1]), (rb[j][0], hb, rb[j][1]), (rb[i][0], hb, rb[i][1])]
+        if box_ is None:                                 # chamfer: bevel strip with u along the edge
+            u0, v0, u1, v1 = chamf
+            B.add("rr_stone", P, [(u0, v0), (u0, v1), (u1, v1), (u1, v0)], nrm, group="stele")
+        else:
+            if nrm[0] > 0:
+                box_ = (box_[2], box_[1], box_[0], box_[3])
+            B.quad("rr_stone", P, box_, nrm, group="stele")
+
+    # projecting cornice slab (snow-lipped moulding) capping the shaft
+    hk0, hk1 = ht, ht + 0.1
+    ox = 0.07
+    kx0, kx1 = cx - hw(ht) - ox, cx + hw(ht) + ox
+    kzF, kzB = fz(ht) + 0.07, fz(ht) - dp(ht) - 0.05
+    prism(B, "rr_stone", chamfer_rect(kx0, kzB, kx1, kzF, 0.04), hk0, hk1, step, step_top, "cap")
+
+    # peaked stone cap (pyramidion) built along the leaning shaft axis, so its point rises clear above the cornice on
+    # the DS camera: a carved pediment face toward the path, snow-laden flanks, a sculpted snow crest on the point
+    gh = 0.5
+    zc = (kzF + kzB) / 2
+    apex = (cx, hk1 + gh, zc - gh * tl)
+    e = 0.02
+    c0 = [(kx0 + e, hk1, kzF - e), (kx1 - e, hk1, kzF - e), (kx1 - e, hk1, kzB + e), (kx0 + e, hk1, kzB + e)]
+    pu0, pv0, pu1, pv1 = ped
     su0, sv0, su1, sv1 = snow
-    inner = (su0 + 2 / 64, sv0 + 2 / 64, su1 - 2 / 64, sv0 + 10 / 64)
-    B.flat("rr_stone", ia, iB, ib, iF, hr, inner, group="cap")
-    zm_c = (iF + iB) / 2
-    ring = [((xa, zF), (xb_, zF), (ib, iF), (ia, iF), (0, 0.7, 0.7)), ((xb_, zB), (xa, zB), (ia, iB), (ib, iB), (0, 0.7, -0.7)),
-            ((xa, zB), (xa, zF), (ia, iF), (ia, iB), (-0.7, 0.7, 0)), ((xb_, zF), (xb_, zB), (ib, iB), (ib, iF), (0.7, 0.7, 0))]
-    for (o0, o1, i1, i0, nrm) in ring:
-        B.add("rr_stone", [(i0[0], hr, i0[1]), (i1[0], hr, i1[1]), (o1[0], hc1, o1[1]), (o0[0], hc1, o0[1])],
-              [(su0, sv0), (su1, sv0), (su1, sv1), (su0, sv1)], nrm, group="cap", solid=False)
-    # irregular c0 snow crest heaped along the front of the cap (breaks the rectangular silhouette)
-    B.quad("rr_offer", [(xa - 0.02, hr + 0.06, zm_c), (xb_ + 0.02, hr + 0.06, zm_c), (xb_ + 0.02, hc1, zF + 0.01),
-                        (xa - 0.02, hc1, zF + 0.01)], drift, (0, 0.8, 0.6), group="cap", solid=False)
-    B.teo_height = hr + 0.06 - G
-    hd = hc0 - 0.16
-    B.quad("rr_offer", [(xa + 0.02, hc0 + 0.01, fz(hc0) + 0.075), (xb_ - 0.02, hc0 + 0.01, fz(hc0) + 0.075),
-                        (xb_ - 0.02, hd, fz(hd) + 0.075), (xa + 0.02, hd, fz(hd) + 0.075)], drip, fn, group="cap",
+    tri = ((0, 1, ped, (0, 0.6, 0.8)), (1, 2, snow, (0.8, 0.6, 0)), (3, 0, snow, (-0.8, 0.6, 0)))
+    for i, j, box_, nrm in tri:
+        u0, v0, u1, v1 = box_
+        B.add("rr_stone", [apex, c0[j], c0[i]], [((u0 + u1) / 2, v0), (u1, v1), (u0, v1)], nrm, group="cap")
+    # snow crest: the upper 38% of the point re-covered in fresh snow, a hair proud of the stone
+    f = 0.38
+    tip = [tuple(apex[k] + (p_[k] - apex[k]) * f for k in range(3)) for p_ in c0]
+    lift = lambda p_, n_: (p_[0] + n_[0] * 0.015, p_[1] + 0.015, p_[2] + n_[2] * 0.015)  # noqa: E731
+    for i, j, _, nrm in tri:
+        B.add("rr_stone", [lift(apex, nrm), lift(tip[j], nrm), lift(tip[i], nrm)],
+              [((su0 + su1) / 2, sv0), (su1, sv1 - 4 / 64), (su0, sv1 - 4 / 64)], nrm, group="cap", solid=False)
+    # irregular c0 drift heaped over the crest's front edge (breaks the straight snow line)
+    hz = (tip[0][2] + tip[1][2]) / 2
+    B.quad("rr_offer", [(tip[0][0] - 0.03, tip[0][1] + 0.05, hz + 0.0), (tip[1][0] + 0.03, tip[1][1] + 0.05, hz + 0.0),
+                        (tip[1][0] + 0.06, tip[1][1] - 0.07, hz + 0.06), (tip[0][0] - 0.06, tip[0][1] - 0.07, hz + 0.06)],
+           drift, (0, 0.6, 0.8), group="cap", solid=False)
+    hr0 = apex[1]
+    B.teo_height = hr0 + 0.015 - G
+    # icicle drip lip hanging off the cornice front over the top of the face
+    hd = hk0 - 0.15
+    B.quad("rr_offer", [(kx0 + 0.03, hk0 + 0.01, kzF + 0.012), (kx1 - 0.03, hk0 + 0.01, kzF + 0.012),
+                        (kx1 - 0.03, hd, fz(hd) + 0.08), (kx0 + 0.03, hd, fz(hd) + 0.08)], drip, fn, group="cap",
            solid=False)
 
-    # bold deep-violet knotted scarf round the upper shaft: front band, side wraps, knot at the south-east corner,
-    # two fluttering tails hanging down the east flank
+    # bold deep-violet knotted scarf draped diagonally over the stone shoulders (higher on the west, knot on the east
+    # shoulder), following the chamfered section, with two fluttering tails down the east flank
     sc, knot = R(O, "scarf"), R(O, "knot")
-    h0, h1 = G + 2.0, G + 2.24
-    off = 0.025
-    B.quad("rr_offer_u", [(cx - hw(h1) - off, h1, fz(h1) + off), (cx + hw(h1) + off, h1, fz(h1) + off),
-                        (cx + hw(h0) + off, h0, fz(h0) + off), (cx - hw(h0) - off, h0, fz(h0) + off)],
-           sc, fn, [SCARF] * 4, group="scarf", solid=False)
-    for sgn in (-1, 1):
-        xs1, xs0 = cx + sgn * (hw(h1) + off), cx + sgn * (hw(h0) + off)
-        B.quad("rr_offer_u", [(xs1, h1, fz(h1) - dp(h1) - off), (xs1, h1, fz(h1) + off), (xs0, h0, fz(h0) + off),
-                            (xs0, h0, fz(h0) - dp(h0) - off)][::-sgn], sc, (sgn, 0, 0), [SCARF] * 4, group="scarf",
-               solid=False)
-    kh = (h0 + h1) / 2
-    kx, kz = cx + hw(kh) - 0.02, fz(kh) + 0.04
+    bw = 0.2
+    hl, hrr = G + 1.9, G + 1.62                           # band top on the west / east edge
+    band_top = lambda x: hl + (hrr - hl) * (x - (cx - hw(ht))) / (2 * hw(ht))  # noqa: E731
+    path = ring(G + 1.75, 0.025)
+    scu0, scv0, scu1, scv1 = sc
+    for i in range(len(path) - 1):
+        (xa, za), (xb, zb) = path[i], path[i + 1]
+        ta, tb = band_top(xa), band_top(xb)
+        dza, dzb = -(ta - G - 1.75) * tl, -(tb - G - 1.75) * tl
+        pts = [(xa, ta, za + dza), (xb, tb, zb + dzb), (xb, tb - bw, zb + dzb + bw * tl), (xa, ta - bw, za + dza + bw * tl)]
+        ex, ez = xb - xa, zb - za
+        L = math.hypot(ex, ez) or 1.0
+        B.quad("rr_offer_u", pts, (scu0, scv0, scu0 + (scu1 - scu0) * min(1.0, L / 0.9), scv1), (-ez / L, 0.2, ex / L),
+               [SCARF] * 4, group="scarf", solid=False)
+    kh = hrr - bw / 2
+    kx, kz = cx + hw(kh) - 0.01, fz(kh) + 0.03
     B.box("rr_offer_u", kx - 0.12, kz - 0.14, kx + 0.12, kz + 0.1, kh - 0.13, kh + 0.13, knot, sides="swet",
           colors=lambda n, p: SCARF, group="scarf")
     tail, tail2 = R(O, "tail"), R(O, "tail2")
-    for (box_, x_top, dz, w_, ln, sway) in ((tail, kx + 0.08, 0.02, 0.17, 0.95, 0.14), (tail2, kx + 0.2, -0.06, 0.15,
-                                                                                         0.78, 0.2)):
+    for (box_, x_top, dz, w_, ln, sway) in ((tail, kx + 0.08, 0.02, 0.17, 0.9, 0.14), (tail2, kx + 0.2, -0.06, 0.15,
+                                                                                        0.74, 0.2)):
         ztop = kz + dz
         B.quad("rr_offer_u", [(x_top - w_ / 2, kh, ztop), (x_top + w_ / 2, kh, ztop),
                             (x_top + w_ / 2 + sway, kh - ln, ztop + 0.05), (x_top - w_ / 2 + sway, kh - ln, ztop + 0.05)],
                box_, (0, 0, 1), [SCARF] * 4, group="scarf", solid=False)
 
-    # large evergreen & winter-blossom wreath leaning on the front step edges, bouquet on the west step
+    # large evergreen & winter-blossom wreath leaning on the front step, frozen bouquet on the west step
     B.card("rr_offer_u", 318.4, 402.05, 0.9, G, G + 0.9, R(O, "wreath"), lean=0.32, colors=[WREATH] * 4,
            group="offer", solid=False)
-    B.card("rr_offer_u", 317.02, 401.95, 0.3, G + sh1, G + sh1 + 0.32, R(O, "bouquet"), lean=0.25,
+    B.card("rr_offer_u", 317.06, 401.93, 0.3, G + sh1, G + sh1 + 0.32, R(O, "bouquet"), lean=0.25,
            colors=[WREATH] * 4, group="offer", solid=False)
 
-    # tall stone vigil lantern (~1.4 tiles) west of the pedestal with a warm unlit glass core + soft amber bloom
+    # tall stone vigil lantern (~1.4 tiles) west of the plinth with a warm unlit glass core + soft amber bloom
     lx, lz = 316.2, 401.3
     B.box("rr_stone", lx - 0.18, lz - 0.18, lx + 0.18, lz + 0.18, G, G + 0.13, lant, sides="swet", group="lantern")
     B.box("rr_stone", lx - 0.075, lz - 0.075, lx + 0.075, lz + 0.075, G + 0.13, G + 0.62, post, sides="swe",
@@ -432,17 +511,19 @@ def build_teo(B):
     lathe(B, "rr_stone", lx, lz, [(0.05, G + 1.36), (0.0, G + 1.41)], 4, snow, group="lantern", ang0=math.pi / 4)
     billboard(B, "rr_glow", lx, G + 0.86, lz - 0.08, 1.15, 1.15, amber, colors=[(255, 244, 220)] * 4)
     pool(B, "rr_pool", 316.3, 401.75, 1.9, 1.5, G + 0.016, poolb, (255, 206, 128))
-    pool(B, "rr_pool", 316.3, 401.6, 1.9, 1.5, G + sh1 + 0.006, poolb, (255, 206, 128), clip=(sx0, sz0, sx1, sz1))
+    x0, z0, x1, z1 = PLINTH[0][:4]
+    pool(B, "rr_pool", 316.3, 401.6, 1.9, 1.5, G + sh1 + 0.006, poolb, (255, 206, 128), clip=(x0 + 0.1, z0, x1, z1))
 
-    # soft dithered snow drifts encroaching over the steps and heaped round the bases
-    wedge(B, "rr_offer", 316.36, 317.32, 402.24, G + 0.0, 401.975, G + sh1, drift)
-    wedge(B, "rr_offer", 317.7, 318.95, 402.22, G + 0.0, 401.975, G + sh1, drift)
-    wedge(B, "rr_offer", 316.75, 317.35, 401.96, G + sh1, 401.835, G + sh2, drift)
-    wedge(B, "rr_offer", 318.05, 318.55, 401.96, G + sh1, 401.835, G + sh2, drift)
-    wedge_x(B, "rr_offer", 401.3, 401.99, 318.99, G + 0.0, sx1 - 0.005, G + sh1, drift)
-    wedge_x(B, "rr_offer", 401.2, 401.83, sx1 - 0.02, G + sh1, tx1 - 0.005, G + sh2, drift)
-    for (mx, mz, ms, mh) in ((316.62, 401.84, 0.4, sh1), (318.68, 401.22, 0.42, sh1), (316.98, 401.3, 0.34, sh2),
-                             (318.36, 401.7, 0.3, sh2), (316.02, 401.6, 0.48, 0.0), (318.98, 401.5, 0.36, 0.0)):
+    # soft dithered snow drifts nestled against the chamfered steps and heaped at the corners
+    wedge(B, "rr_offer", 316.62, 317.36, 402.24, G + 0.0, 401.975, G + sh1, drift)
+    wedge(B, "rr_offer", 317.72, 318.7, 402.22, G + 0.0, 401.975, G + sh1, drift)
+    wedge(B, "rr_offer", 316.95, 317.4, 401.97, G + sh1, 401.855, G + sh2, drift)
+    wedge(B, "rr_offer", 318.0, 318.38, 401.97, G + sh1, 401.855, G + sh2, drift)
+    wedge_x(B, "rr_offer", 401.25, 401.8, 319.0, G + 0.0, x1 - 0.005, G + sh1, drift)
+    wedge_x(B, "rr_offer", 401.3, 401.72, x1 - 0.06, G + sh1, PLINTH[1][2] - 0.005, G + sh2, drift)
+    for (mx, mz, ms, mh) in ((316.66, 401.9, 0.42, 0.0), (318.72, 401.92, 0.46, 0.0), (318.9, 401.2, 0.4, 0.0),
+                             (316.95, 401.24, 0.32, sh2 - 0.17), (318.4, 401.78, 0.3, sh1), (316.98, 401.82, 0.28, sh1),
+                             (316.02, 401.6, 0.48, 0.0), (319.02, 401.55, 0.36, 0.0)):
         B.decal("rr_offer", mx, mz, ms, ms * 0.8, hash01(mx * 10, mz * 10) * 6.0, G + mh + 0.007, mound)
 
     # fresh boot prints walking in from the west, glinting violet shard dust in the snow beside them
@@ -466,12 +547,17 @@ def build_camp(B):
     # packed-snow clearing: large dithered-rim patches blending into the fresh snow
     clear = R(K, "clear")
     for k, (px, pz, s) in enumerate(((311.0, 359.4, 3.3), (313.7, 358.9, 3.1), (309.9, 361.6, 2.9),
-                                     (316.1, 359.0, 2.6), (311.9, 362.2, 2.4), (309.4, 358.6, 2.2))):
-        B.decal("rr_clear", px, pz, s, s * 0.92, hash01(k, 7) * 6.28, G + 0.006 + 0.002 * k, clear, group="clear")
+                                     (316.1, 359.0, 2.6), (311.9, 362.2, 2.4), (309.4, 358.6, 2.2),
+                                     (308.6, 361.0, 2.3), (310.4, 363.3, 2.2), (312.6, 362.9, 1.9),
+                                     (309.3, 364.4, 1.8))):
+        B.decal("rr_clear", px, pz, s, s * 0.92, hash01(k, 7) * 6.28, G + 0.005 + 0.001 * k, clear, group="clear")
     # dark contact shadows under the tent and the crates
     pool(B, "rr_shadow", 315.0, 361.15, 3.95, 2.45, G + 0.018, shadow, (255, 255, 255), group="shadow")
     pool(B, "rr_shadow", 311.55, 360.62, 1.15, 0.95, G + 0.019, shadow, (255, 255, 255), group="shadow")
     pool(B, "rr_shadow", 312.55, 360.6, 1.05, 0.9, G + 0.019, shadow, (255, 255, 255), group="shadow")
+    pool(B, "rr_shadow", 310.6, 360.62, 1.1, 0.95, G + 0.0185, shadow, (255, 255, 255), group="shadow")
+    pool(B, "rr_shadow", 309.55, 361.55, 1.1, 0.7, G + 0.0185, shadow, (255, 255, 255), group="shadow")
+    pool(B, "rr_shadow", 308.6, 360.6, 0.8, 0.7, G + 0.0185, shadow, (255, 255, 255), group="shadow")
 
     # pitched A-frame expedition tent, ridge north-south, open doorway gable facing south toward the camera
     tx0, tx1, tz0, tz1, rx = 313.25, 316.55, 360.1, 361.86, 314.9
@@ -566,9 +652,133 @@ def build_camp(B):
            colors=[(240, 228, 255)] * 4, group="glow", solid=False)
     billboard(B, "rr_glow", 312.5, sh + 0.34, 360.3, 1.15, 1.15, violet, colors=[(255, 255, 255)] * 4)
     pool(B, "rr_poolv", 312.55, 361.2, 1.5, 1.2, G + 0.024, poolb, (196, 150, 255))
-    # boot prints leading away south-west
-    for k, (px, pz) in enumerate(((309.6, 363.4), (308.9, 364.6), (308.3, 365.9))):
-        B.decal("rr_offer", px, pz, 0.45, 0.68, 3.6, G + 0.02, R(O, "prints"))
+    build_camp_life(B)
+
+
+def log(B, key, p0, p1, r, segs, side_box, end_box=None, group="log", ang0=0.0):
+    """Cylinder from p0 to p1 (logs, stumps, bedroll); sides turned away from the camera are dropped, end caps
+    drawn as fans over `end_box` when they face the camera."""
+    ax = sub(p1, p0)
+    a = norm(ax)
+    ref = (0, 1, 0) if abs(a[1]) < 0.9 else (1, 0, 0)
+    u = norm(cross(a, ref))
+    v = cross(u, a)
+    off = lambda t: tuple(r * (math.cos(t) * u[k] + math.sin(t) * v[k]) for k in range(3))  # noqa: E731
+    ang = [ang0 + 2 * math.pi * j / segs for j in range(segs)]
+    u0, v0, u1, v1 = side_box
+    for j in range(segs):
+        o0, o1 = off(ang[j]), off(ang[(j + 1) % segs])
+        mid = norm(tuple(o0[k] + o1[k] for k in range(3)))
+        if dot(mid, CAM) < -0.3:
+            continue
+        P = [tuple(p1[k] + o0[k] for k in range(3)), tuple(p1[k] + o1[k] for k in range(3)),
+             tuple(p0[k] + o1[k] for k in range(3)), tuple(p0[k] + o0[k] for k in range(3))]
+        B.quad(key, P, (u0, v0 + (v1 - v0) * j / segs, u1, v0 + (v1 - v0) * (j + 1) / segs), mid, group=group)
+    if end_box:
+        eu0, ev0, eu1, ev1 = end_box
+        ec = ((eu0 + eu1) / 2, (ev0 + ev1) / 2)
+        for pc, nrm in ((p0, tuple(-c for c in a)), (p1, a)):
+            if dot(nrm, CAM) < -0.2:
+                continue
+            for j in range(segs):
+                o0, o1 = off(ang[j]), off(ang[(j + 1) % segs])
+                uv = lambda t: (ec[0] + (eu1 - eu0) / 2 * math.cos(t), ec[1] + (ev1 - ev0) / 2 * math.sin(t))  # noqa: E731
+                B.add(key, [pc, tuple(pc[k] + o0[k] for k in range(3)), tuple(pc[k] + o1[k] for k in range(3))],
+                      [ec, uv(ang[j]), uv(ang[(j + 1) % segs])], nrm, group=group)
+
+
+def build_camp_life(B):
+    """v3: the lived-in expedition camp round the tent: stacked Eclipse supply crates, a stone-ringed campfire with
+    glowing embers, a split-log bench, a rolled sleeping bag at the door, the Eclipse survey pole with its trail
+    marker, the scanner's faint violet beam and ground trace pointing south toward Mt. Coronet, trampled paths."""
+    T, K, S, O, GL = "r217_tent", "r217_camp", "r216_stone", "r216_offer", "r216_glow"
+    G = G217
+    wood, canvas, flap = R(T, "wood"), R(T, "canvas"), R(T, "flap")
+    crate, cside, logend, embers = R(K, "crate"), R(K, "crate_side"), R(K, "log_end"), R(K, "embers")
+    lant, snow, snow_side = R(S, "lantern"), R(S, "snow"), R(S, "snow_side")
+    amber, violet, poolb = R(GL, "amber"), R(GL, "violet"), R(GL, "pool")
+
+    # stacked Eclipse supply crates (310, 360): a big crate, a smaller one on top, a rope coil
+    lc = (crate[0], crate[1] + 6 / 64, crate[2], crate[3])
+    B.box("rr_camp", 310.1, 360.16, 310.9, 360.84, G, G + 0.5, {"s": crate, "e": cside, "w": cside}, sides="swet",
+          top_uv=cside, group="crates")
+    B.box("rr_camp", 310.2, 360.24, 310.8, 360.74, G + 0.5, G + 0.86, {"s": lc, "e": cside, "w": cside}, sides="swet",
+          top_uv=cside, group="crates")
+    lathe(B, "rr_tent", 310.5, 360.48, [(0.17, G + 0.86), (0.17, G + 0.93), (0.08, G + 0.95)], 6, R(T, "rope"),
+          group="crates")
+
+    # stone-ringed campfire (311, 361): eight chamfered stones, glowing ember bed, crossed charred logs, warm bloom
+    fx, fz = 311.5, 361.5
+    for k in range(8):
+        a_ = k * math.pi / 4 + 0.2
+        sx, sz = fx + 0.33 * math.sin(a_), fz + 0.3 * math.cos(a_)
+        r_ = 0.075 + 0.02 * hash01(k, 3)
+        prism(B, "rr_stone", chamfer_rect(sx - r_, sz - r_ * 0.85, sx + r_, sz + r_ * 0.85, r_ * 0.4), G,
+              G + 0.1 + 0.05 * hash01(k, 5), lant, lant, "fire", dens=0.6, inset=0.2)
+    B.flat("rr_camp_u", fx - 0.27, fz - 0.25, fx + 0.27, fz + 0.25, G + 0.03, embers, colors=[(255, 255, 255)] * 4,
+           group="fire")
+    for (p0, p1) in (((fx - 0.22, G + 0.06, fz - 0.12), (fx + 0.2, G + 0.13, fz + 0.1)),
+                     ((fx + 0.2, G + 0.06, fz - 0.16), (fx - 0.16, G + 0.14, fz + 0.12))):
+        log(B, "rr_tent", p0, p1, 0.045, 5, wood, None, group="fire")
+    billboard(B, "rr_fire", fx, G + 0.3, fz - 0.02, 0.95, 1.05, amber, colors=[(255, 236, 200)] * 4, group="fire")
+    pool(B, "rr_pool2", fx, fz + 0.2, 2.6, 2.2, G + 0.021, poolb, (255, 186, 104), group="fire")
+
+    # split-log bench (309, 361): a halved log on two stumps, end grain toward the camera's side
+    for bx in (309.28, 309.72):
+        log(B, "rr_tent", (bx, G, 361.5), (bx, G + 0.13, 361.5), 0.1, 6, wood, logend, group="bench")
+    log(B, "rr_tent", (309.12, G + 0.25, 361.5), (309.88, G + 0.25, 361.5), 0.14, 6, wood, logend, group="bench",
+        ang0=math.pi / 6)
+
+    # rolled violet sleeping bag at the tent door (inside the tent footprint), with tie straps
+    log(B, "rr_tent", (313.42, G + 0.12, 362.42), (314.12, G + 0.12, 362.42), 0.12, 6, flap, flap, group="bed")
+    for bx in (313.6, 313.94):
+        log(B, "rr_tent", (bx - 0.02, G + 0.12, 362.42), (bx + 0.02, G + 0.12, 362.42), 0.128, 6, R(T, "rope"),
+            None, group="bed")
+
+    # Eclipse survey pole + wooden trail marker (308, 360) on a little snow-capped cairn
+    px, pz = 308.5, 360.55
+    lathe(B, "rr_stone", px, pz, [(0.3, G), (0.25, G + 0.12), (0.13, G + 0.24), (0.0, G + 0.28)], 5, lant,
+          top_box=snow, top_from=2, group="pole")
+    B.box("rr_tent", px - 0.035, pz - 0.035, px + 0.035, pz + 0.035, G + 0.2, G + 1.95, wood, sides="swe",
+          group="pole")
+    B.box("rr_stone", px - 0.05, pz - 0.05, px + 0.05, pz + 0.05, G + 1.95, G + 2.0, snow_side, sides="swe",
+          top_uv=snow, group="pole")
+    cu0, cv0, cu1, cv1 = canvas
+    B.add("rr_tent2", [(px + 0.035, G + 1.92, pz), (px + 0.48, G + 1.79, pz + 0.03), (px + 0.035, G + 1.64, pz)],
+          [(cu0, cv0 + 4 / 64), (cu0 + 14 / 64, cv0 + 10 / 64), (cu0, cv0 + 16 / 64)], (0, 0, 1), group="pole",
+          solid=False)
+    # two plank arrows: the upper points west / south-west (Mt. Coronet), the lower east (the camp)
+    wu0, wv0, wu1, wv1 = cside
+    for (hy, sgn) in ((G + 1.18, -1), (G + 0.88, 1)):
+        x_tail, x_head = px - sgn * 0.12, px + sgn * 0.36
+        x_neck = px + sgn * 0.24
+        zf_ = pz + 0.045
+        B.quad("rr_camp2", [(min(x_tail, x_neck), hy + 0.07, zf_), (max(x_tail, x_neck), hy + 0.07, zf_),
+                            (max(x_tail, x_neck), hy - 0.07, zf_), (min(x_tail, x_neck), hy - 0.07, zf_)],
+               (wu0, wv0 + 1 / 64, wu1 - 12 / 64, wv1), (0, 0, 1), group="pole")
+        B.add("rr_camp2", [(x_neck, hy + 0.1, zf_), (x_head, hy, zf_), (x_neck, hy - 0.1, zf_)],
+              [(wu0, wv0 + 1 / 64), (wu0 + 6 / 64, wv0 + 4 / 64), (wu0, wv1)], (0, 0, 1), group="pole")
+
+    # the scanner's faint violet beam: a translucent shaft from the lid down and south onto the snow, then a soft
+    # ground trace running south-south-west toward Mt. Coronet with a few glints along it
+    vu0, vv0, vu1, vv1 = violet
+    vb = (vu0 + 10 / 64, (vv0 + vv1) / 2, vu1 - 10 / 64, vv1)
+    top_h, top_z = G + 1.42, 360.48
+    B.quad("rr_beam", [(312.43, top_h, top_z), (312.57, top_h, top_z), (312.72, G + 0.03, 361.8),
+                       (312.28, G + 0.03, 361.8)], vb, (0, 0.7, 0.7), [(236, 220, 255)] * 4, group="beam", solid=False)
+    ang = math.pi + 0.3
+    sx, sz, L = 312.5, 361.55, 3.3
+    cxs, czs = sx + math.sin(ang) * L / 2, sz - math.cos(ang) * L / 2
+    B.decal("rr_trace", cxs, czs, 0.42, L, ang, G + 0.0235, violet, colors=[(220, 200, 255)] * 4, group="beam")
+    for k, t in enumerate((0.25, 0.55, 0.85)):
+        gx, gz = sx + math.sin(ang) * L * t, sz - math.cos(ang) * L * t
+        B.decal("rr_offer_u", gx, gz, 0.5, 0.16, ang + 1.2 * k, G + 0.024 + 0.0005 * k, R(O, "dust"),
+                colors=[(255, 255, 255)] * 4, group="beam")
+
+    # trampled boot-print paths: bench <-> fire, fire -> tent door, and away south-west down the snowfield
+    for (qx, qz, qa) in ((310.35, 361.9, 1.6), (312.2, 362.35, 1.3), (312.9, 362.95, 0.6), (309.6, 363.4, 3.6),
+                         (308.9, 364.6, 3.6), (308.3, 365.9, 3.6), (310.1, 362.75, 2.6)):
+        B.decal("rr_offer", qx, qz, 0.45, 0.68, qa, G + 0.02, R(O, "prints"))
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -710,6 +920,14 @@ def reach_checks(out):
         and cn.get(CAMP_STAND) == cn.get((300, 300)) and cn.get(CAMP_STAND) == cn.get((310, 262))
     res.append((f"Indra's scanner crate {CAMP_EVENT} blocked, standing tile {CAMP_STAND} walkable and connected to the "
                 f"Route 216 seam and the Route 217 north field", c_ok))
+    ev_ok = all(gn[e] & BLOCK and not gn[(e[0], e[1] + 1)] & BLOCK and cn.get((e[0], e[1] + 1)) == cn.get(CAMP_STAND)
+                for e in (CAMP_EVENT, CAMP_EVENT2)) and gn[TEO_MARKER] & BLOCK
+    res.append((f"landmark BG events {TEO_MARKER}, {CAMP_EVENT}, {CAMP_EVENT2} sit on blocked tiles, each read from the "
+                f"walkable, connected tile south of it facing north", ev_ok))
+    sc_ok = all(not gn[t] & BLOCK and cn.get(t) == cn.get(TEO_STAND) for t in (TEO_SHOWCASE, TEO_APPROACH)) and \
+        all(not gn[t] & BLOCK and cn.get(t) == cn.get(CAMP_STAND) for t in (CAMP_SHOWCASE, CAMP_APPROACH))
+    res.append((f"showcase / approach tiles {TEO_SHOWCASE}, {TEO_APPROACH}, {CAMP_SHOWCASE}, {CAMP_APPROACH} walkable and "
+                f"connected to the landmark standing tiles", sc_ok))
     for c in CELLS:
         if c not in out:
             res.append((f"chunk {c}: untouched, work tree byte-identical to {BASE_REV}",
@@ -788,7 +1006,7 @@ def chunk_checks(c, o, tex):
     res.append((f"chunk {c}: nothing solid drawn inside a walkable tile ({sorted(set(low))[:6]})", not low))
     if c == 110:
         th = B.teo_height
-        res.append((f"chunk 110: Teo's monolith {th:.2f} tiles tall to the top of its snow cap (2.4 .. 2.8)",
+        res.append((f"chunk 110: Teo's stele {th:.2f} tiles tall to the top of its snow crest (2.4 .. 2.8)",
                     2.4 <= th <= 2.8))
     return res
 
@@ -798,24 +1016,26 @@ def chunk_checks(c, o, tex):
 # ---------------------------------------------------------------------------------------------------------------
 
 LIGHTING_REL = "res/field/lighting/lighting_set_008.json"
-# (light 0, diffuse, ambient, specular, emission). Day: brighter key light and lower emission than v1, so the shaded
-# sides of the dark-violet tent and the carved grey stone keep their contrast against the snow. Night: clear moonlit
-# indigo (blue key light, low emission) that leaves the unlit amber / violet lanterns as the warm focal points.
-NIGHT = ((10, 12, 21), (14, 14, 18), (9, 10, 14), (14, 15, 18), (7, 8, 12))
+# (light 0, diffuse, ambient, specular, emission). Day: crisp bright alpine blue-white key light (unchanged from v2),
+# so the shaded sides of the dark-violet tent and the carved grey stone keep their contrast against the snow. Night
+# (v3): a deep, serene moonlit alpine indigo -- dim blue key light, ambient (6, 7, 12) and emission (4, 5, 9) -- so
+# 22:00 reads unmistakably as night against noon, and the unlit amber vigil / camp lanterns, the brazier embers and the
+# violet scanner glow stand out like beacons.
+NIGHT = ((8, 10, 19), (11, 12, 17), (6, 7, 12), (10, 11, 16), (4, 5, 9))
 LIGHT_CURVE = {
-    0: NIGHT, 7200: NIGHT,                                                               # 00:00-04:00 moonlit snow
-    8100: ((12, 13, 21), (12, 12, 16), (11, 11, 15), (10, 10, 15), (9, 9, 13)),          # pre-dawn steel blue
-    9000: ((15, 15, 22), (13, 13, 15), (10, 10, 13), (12, 12, 15), (11, 11, 14)),        # cold blue dawn
+    0: NIGHT, 7200: NIGHT,                                                               # 00:00-04:00 moonlit indigo
+    8100: ((10, 11, 20), (11, 11, 16), (8, 8, 13), (10, 10, 15), (6, 6, 11)),            # pre-dawn steel blue
+    9000: ((15, 15, 22), (13, 13, 15), (10, 10, 13), (12, 12, 15), (10, 10, 13)),        # cold blue dawn
     14400: ((21, 22, 25), (15, 15, 16), (9, 10, 11), (14, 14, 16), (12, 12, 14)),        # silver morning
     20700: ((25, 26, 28), (16, 16, 17), (9, 10, 11), (15, 15, 16), (11, 12, 13)),        # crisp alpine day
     21600: ((27, 28, 30), (17, 17, 18), (9, 10, 12), (16, 16, 17), (11, 11, 13)),        # bright blue-white noon
     27000: ((27, 27, 29), (17, 17, 18), (9, 10, 12), (17, 17, 18), (11, 11, 13)),        # blue-white afternoon
     27900: ((24, 24, 27), (16, 16, 17), (10, 10, 12), (16, 16, 17), (11, 11, 13)),
     30600: ((21, 20, 24), (15, 15, 16), (11, 11, 13), (16, 16, 17), (11, 11, 13)),       # pale lavender light
-    32400: ((19, 17, 22), (14, 14, 16), (11, 11, 13), (15, 15, 17), (9, 9, 12)),         # melancholic dusk
-    33300: ((16, 15, 22), (14, 14, 16), (10, 11, 14), (15, 15, 17), (8, 8, 12)),         # violet-blue twilight
-    34200: ((14, 15, 22), (14, 14, 17), (10, 11, 14), (14, 14, 17), (8, 8, 12)),         # serene twilight snow
-    36000: ((11, 13, 21), (14, 14, 18), (9, 10, 14), (14, 15, 18), (7, 8, 12)),          # moonrise
+    32400: ((18, 16, 22), (14, 14, 16), (10, 10, 13), (14, 14, 17), (8, 8, 12)),         # melancholic dusk
+    33300: ((14, 13, 21), (13, 13, 16), (8, 9, 13), (13, 13, 16), (6, 7, 11)),           # violet-blue twilight
+    34200: ((11, 12, 20), (12, 12, 17), (7, 8, 13), (11, 12, 16), (5, 6, 10)),           # serene twilight snow
+    36000: ((9, 11, 19), (11, 12, 17), (6, 7, 12), (10, 11, 16), (4, 5, 9)),             # moonrise
     43200: NIGHT,
 }
 
@@ -855,10 +1075,12 @@ def build_lighting():
 
 # name: (camera target tile, ground height, player stand-in (x, z) or None, zoom). Field-camera distance (zoom 1, the
 # CAMERA_TYPE_DEFAULT pitch / distance / FOV) and close-ups.
-VIEWS = {"teo": (TEO_STAND, G216, TEO_STAND, 1.0), "teo_approach": (TEO_APPROACH, G216, TEO_APPROACH, 1.0),
-         "teo_close": ((317, 401.6), G216 + 0.6, TEO_STAND, 2.4),
-         "camp": (CAMP_STAND, G217, CAMP_STAND, 1.0), "camp_approach": (CAMP_APPROACH, G217, CAMP_APPROACH, 1.0),
-         "camp_close": ((313.2, 360.9), G217 + 0.4, CAMP_STAND, 2.2)}
+VIEWS = {"teo": (TEO_SHOWCASE, G216, TEO_SHOWCASE, 1.0), "teo_approach": (TEO_APPROACH, G216, TEO_APPROACH, 1.0),
+         "teo_close": ((317.8, 401.6), G216 + 0.6, TEO_SHOWCASE, 2.2),
+         "teo_bare": ((317.6, 401.2), G216 + 1.5, None, 2.8),
+         "camp": (CAMP_SHOWCASE, G217, CAMP_SHOWCASE, 1.0), "camp_approach": (CAMP_APPROACH, G217, CAMP_APPROACH, 1.0),
+         "camp_close": ((312.4, 361.4), G217 + 0.4, CAMP_SHOWCASE, 1.8),
+         "camp_bare": ((312.3, 361.0), G217 + 0.6, None, 2.0)}
 
 
 def write_preview(d, out, tex):
@@ -899,8 +1121,9 @@ def main():
     for desc, good in res:
         print(("PASS " if good else "FAIL ") + desc)
         ok &= bool(good)
-    print(f"showcase: Teo's Memorial Ridge stand {TEO_STAND} facing north at marker {TEO_MARKER}; "
-          f"Indra's camp stand {CAMP_STAND} facing north at {CAMP_EVENT}")
+    print(f"showcase: Teo's Memorial {TEO_SHOWCASE} facing west (read the tablet from {TEO_STAND} facing north at "
+          f"{TEO_MARKER}); Teo approach {TEO_APPROACH} facing north; Indra's camp {CAMP_SHOWCASE} facing north (read the "
+          f"scanner from {CAMP_STAND} facing north at {CAMP_EVENT})")
     if "--preview" in sys.argv:
         d = sys.argv[sys.argv.index("--preview") + 1]
         write_preview(d, out, tex)
