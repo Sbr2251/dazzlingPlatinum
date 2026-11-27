@@ -68,18 +68,25 @@ class Heights:
 MATS = {
     "crate": ("ec_crate_l", "ec_crate", "ec_crate_pl", 1, "back", 31, 0),
     "crate2": ("ec_crate_2s", "ec_crate", "ec_crate_pl", 1, "none", 31, 0),
-    "glow": ("ec_crate_u", "ec_crate", "ec_crate_pl", 0, "back", 31, 0),
+    "glow": ("ec_crate_u", "ec_crate", "ec_crate_pl", 0, "back", 31, 0),      # unlit: frame glass + crystals
     "banner": ("ec_banner_2s", "ec_banner", "ec_banner_pl", 1, "none", 31, 0),
+    "tarp": ("ec_tarp_l", "ec_banner", "ec_banner_pl", 1, "back", 31, 0),
     "barr": ("ec_barr_l", "ec_barricade", "ec_barricade_pl", 1, "back", 31, 0),
     "barr2": ("ec_barr_2s", "ec_barricade", "ec_barricade_pl", 1, "none", 31, 0),
     "lamp": ("ec_light_2s", "ec_light", "ec_light_pl", 1, "none", 31, 0),
     "lampu": ("ec_light_u2s", "ec_light", "ec_light_pl", 0, "none", 31, 0),
-    "pool": ("ec_pool_u", "ec_light", "ec_light_pl", 0, "back", 18, 21),      # translucent amber light pool
-    "vglow": ("ec_vglow_u", "ec_light", "ec_light_pl", 0, "back", 16, 22),    # translucent violet shard glow
+    # a5i3 (per-texel alpha) soft decals: no dithering, no checkerboard
+    "pool": ("ec_pool_u", "ec_glow", "ec_glow_amb_pl", 0, "back", 12, 21),     # warm lamp light pool
+    "vglow": ("ec_vglow_u", "ec_glow", "ec_glow_vio_pl", 0, "back", 11, 22),   # violet shard glow
+    "shadow": ("ec_shadow_u", "ec_glow", "ec_glow_shd_pl", 0, "back", 15, 23),  # soft contact shadow
+    # wheel tracks: opaque full track, then three translucent feather steps at each run end
     "ruts": ("ec_ruts_l", "ec_ruts", "ec_ruts_pl", 1, "back", 31, 0),
-    "shadow": ("ec_shadow", "shadowchip", "shadowchip", 9, "back", 9, 15),   # as the stock prop shadows
+    "rutf2": ("ec_ruts_f24", "ec_ruts", "ec_ruts_pl", 1, "back", 24, 26),
+    "rutf1": ("ec_ruts_f16", "ec_ruts", "ec_ruts_pl", 1, "back", 16, 25),
+    "rutf0": ("ec_ruts_f09", "ec_ruts", "ec_ruts_pl", 1, "back", 9, 24),
 }
-DECAL_KEYS = {"ruts", "pool", "vglow", "shadow"}
+RUT_KEYS = ("ruts", "rutf2", "rutf1", "rutf0")
+DECAL_KEYS = set(RUT_KEYS) | {"pool", "vglow", "shadow"}
 
 
 class Art:
@@ -99,7 +106,7 @@ class Art:
             pts, uvs, colors = pts[::-1], uvs[::-1], colors[::-1]
             n = C.face_normal(pts)
         name, tex, pal, lights, cull, alpha, pid = MATS[key]
-        if key == "ruts":                  # the only repeating texture: rebase v per face (s16 UV range)
+        if key in RUT_KEYS:                # the only repeating texture: rebase v per face (s16 UV range)
             lo = math.floor(min(u[1] for u in uvs) + 1e-6)
             for u in uvs:
                 u[1] -= lo
@@ -145,8 +152,9 @@ def rot(cx, cz, lx, lz, yaw):
 
 
 def box(F, cx, cz, w, d, h0, h1, side, top, yaw=0.0, key="crate", front=None, front_key=None, front_cols=None,
-        sides="nsewt", group="box"):
-    """Upright box centred on (cx, cz). side/top: uv rects; front: uv rect for the south face (key front_key)."""
+        sides="sewt", group="box", side_cols=None):
+    """Upright box centred on (cx, cz). side/top: uv rects; front: uv rect for the south face (key front_key).
+    North faces are left out by default: the field camera always looks north, so they are never visible."""
     hw, hd = w / 2, d / 2
     P = {k: rot(cx, cz, lx, lz, yaw) for k, (lx, lz) in
          {"nw": (-hw, -hd), "ne": (hw, -hd), "se": (hw, hd), "sw": (-hw, hd)}.items()}
@@ -160,7 +168,7 @@ def box(F, cx, cz, w, d, h0, h1, side, top, yaw=0.0, key="crate", front=None, fr
         (xa, za), (xb, zb) = P[a], P[b]
         uv = front if (k == "s" and front) else side
         kk = front_key if (k == "s" and front_key) else key
-        cols = front_cols if (k == "s" and front_cols) else None
+        cols = front_cols if (k == "s" and front_cols) else side_cols
         F.add(kk, [(xa, h1, za), (xb, h1, zb), (xb, h0, zb), (xa, h0, za)], quad_uv(uv), nrm, cols, group)
     if "t" in sides:
         F.add(key, [(P["sw"][0], h1, P["sw"][1]), (P["se"][0], h1, P["se"][1]), (P["ne"][0], h1, P["ne"][1]),
@@ -186,38 +194,69 @@ def decal(F, key, x0, z0, x1, z1, h, uv, cols=None, group="decal"):
           (0, 1, 0), cols, group)
 
 
-def shadow(F, cx, cz, rx, rz, h):
-    """Soft octagonal translucent shadow (stock shadowchip, alpha 9) centred on (cx, cz): three quads."""
-    k = 0.414
-    uv = [(0.5, 0.5)] * 4
-    F.add("shadow", [(cx - rx, h, cz + rz * k), (cx + rx, h, cz + rz * k), (cx + rx, h, cz - rz * k),
-                     (cx - rx, h, cz - rz * k)], uv, (0, 1, 0), None, "shadow")
-    F.add("shadow", [(cx - rx, h, cz - rz * k), (cx + rx, h, cz - rz * k), (cx + rx * k, h, cz - rz),
-                     (cx - rx * k, h, cz - rz)], uv, (0, 1, 0), None, "shadow")
-    F.add("shadow", [(cx - rx * k, h, cz + rz), (cx + rx * k, h, cz + rz), (cx + rx, h, cz + rz * k),
-                     (cx - rx, h, cz + rz * k)], uv, (0, 1, 0), None, "shadow")
-
-
 CU = TX.CRATE_UV
 BU = TX.BARR_UV
 LU = TX.LIGHT_UV
-GLOW_TOP, GLOW_BOT = (236, 214, 255), (184, 150, 236)     # baked unlit shard-rack glow (vertex colours)
+GU = TX.GLOW_UV
+TU = TX.BANNER_UV
+STEEL = CU["steel"]
 
 
-def crate(F, cx, cz, s, h0, yaw=0.0, tall=1.0):
-    box(F, cx, cz, s, s, h0, h0 + s * tall, CU["side"], CU["lid"], yaw, group="crates")
+def shadow(F, cx, cz, rx, rz, h):
+    """Soft contact shadow: one quad of the a5i3 shadow disc (solid core, feathered rim) centred on (cx, cz)."""
+    decal(F, "shadow", cx - rx, cz - rz, cx + rx, cz + rz, h, GU["shadow"], group="shadow")
+
+
+def pool(F, cx, z0, z1, hw, h):
+    decal(F, "pool", cx - hw, z0, cx + hw, z1, h, GU["pool"], group="light")
+
+
+def vglow(F, cx, z0, z1, hw, h):
+    decal(F, "vglow", cx - hw, z0, cx + hw, z1, h, GU["pool"], group="light")
+
+
+def crate(F, cx, cz, s, h0, yaw=0.0, tall=1.0, d=None):
+    big = s >= 0.6                         # 12x12 cells for big crates, 8x8 for small ones (true texel density)
+    box(F, cx, cz, s, d or s, h0, h0 + s * tall, CU["side" if big else "side_s"], CU["lid" if big else "lid_s"], yaw,
+        group="crates")
     return h0 + s * tall
 
 
-def pallet(F, cx, cz, w, d, h0):
-    box(F, cx, cz, w, d, h0, h0 + 0.12, sub(CU["steel"], 0, 0, 1, 0.5), CU["steel"], group="crates")
-    return h0 + 0.12
+def pallet(F, cx, cz, w, d, h0, yaw=0.0):
+    """Wooden pallet: slatted block sides, plank top."""
+    box(F, cx, cz, w, d, h0, h0 + 0.14, CU["pallet"], CU["lid"], yaw, group="crates")
+    return h0 + 0.14
 
 
-def canister_case(F, cx, cz, w, d, h0, h1):
-    """A low case of strapped shard canisters: glowing canister front (unlit), steel body."""
-    box(F, cx, cz, w, d, h0, h1, CU["steel"], CU["steel"], key="crate", front=CU["rack"], front_key="glow",
-        front_cols=[GLOW_TOP, GLOW_TOP, GLOW_BOT, GLOW_BOT], group="racks")
+def canister_case(F, cx, cz, w, d, h0, h1, yaw=0.0):
+    """A low case of strapped shard canisters: the containment-frame glass on its front (unlit), steel body."""
+    box(F, cx, cz, w, d, h0, h1, STEEL, STEEL, yaw, key="crate", front=CU["case"], front_key="glow",
+        group="racks")
+
+
+def crystal(F, cx, cz, h0, r, body, tip, yaw=0.0):
+    """Faceted violet shard: a square prism turned 45 deg to the camera with a pyramid point; unlit, each facet a
+    flat vertex colour (lit south-west facet, darker east facets)."""
+    corners = [rot(cx, cz, r * math.cos(a), r * math.sin(a), 0.0) for a in
+               [yaw + math.pi / 4 + k * math.pi / 2 for k in range(4)]]
+    uv = CU["xtal"]
+    uvq = [(uv[0], uv[1]), (uv[2], uv[1]), (uv[2], uv[3]), (uv[0], uv[3])]
+    ap = (cx, h0 + body + tip, cz)
+    light = (-0.75, 0.66)                                             # towards the light: west and south
+    for k in range(4):
+        (xa, za), (xb, zb) = corners[k], corners[(k + 1) % 4]
+        nx, nz = (xa + xb) / 2 - cx, (za + zb) / 2 - cz
+        nn = math.hypot(nx, nz) or 1.0
+        lam = max(0.0, (nx * light[0] + nz * light[1]) / nn)
+        if nz / nn < -0.3:
+            continue                                                  # north-facing facets are never seen
+        v = 0.55 + 0.45 * lam
+        col = tuple(int(min(255, c * v)) for c in (255, 248, 255))
+        capc = tuple(int(min(255, c * min(1.0, v + 0.18))) for c in (255, 248, 255))
+        F.add("glow", [(xb, h0 + body, zb), (xa, h0 + body, za), (xa, h0, za), (xb, h0, zb)], uvq,
+              (nx, 0.0, nz), [col] * 4, "crystals")
+        F.add("glow", [ap, (xa, h0 + body, za), (xb, h0 + body, zb)], uvq[:3], (nx, 0.6, nz), [capc] * 3,
+              "crystals")
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -227,46 +266,98 @@ def canister_case(F, cx, cz, w, d, h0, h1):
 def p_stack(F, x, z, G, p):
     cx, cz = x + 0.5, z + 0.5
     k = p.get("kind", "pair")
+    yaw = p.get("yaw", 0.0)
     if k == "pallet3":
-        t = pallet(F, cx, cz, 0.9, 0.86, G)
-        crate(F, cx - 0.22, cz + 0.05, 0.42, t, 0.06)
-        crate(F, cx + 0.23, cz + 0.02, 0.42, t, -0.05)
-        crate(F, cx + 0.02, cz + 0.03, 0.4, t + 0.42, 0.18)
-        shadow(F, cx, cz + 0.05, 0.58, 0.52, G + 0.01)
+        t = pallet(F, cx, cz + 0.02, 0.88, 0.8, G, yaw)
+        crate(F, cx - 0.21, cz + 0.06, 0.42, t, yaw + 0.06)
+        crate(F, cx + 0.22, cz + 0.06, 0.42, t, yaw - 0.05, tall=1.15)
+        crate(F, cx - 0.04, cz + 0.06, 0.38, t + 0.42, yaw + 0.2)
+        shadow(F, cx, cz + 0.08, 0.62, 0.52, G + 0.01)
+    elif k == "pallet2":
+        t = pallet(F, cx, cz + 0.04, 0.86, 0.72, G, yaw)
+        crate(F, cx - 0.18, cz + 0.06, 0.44, t, yaw + 0.04)
+        crate(F, cx + 0.22, cz + 0.08, 0.36, t, yaw - 0.12, tall=0.9)
+        shadow(F, cx, cz + 0.07, 0.6, 0.48, G + 0.01)
     elif k == "pair":
-        t = crate(F, cx - 0.06, cz + 0.06, 0.64, G, 0.04)
-        crate(F, cx + 0.04, cz + 0.08, 0.44, t, -0.21)
-        shadow(F, cx - 0.04, cz + 0.08, 0.48, 0.46, G + 0.01)
+        t = crate(F, cx - 0.06, cz + 0.08, 0.62, G, yaw + 0.04)
+        crate(F, cx + 0.04, cz + 0.1, 0.42, t, yaw - 0.21)
+        shadow(F, cx - 0.04, cz + 0.1, 0.5, 0.46, G + 0.01)
     elif k == "tall":
-        t = crate(F, cx, cz + 0.05, 0.74, G, -0.03)
-        t = crate(F, cx - 0.03, cz + 0.06, 0.6, t, 0.14)
-        crate(F, cx + 0.05, cz + 0.08, 0.42, t, -0.26)
-        shadow(F, cx, cz + 0.06, 0.52, 0.5, G + 0.01)
+        t = pallet(F, cx, cz + 0.02, 0.88, 0.8, G, yaw)
+        t = crate(F, cx, cz + 0.05, 0.72, t, yaw - 0.03)
+        t = crate(F, cx - 0.04, cz + 0.08, 0.56, t, yaw + 0.14)
+        crate(F, cx + 0.05, cz + 0.1, 0.38, t, yaw - 0.26)
+        shadow(F, cx, cz + 0.08, 0.62, 0.52, G + 0.01)
+    elif k == "equip":
+        # the parked Eclipse equipment crate: a long crate on a pallet, hazard label, a small crate on top
+        t = pallet(F, cx, cz + 0.04, 0.94, 0.84, G, yaw)
+        box(F, cx, cz + 0.06, 0.84, 0.66, t, t + 0.62, CU["side"], CU["lid"], yaw, group="crates")
+        card(F, "crate", cx - 0.17, cx + 0.17, cz + 0.06 + 0.33 + 0.012, t + 0.14, t + 0.48, CU["label"],
+             group="crates")
+        crate(F, cx + 0.16, cz + 0.08, 0.4, t + 0.62, yaw + 0.22)
+        shadow(F, cx, cz + 0.08, 0.64, 0.52, G + 0.01)
     elif k == "canisters":
-        t = pallet(F, cx, cz, 0.9, 0.8, G)
-        canister_case(F, cx, cz + 0.02, 0.84, 0.66, t, t + 0.62)
-        crate(F, cx + 0.12, cz + 0.02, 0.36, t + 0.62, 0.2)
-        decal(F, "vglow", cx - 0.7, cz + 0.3, cx + 0.7, cz + 1.1, G + 0.02, LU["glow"], [(220, 200, 255)] * 4,
-              group="glow")
-        shadow(F, cx, cz + 0.04, 0.58, 0.5, G + 0.01)
+        t = pallet(F, cx, cz + 0.02, 0.9, 0.8, G, yaw)
+        canister_case(F, cx, cz + 0.04, 0.84, 0.62, t, t + 0.6, yaw)
+        crate(F, cx + 0.14, cz + 0.04, 0.34, t + 0.6, yaw + 0.2)
+        vglow(F, cx, z + 0.7, z + 1.7, 0.75, G + 0.02)
+        shadow(F, cx, cz + 0.06, 0.62, 0.5, G + 0.01)
 
 
-def p_rack(F, x, z, G, p):
-    """Shard-containment rack: steel frame, glowing canister front (unlit, baked violet glow), glow on the ground."""
-    cx, cz = x + 0.5, z + 0.5
-    w, d, ht = 0.9, 0.5, 1.5
-    box(F, cx, cz + 0.08, w, d, G, G + ht, sub(CU["steel"], 0, 0, 0.3, 1), CU["steel"], key="crate",
-        front=CU["rack"], front_key="glow", front_cols=[GLOW_TOP, GLOW_TOP, GLOW_BOT, GLOW_BOT], group="racks")
-    # hazard label on the frame's cap
-    card(F, "crate", cx - 0.16, cx + 0.16, cz + 0.08 + d / 2 + 0.005, G + ht + 0.02, G + ht + 0.34, CU["label"],
-         lean=20, group="racks")
-    decal(F, "vglow", cx - 0.75, cz + 0.25, cx + 0.75, cz + 1.25, G + 0.021, LU["glow"], [(230, 210, 255)] * 4,
-          group="glow")
-    shadow(F, cx, cz + 0.08, 0.56, 0.36, G + 0.01)
+def p_frame(F, x, z, G, p):
+    """Shard-containment frame: steel plinth, two front corner posts and a top cap around an unlit glass core with
+    the faceted crystal cluster, a big faceted shard rising through the cap, violet glow spilling south."""
+    cx, cz = x + 0.5, z + 0.56
+    yaw = p.get("yaw", 0.0)
+    ht = p.get("ht", 1.5)
+    w, d = 0.8, 0.54
+    box(F, cx, cz, w + 0.1, d + 0.1, G, G + 0.12, STEEL, STEEL, yaw, group="racks")
+    h0, h1 = G + 0.12, G + ht - 0.1
+    box(F, cx, cz, w - 0.06, d - 0.08, h0, h1, CU["frame_glass"], STEEL, yaw, key="glow", front=CU["frame"],
+        front_key="glow", sides="sew", side_cols=[(196, 186, 220)] * 4, group="racks")
+    steel_bar = sub(STEEL, 0, 0, 0.12, 1)
+    for sx in (-1, 1):
+        px, pz = rot(cx, cz, sx * (w / 2 - 0.02), d / 2 - 0.03, yaw)
+        box(F, px, pz, 0.09, 0.09, h0, h1, steel_bar, steel_bar, yaw, sides="sew", group="racks")
+    box(F, cx, cz, w + 0.06, d + 0.06, h1, h1 + 0.1, STEEL, STEEL, yaw, group="racks")
+    crystal(F, cx - 0.06, cz - 0.02, h1 + 0.1, 0.13, 0.22 + 0.1 * (ht > 1.6), 0.24, yaw)
+    crystal(F, cx + 0.2, cz + 0.04, h1 + 0.1, 0.075, 0.08, 0.14, yaw + 0.4)
+    vglow(F, cx, z + 0.75, z + 1.85, 0.85, G + 0.021)
+    shadow(F, cx, cz + 0.04, 0.6, 0.44, G + 0.01)
+
+
+def p_tarp(F, x, z, G, p):
+    """A tarp-covered crate stack on a pallet: violet canvas drawn over the top and flaring at the skirt."""
+    cx, cz = x + 0.5, z + 0.54
+    yaw = p.get("yaw", 0.0)
+    t = pallet(F, cx, cz, 0.92, 0.8, G, yaw)
+    ht = G + p.get("ht", 1.1)
+    rings = [(0.62, 0.5, ht), (0.8, 0.68, ht - 0.16), (0.86, 0.74, t)]
+    tu = TU["tarp"]
+    vs = [tu[1], tu[1] + (tu[3] - tu[1]) * 0.2, tu[3]]
+
+    def ring(i):
+        w, d, h = rings[i]
+        return {k: (rot(cx, cz, lx, lz, yaw), h) for k, (lx, lz) in
+                {"nw": (-w / 2, -d / 2), "ne": (w / 2, -d / 2), "se": (w / 2, d / 2), "sw": (-w / 2, d / 2)}.items()}
+    R = [ring(i) for i in range(3)]
+
+    def P(r, k):
+        (xx, zz), h = R[r][k]
+        return (xx, h, zz)
+    tt = TU["tarp_top"]
+    F.add("tarp", [P(0, "sw"), P(0, "se"), P(0, "ne"), P(0, "nw")], [(tt[0], tt[3]), (tt[2], tt[3]), (tt[2], tt[1]),
+                                                                     (tt[0], tt[1])], (0, 1, 0), None, "tarps")
+    for a, b, nrm in (("sw", "se", (0, 0, 1)), ("se", "ne", (1, 0, 0)), ("nw", "sw", (-1, 0, 0))):
+        nrm = (rot(0, 0, nrm[0], nrm[2], yaw)[0], 0.25, rot(0, 0, nrm[0], nrm[2], yaw)[1])
+        for i in range(2):
+            F.add("tarp", [P(i, a), P(i, b), P(i + 1, b), P(i + 1, a)],
+                  [(tu[0], vs[i]), (tu[2], vs[i]), (tu[2], vs[i + 1]), (tu[0], vs[i + 1])], nrm, None, "tarps")
+    shadow(F, cx, cz + 0.06, 0.62, 0.52, G + 0.01)
 
 
 def p_lamp(F, x, z, G, p):
-    """Tripod work lamp: lit legs, unlit glowing head, an amber light pool on the ground."""
+    """Tripod work lamp: lit legs, an unlit glowing head, a soft warm a5i3 light pool on the ground."""
     cx, zb = x + 0.5, z + 0.62
     h_total = 2.0
     split = 12 / 32
@@ -275,23 +366,21 @@ def p_lamp(F, x, z, G, p):
     t = math.tan(math.radians(lean))
     card(F, "lamp", cx - 0.5, cx + 0.5, zb, G, h_split, LU["lamp_legs"], lean, group="lamps")
     zs = zb - (h_split - G) * t
-    card(F, "lampu", cx - 0.5, cx + 0.5, zs, h_split, G + h_total, LU["lamp_head"], lean,
-         cols=[(255, 250, 236)] * 2 + [(230, 220, 210)] * 2, group="lamps")
-    decal(F, "pool", cx - 1.15, z + 0.05, cx + 1.15, z + 2.15, G + 0.024, LU["pool"], [(255, 232, 196)] * 4,
-          group="lamps")
-    shadow(F, cx, zb - 0.05, 0.4, 0.22, G + 0.012)
+    card(F, "lampu", cx - 0.5, cx + 0.5, zs, h_split, G + h_total, LU["lamp_head"], lean, group="lamps")
+    pool(F, cx, z - 0.1, z + 2.3, 1.25, G + 0.024)
+    shadow(F, cx, zb - 0.02, 0.42, 0.26, G + 0.012)
 
 
 def p_banner(F, x, z, G, p):
     px, pz = x + 0.12, z + 0.5
     top = G + 2.9
-    box(F, px, pz, 0.1, 0.1, G, top, sub(CU["steel"], 0, 0, 0.1, 1), sub(CU["steel"], 0, 0, 0.1, 0.25),
+    box(F, px, pz, 0.1, 0.1, G, top, sub(STEEL, 0, 0, 0.1, 1), sub(STEEL, 0, 0, 0.1, 0.25), group="banners")
+    box(F, px + 0.42, pz, 0.84, 0.07, top - 0.16, top - 0.09, sub(STEEL, 0, 0, 1, 0.25), sub(STEEL, 0, 0, 1, 0.25),
         group="banners")
-    box(F, px + 0.42, pz, 0.84, 0.07, top - 0.16, top - 0.09, sub(CU["steel"], 0, 0, 1, 0.25),
-        sub(CU["steel"], 0, 0, 1, 0.25), group="banners")
-    card(F, "banner", x + 0.17, x + 0.93, pz + 0.03, G + 0.86, top - 0.12, TX.BANNER_UV["tall"], group="banners")
-    box(F, px, pz, 0.16, 0.16, top, top + 0.08, CU["steel"], CU["steel"], group="banners")       # finial cap
-    shadow(F, px + 0.1, pz + 0.05, 0.22, 0.16, G + 0.01)
+    card(F, "banner", x + 0.17, x + 0.93, pz + 0.03, G + 0.86, top - 0.12, TU["tall"], group="banners")
+    box(F, px, pz, 0.16, 0.16, top, top + 0.08, STEEL, STEEL, group="banners")       # finial cap
+    box(F, px, pz, 0.24, 0.24, G, G + 0.1, STEEL, STEEL, group="banners")            # weighted foot
+    shadow(F, px + 0.12, pz + 0.04, 0.3, 0.22, G + 0.01)
 
 
 def p_manifest(F, x, z, G, p):
@@ -304,13 +393,13 @@ def p_manifest(F, x, z, G, p):
          group="crates")
     crate(F, cx - 0.08, cz + 0.06, 0.48, t, 0.16)
     card(F, "crate", cx + 0.02, cx + 0.3, cz + 0.06 + 0.24 + 0.012, t + 0.1, t + 0.38, CU["label"], group="crates")
-    shadow(F, cx, cz + 0.06, 0.6, 0.52, G + 0.01)
+    shadow(F, cx, cz + 0.08, 0.64, 0.54, G + 0.01)
 
 
 def barricade_x(F, x0, x1, zc, G):
     """A-frame road barricade from x0 to x1 (tiles) centred on z = zc: two hazard planks, steel legs, CLOSED board."""
     L_ = x1 - x0
-    steel = sub(CU["steel"], 0, 0, 0.12, 1)
+    steel = sub(STEEL, 0, 0, 0.12, 1)
     for u in (x0 + 0.1, x1 - 0.1):
         for sgn in (-1, 1):
             F.add("crate2", [(u - 0.03, G + 0.82, zc), (u + 0.03, G + 0.82, zc), (u + 0.03, G, zc + 0.26 * sgn),
@@ -320,28 +409,30 @@ def barricade_x(F, x0, x1, zc, G):
               [(0, BU["stripe"][1]), (L_ / 2, BU["stripe"][1]), (L_ / 2, BU["stripe"][3]), (0, BU["stripe"][3])],
               (0, 0, 1), None, "barricades")
     xm = (x0 + x1) / 2
-    card(F, "barr2", xm - 0.6, xm + 0.6, zc + 0.02, G + 0.8, G + 1.1, BU["board"], lean=6, group="barricades")
-    for u in (xm - 0.42, xm + 0.42):     # board posts
+    bw = min(0.6, L_ / 2 - 0.02)
+    card(F, "barr2", xm - bw, xm + bw, zc + 0.02, G + 0.8, G + 1.1, BU["board"], lean=6, group="barricades")
+    for u in (xm - bw * 0.7, xm + bw * 0.7):     # board posts
         card(F, "crate2", u - 0.025, u + 0.025, zc + 0.016, G + 0.74, G + 0.84, steel, group="barricades")
-    shadow(F, xm, zc, L_ / 2 + 0.05, 0.3, G + 0.01)
+    shadow(F, xm, zc + 0.02, L_ / 2 + 0.06, 0.26, G + 0.01)
 
 
 def cone(F, cx, cz, G, s=1.0):
     u0, v0, u1, v1 = BU["cone"]
-    apex_v, base_v = v0 + (v1 - v0) * 1 / 16, v0 + (v1 - v0) * 13 / 16
+    apex_v, base_v = v0, v1
     um = (u0 + u1) / 2
     r, ht = 0.17 * s, 0.55 * s
     a = (cx, G + ht, cz)
     c4 = [(cx - r, G + 0.03, cz + r), (cx + r, G + 0.03, cz + r), (cx + r, G + 0.03, cz - r),
           (cx - r, G + 0.03, cz - r)]
-    for k in range(4):
+    for k in range(3):                   # the north facet is never seen
         p, q = c4[k], c4[(k + 1) % 4]
+        if k == 1:
+            p, q = c4[3], c4[0]          # west facet
         nrm = ((p[0] + q[0]) / 2 - cx, 0.4, (p[2] + q[2]) / 2 - cz)
         F.add("barr", [a, q, p], [(um, apex_v), (u1 - 0.03, base_v), (u0 + 0.03, base_v)], nrm, None, "cones")
-    b = 0.2 * s
-    bv0, bv1 = v0 + (v1 - v0) * 13.5 / 16, v0 + (v1 - v0) * 15.5 / 16
-    decal(F, "barr", cx - b, cz - b, cx + b, cz + b, G + 0.03, (u0 + 0.06, bv0, u1 - 0.06, bv1), group="cones")
-    shadow(F, cx, cz + 0.02, 0.26 * s, 0.22 * s, G + 0.008)
+    b = 0.17 * s
+    decal(F, "barr", cx - b, cz - b, cx + b, cz + b, G + 0.03, BU["cone_base"], group="cones")
+    shadow(F, cx + 0.02, cz + 0.03, 0.27 * s, 0.24 * s, G + 0.008)
 
 
 def p_barricade(F, x, z, G, p):
@@ -373,7 +464,7 @@ def fence_run(F, a, b, line, G, axis="x"):
             card(F, "barr2", t0, t1, line, G, G + 0.9, uv, group="fences")
         else:
             card_ns(F, "barr2", t0, t1, line, G, G + 0.9, uv, group="fences")
-    steel = sub(CU["steel"], 0, 0, 0.08, 1)
+    steel = sub(STEEL, 0, 0, 0.08, 1)
     k = a
     while k <= b + 1e-6:
         if axis == "x":
@@ -394,72 +485,190 @@ def p_fence_ns(F, x, z, G, p):
 def p_sign(F, x, z, G, p):
     """ROAD CLOSED sign (BG event): CLOSED board on two posts, a small Eclipse pennant on the right post."""
     cx, zb = x + 0.5, z + 0.62
-    steel = sub(CU["steel"], 0, 0, 0.1, 1)
+    steel = sub(STEEL, 0, 0, 0.1, 1)
     for u in (cx - 0.32, cx + 0.32):
         box(F, u, zb - 0.02, 0.06, 0.06, G, G + 0.98, steel, steel, group="signs")
-    card(F, "barr2", cx - 0.5, cx + 0.5, zb + 0.035, G + 0.62, G + 0.92, BU["board"], lean=8, group="signs")
-    card(F, "barr2", cx - 0.5, cx + 0.5, zb + 0.02, G + 0.42, G + 0.56, BU["stripe"], lean=0, group="signs")
-    card(F, "banner", cx + 0.34, cx + 0.48, zb + 0.01, G + 0.98, G + 1.32, TX.BANNER_UV["pennant"], group="signs")
-    shadow(F, cx, zb, 0.5, 0.18, G + 0.01)
+    card(F, "barr2", cx - 0.48, cx + 0.48, zb + 0.035, G + 0.62, G + 0.92, BU["board"], lean=8, group="signs")
+    card(F, "barr2", cx - 0.48, cx + 0.48, zb + 0.02, G + 0.42, G + 0.56, sub(BU["stripe"], 0, 0, 0.5, 1), lean=0,
+         group="signs")
+    card(F, "banner", cx + 0.34, cx + 0.48, zb + 0.01, G + 0.98, G + 1.32, TU["pennant"], group="signs")
+    shadow(F, cx, zb, 0.52, 0.2, G + 0.01)
 
 
-BUILDERS = {"stack": p_stack, "rack": p_rack, "lamp": p_lamp, "banner": p_banner, "manifest": p_manifest,
-            "barricade": p_barricade, "cones": p_cones, "fence": p_fence, "fence_ns": p_fence_ns, "sign": p_sign}
+BUILDERS = {"stack": p_stack, "rack": p_frame, "frame": p_frame, "tarp": p_tarp, "lamp": p_lamp,
+            "banner": p_banner, "manifest": p_manifest, "barricade": p_barricade, "cones": p_cones,
+            "fence": p_fence, "fence_ns": p_fence_ns, "sign": p_sign}
 
 
 # ---------------------------------------------------------------------------------------------------------------
-# ruts
+# ruts: two wheel tracks, clipped to bare dirt / sand ground, feathered at every run end
 # ---------------------------------------------------------------------------------------------------------------
+
+MASK_BOX = (296, 696, 344, 720)      # tiles x0, z0, x1, z1 the ruts can touch
+MASK_PPT = 16
+
+
+def ground_mask():
+    """Stock ground (chunks at BASE_REV, stock set 007) rendered straight down at 16 px/tile -> bool array, True on
+    bare dirt / sand texels (no green: grass and its sand-edge fringe are False; so is anything not drawn)."""
+    import numpy as np
+    import render as R
+    models = {c: mapdata.unpack(K.git_bytes(K.BASE_REV, K.chunk_rel(c)))["model"] for c in (25, 26, 27)}
+    x0, z0, x1, z1 = MASK_BOX
+    w, h = (x1 - x0) * MASK_PPT, (z1 - z0) * MASK_PPT
+    meshes = R.collect(models, R.texture_arrays(K.git_bytes(K.BASE_REV, K.BASE_SET_REL)),
+                       dict(R.DAY, amb=(1.0, 1.0, 1.0), light=(0.0, 0.0, 0.0)))
+    img = R.rasterise(meshes, R.top_projector(x0, z0, MASK_PPT), w, h, (1.0, 0.0, 1.0)) * 255
+    r, g, b = img[..., 0], img[..., 1], img[..., 2]
+    sky = (r > 250) & (g < 5) & (b > 250)
+    green = (g > r + 4) & (g >= b - 10)
+    return ~(green | sky)
+
+
+class RutClip:
+    def __init__(self, H):
+        self.H = H
+        self.mask = ground_mask()
+        self.walk = {}
+        for c, (cx, cz) in K.CHUNKS.items():
+            P = mapdata.read_permissions(mapdata.unpack(K.git_bytes(K.BASE_REV, K.chunk_rel(c)))["permissions"])
+            for lz in range(32):
+                for lx in range(32):
+                    self.walk[(cx * 32 + lx, cz * 32 + lz)] = not P[lz][lx] & K.BLOCK
+
+    def ok(self, x, z):
+        """Bare dirt texel, on a stock-walkable tile, at road height (no ledge or cliff)."""
+        x0, z0, x1, z1 = MASK_BOX
+        if not (x0 <= x < x1 and z0 <= z < z1):
+            return False
+        if not self.walk.get((math.floor(x), math.floor(z))):
+            return False
+        hh = self.H.h(x, z, 4.0)
+        if hh is None or abs(hh - 4.0) > 0.02:
+            return False
+        return bool(self.mask[int((z - z0) * MASK_PPT), int((x - x0) * MASK_PPT)])
+
 
 def rut_centreline():
-    pts = []
+    """Polyline every 0.25 tile (chunk borders x 320 and z 704 fall on samples): south along the sand lane, a
+    quarter arc, east along RUT_LINE_Z."""
     x0, z0 = L.RUT_START
     cx, cz = L.RUT_TURN_CENTRE
     r = cx - x0
-    zs = [z0] + [z for z in [699.5 + 0.5 * k for k in range(40)] if z0 < z < cz] + [cz]
-    pts += [(x0, z) for z in sorted(set(zs))]
-    n = 12
+    pts = [(x0, z0 + 0.25 * k) for k in range(int(round((cz - z0) / 0.25)) + 1)]
+    n = 32
     for k in range(1, n + 1):
-        a = math.pi + (math.pi / 2) * k / n          # 180 deg -> 90 deg (towards +z, then east)
-        pts.append((cx + r * math.cos(a), cz - r * math.sin(a)))
-    xs = [x for x in [cx + 0.5 * k for k in range(1, 80)] if x < L.RUT_END_X] + [320.0, L.RUT_END_X]
-    pts += [(x, cz + r) for x in sorted(set(xs)) if x > cx]
+        a = math.pi - (math.pi / 2) * k / n                  # 180 deg -> 90 deg: west -> south of the centre
+        pts.append((cx + r * math.cos(a), cz + r * math.sin(a)))
+    ze = L.RUT_LINE_Z
+    pts += [(cx + 0.25 * k, ze) for k in range(1, int(round((L.RUT_END_X - cx) / 0.25)) + 1)]
     return pts
 
 
+TRACK_HALF = 0.5          # quad half-width (16 texels = 1 tile across)
+TRACK_OPAQUE = 0.3        # half-width of the painted track (groove + lips)
+FADE_ALPHA_KEYS = ["rutf0", "rutf1", "rutf2", "ruts"]      # feather steps from the very end inwards
+
+
 def build_ruts(F, H):
-    pts = rut_centreline()
-    half = L.RUT_HALF
-    secs = []
-    for i, (x, z) in enumerate(pts):
-        a = pts[max(i - 1, 0)]
-        b = pts[min(i + 1, len(pts) - 1)]
+    clip = RutClip(H)
+    cl = rut_centreline()
+    tang = []
+    for i in range(len(cl)):
+        a, b = cl[max(i - 1, 0)], cl[min(i + 1, len(cl) - 1)]
         tx, tz = b[0] - a[0], b[1] - a[1]
-        n = math.hypot(tx, tz)
-        tx, tz = tx / n, tz / n
-        # left of travel direction: (tz, -tx) points... travel south (0,1): left = east (+x)
-        lx, lz = -tz, tx
-        secs.append(((x + lx * half, z + lz * half), (x - lx * half, z - lz * half)))
-    s_acc = [0.0]
-    for i in range(1, len(pts)):
-        s_acc.append(s_acc[-1] + math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]))
+        nn = math.hypot(tx, tz)
+        tang.append((tx / nn, tz / nn))
+    stats = dict(segments=0, kept=0, runs=0, quads=0, dropped_short=0)
     hs = []
-    for i in range(len(pts) - 1):
-        (l0, r0), (l1, r1) = secs[i], secs[i + 1]
-        v0, v1 = s_acc[i] / 2, s_acc[i + 1] / 2
-        q = [l0, l1, r1, r0]
-        hq = [H.h(px, pz, 4.0) for px, pz in q]
-        hs += hq
-        P = [(px, h + 0.012, pz) for (px, pz), h in zip(q, hq)]
-        F.add("ruts", P, [(1.0, v0), (1.0, v1), (0.0, v1), (0.0, v0)], (0, 1, 0), None, "ruts")
-    return hs, len(pts) - 1
+    for off in (L.RUT_TRACK, -L.RUT_TRACK):
+        # track points and per-point left normal
+        P, N = [], []
+        for (x, z), (tx, tz) in zip(cl, tang):
+            lx, lz = -tz, tx
+            P.append((x + lx * off, z + lz * off))
+            N.append((lx, lz))
+        seg_ok = []
+        for i in range(len(P) - 1):
+            good = True
+            for f in (0.0, 0.25, 0.5, 0.75, 1.0):
+                px = P[i][0] + (P[i + 1][0] - P[i][0]) * f
+                pz = P[i][1] + (P[i + 1][1] - P[i][1]) * f
+                nx = N[i][0] + (N[i + 1][0] - N[i][0]) * f
+                nz = N[i][1] + (N[i + 1][1] - N[i][1]) * f
+                for o in (-TRACK_OPAQUE, -0.15, 0.0, 0.15, TRACK_OPAQUE):
+                    if not clip.ok(px + nx * o, pz + nz * o):
+                        good = False
+            seg_ok.append(good)
+        stats["segments"] += len(seg_ok)
+        # runs of kept segments
+        runs, i = [], 0
+        while i < len(seg_ok):
+            if seg_ok[i]:
+                j = i
+                while j < len(seg_ok) and seg_ok[j]:
+                    j += 1
+                runs.append((i, j))
+                i = j
+            else:
+                i += 1
+        for i0, i1 in runs:
+            seglen = [math.hypot(P[k + 1][0] - P[k][0], P[k + 1][1] - P[k][1]) for k in range(i0, i1)]
+            Lr = sum(seglen)
+            if Lr < 2.5:                                     # no stubs: short patches stay bare
+                stats["dropped_short"] += 1
+                continue
+            stats["runs"] += 1
+            stats["kept"] += i1 - i0
+            fl = min(1.5, Lr / 3)
+            s_at = [0.0]
+            for sl in seglen:
+                s_at.append(s_at[-1] + sl)
+            pieces = []        # (key, k0, k1, is_fade) over point indices
+            for k in range(i0, i1):
+                sm = (s_at[k - i0] + s_at[k + 1 - i0]) / 2
+                de = min(sm, Lr - sm)                       # distance from the nearer run end
+                if de < fl:
+                    key = FADE_ALPHA_KEYS[min(3, int(4 * de / fl))]
+                    fade = True
+                else:
+                    key, fade = "ruts", False
+                ch = K.chunk_of(math.floor((P[k][0] + P[k + 1][0]) / 2), math.floor((P[k][1] + P[k + 1][1]) / 2))
+                straight = abs(tang[k][0] - tang[k + 1][0]) < 1e-6 and abs(tang[k][1] - tang[k + 1][1]) < 1e-6
+                tag = (key, fade, ch, sm < Lr / 2 if fade else None)
+                if pieces and pieces[-1][0] == tag and pieces[-1][3] and straight:
+                    pieces[-1][2] = k + 1
+                else:
+                    pieces.append([tag, k, k + 1, straight])
+
+            def vcoord(k, fade, start_side):
+                s = s_at[k - i0]
+                if not fade:
+                    return s / 2.0                           # 32 texels per 2 tiles
+                de = s if start_side else Lr - s
+                t = 1.0 - min(1.0, de / fl)                  # 0 joins the full track, 1 is the very end
+                return (0.5 + 31.0 * t) / 32.0
+            for (key, fade, ch, start_side), k0, k1, _ in pieces:
+                u0, u1 = (16.5 / 32, 31.5 / 32) if fade else (0.5 / 32, 15.5 / 32)
+                la = (P[k0][0] + N[k0][0] * TRACK_HALF, P[k0][1] + N[k0][1] * TRACK_HALF)
+                lb = (P[k1][0] + N[k1][0] * TRACK_HALF, P[k1][1] + N[k1][1] * TRACK_HALF)
+                ra = (P[k0][0] - N[k0][0] * TRACK_HALF, P[k0][1] - N[k0][1] * TRACK_HALF)
+                rb = (P[k1][0] - N[k1][0] * TRACK_HALF, P[k1][1] - N[k1][1] * TRACK_HALF)
+                va, vb = vcoord(k0, fade, start_side), vcoord(k1, fade, start_side)
+                q = [la, lb, rb, ra]
+                hq = [H.h(px, pz, 4.0) for px, pz in q]
+                hs += hq
+                Pq = [(px, hh + 0.012, pz) for (px, pz), hh in zip(q, hq)]
+                F.add(key, Pq, [(u1, va), (u1, vb), (u0, vb), (u0, va)], (0, 1, 0), None, "ruts")
+                stats["quads"] += 1
+    return hs, stats
 
 
 # ---------------------------------------------------------------------------------------------------------------
 # lighting
 # ---------------------------------------------------------------------------------------------------------------
 
-NIGHT = ((9, 9, 18), (12, 12, 17), (9, 9, 14), (12, 12, 17), (6, 6, 11))
+NIGHT = ((9, 10, 18), (12, 13, 17), (9, 10, 14), (12, 12, 17), (6, 7, 11))   # deep indigo-green, clean
 LIGHT_CURVE = {           # light 0 colour, diffuse, ambient, specular, emission (5-bit)
     0: NIGHT,
     7200: NIGHT,                                                                         # 00:00-04:00 indigo night
@@ -523,7 +732,7 @@ def build():
     tex_size = {k: v["size"] for k, v in tex_table.items()}
     H = Heights()
     F = Art(tex_size)
-    rut_h, rut_quads = build_ruts(F, H)
+    rut_h, rut_stats = build_ruts(F, H)
     placed = []
     for kind, x, z, p in L.PROPS:
         if kind == "block":
@@ -551,7 +760,7 @@ def build():
         out[c] = dict(edit=edit, model=model, perm=perm, data=data, stats=st)
     light_text, light_fails = build_lighting()
     return out, F, dict(set=set_bytes, rep=tex_rep, fails=tex_fails, gen=gen, tex_table=tex_table,
-                        pal_names=pal_names, rut_h=rut_h, rut_quads=rut_quads, placed=placed, blocked=blocked,
+                        pal_names=pal_names, rut_h=rut_h, rut_stats=rut_stats, placed=placed, blocked=blocked,
                         light=light_text, light_fails=light_fails)
 
 
@@ -692,8 +901,14 @@ def run_checks(out, F, info):
     res.append((f"every new solid face stands over blocked tiles ({len(F.solids)} solid, {len(F.decals)} decal "
                 f"faces) {sorted(set(over))[:6] or ''}", not over))
     rh = info["rut_h"]
-    res.append((f"ruts lie on flat road (mesh h {min(rh):.3f}..{max(rh):.3f}, {info['rut_quads']} quads)",
+    rs = info["rut_stats"]
+    res.append((f"ruts lie on flat road (mesh h {min(rh):.3f}..{max(rh):.3f}, {rs['quads']} quads)",
                 max(rh) - min(rh) < 0.05))
+    res.append((f"ruts clipped to bare dirt/sand: {rs['kept']} of {rs['segments']} quarter-tile track segments kept "
+                f"in {rs['runs']} feathered runs ({rs['dropped_short']} short runs dropped); no track texel on grass, "
+                f"ledges or cliffs", rs["runs"] > 0 and rs["kept"] < rs["segments"]))
+    lane = [(x, z) for x in range(301, 305) for z in range(689, 695) if gn[(x, z)] & K.BLOCK]
+    res.append((f"Route 206 plaza: the 4-wide sand lane x 301..304, z 689..694 stays clear {lane or ''}", not lane))
     res += [("lighting: " + f, False) for f in info["light_fails"]]
     res.append(("lighting_set_007: stock schema and block times, lights 1..3 unchanged", not info["light_fails"]))
     return res

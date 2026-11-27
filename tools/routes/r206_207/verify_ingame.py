@@ -6,7 +6,7 @@ Usage:
   python3 tools/routes/r206_207/verify_ingame.py <build_dir> <out_dir> [--night] [--save PATH] [--renderer gl|gpu]
 
 Day pass: screenshots of the showcase viewpoints (layout.VIEWPOINTS) and extra spots; reads both new BG events
-(Route 207 manifest crate, Route 206 ROAD CLOSED sign) through every page; walks the narrowed Route 206 plaza lane
+(Route 207 manifest crate, Route 206 ROAD CLOSED sign) through every page; checks both closed shoulders block and walks the 4-wide Route 206 plaza lane
 into the Cycling Road south gate; walks the Route 207 road along the staging yard into Mt. Coronet's south entrance;
 checks that the barricade and the manifest crate block. Night pass (--night): the viewpoints again at 22:00.
 """
@@ -39,6 +39,7 @@ SPOTS = [  # (name, map, x, z, facing)
     ("04_cave_mouth", R207, 338, 713, "DIR_EAST"),
     ("05_junction_outpost", R207, 305, 708, "DIR_SOUTH"),
     ("06_r206_underpass", R206, 302, 651, "DIR_NORTH"),
+    ("06b_r206_deck_closure", R206, 302, 679, "DIR_NORTH"),
 ]
 
 
@@ -103,8 +104,10 @@ def tour(game, out_dir, run, results, shots, gameplay):
     read_bg(game, out_dir, run, "08_road_closed_sign", "Route 206 ROAD CLOSED sign", R206, *b["read_from"],
             "DIR_NORTH", results, shots)
     # the barricade blocks; the 4-wide lane leads into the Cycling Road south gate
-    V.warp(game, 300, 692, "DIR_NORTH", results, mapname=R206)
-    blocked_step(game, "UP", results, "plaza barricade (300,691)")
+    V.warp(game, 301, 692, "DIR_WEST", results, mapname=R206)
+    blocked_step(game, "LEFT", results, "plaza west-shoulder barricade (300,692)")
+    V.warp(game, 304, 690, "DIR_EAST", results, mapname=R206)
+    blocked_step(game, "RIGHT", results, "plaza east-shoulder barricade (305,690)")
     V.warp(game, 302, 694, "DIR_NORTH", results, mapname=R206)
     for k in range(5):
         st = V.walk_one(game, "UP")

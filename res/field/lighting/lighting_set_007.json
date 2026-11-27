@@ -6,7 +6,7 @@
                 "enabled": true,
                 "color": {
                     "red": 9,
-                    "green": 9,
+                    "green": 10,
                     "blue": 18
                 },
                 "direction": {
@@ -57,12 +57,12 @@
         ],
         "diffuseColor": {
             "red": 12,
-            "green": 12,
+            "green": 13,
             "blue": 17
         },
         "ambientColor": {
             "red": 9,
-            "green": 9,
+            "green": 10,
             "blue": 14
         },
         "specularColor": {
@@ -72,7 +72,7 @@
         },
         "emissionColor": {
             "red": 6,
-            "green": 6,
+            "green": 7,
             "blue": 11
         }
     },
@@ -83,7 +83,7 @@
                 "enabled": true,
                 "color": {
                     "red": 9,
-                    "green": 9,
+                    "green": 10,
                     "blue": 18
                 },
                 "direction": {
@@ -134,12 +134,12 @@
         ],
         "diffuseColor": {
             "red": 12,
-            "green": 12,
+            "green": 13,
             "blue": 17
         },
         "ambientColor": {
             "red": 9,
-            "green": 9,
+            "green": 10,
             "blue": 14
         },
         "specularColor": {
@@ -149,7 +149,7 @@
         },
         "emissionColor": {
             "red": 6,
-            "green": 6,
+            "green": 7,
             "blue": 11
         }
     },
@@ -1084,7 +1084,7 @@
                 "enabled": true,
                 "color": {
                     "red": 9,
-                    "green": 9,
+                    "green": 10,
                     "blue": 18
                 },
                 "direction": {
@@ -1135,12 +1135,12 @@
         ],
         "diffuseColor": {
             "red": 12,
-            "green": 12,
+            "green": 13,
             "blue": 17
         },
         "ambientColor": {
             "red": 9,
-            "green": 9,
+            "green": 10,
             "blue": 14
         },
         "specularColor": {
@@ -1150,7 +1150,7 @@
         },
         "emissionColor": {
             "red": 6,
-            "green": 6,
+            "green": 7,
             "blue": 11
         }
     }

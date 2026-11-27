@@ -67,7 +67,8 @@ def collect(models, get_tex, light):
                 sh = np.array(me["colors"], float) / 255.0
             tris = [tuple(q) for q in me["tris"]] + [t for q in me["quads"] for t in ((q[0], q[1], q[2]),
                                                                                       (q[0], q[2], q[3]))]
-            out.append((P, UV, sh, tris, T, dict(two=pa["cull"] != "back", alpha=pa["alpha"] / 31.0,
+            ta = bool(((T[..., 3] > 0.01) & (T[..., 3] < 0.99)).any())       # a3i5 / a5i3 texel alpha
+            out.append((P, UV, sh, tris, T, dict(two=pa["cull"] != "back", alpha=pa["alpha"] / 31.0, talpha=ta,
                                                  rs=tp["repeat_s"], rt=tp["repeat_t"], fs=tp["flip_s"],
                                                  ft=tp["flip_t"])))
     return out
@@ -111,7 +112,7 @@ def prop_meshes(chunk_props, light):
                     n = n / (np.linalg.norm(n) or 1)
                     v = 0.45 + 0.5 * max(0.0, float(n @ L))
                     sh[[a, b, cc]] = (v * 0.8, v * 0.75, v * 0.9)
-                out.append((P, np.zeros((len(P), 2)), sh, tris, tex, dict(two=True, alpha=1.0, rs=True, rt=True,
+                out.append((P, np.zeros((len(P), 2)), sh, tris, tex, dict(two=True, alpha=1.0, talpha=False, rs=True, rt=True,
                                                                           fs=False, ft=False)))
     return out
 
@@ -151,14 +152,20 @@ def rasterise(meshes, project, w, h, sky):
             pu = (w0 * UV[a, 0] / zc[a] + w1 * UV[b, 0] / zc[b] + w2 * UV[c, 0] / zc[c]) * depth
             pv = (w0 * UV[a, 1] / zc[a] + w1 * UV[b, 1] / zc[b] + w2 * UV[c, 1] / zc[c]) * depth
             tc = T[_wrap(pv, th, fl["rt"], fl["ft"]), _wrap(pu, tw, fl["rs"], fl["fs"])]
-            msk &= tc[..., 3] > 0.5
+            if fl["talpha"]:
+                ta = tc[..., 3] * fl["alpha"]
+                msk &= ta > 0.004
+            else:
+                msk &= tc[..., 3] > 0.5
+                ta = np.full(msk.shape, fl["alpha"])
             if not msk.any():
                 continue
             shade = w0[..., None] * SH[a] + w1[..., None] * SH[b] + w2[..., None] * SH[c]
             col = np.clip(tc[..., :3] * np.clip(shade, 0, 1.3), 0, 1)
             reg = img[by0:by1, bx0:bx1]
-            if fl["alpha"] < 0.99:
-                reg[msk] = reg[msk] * (1 - fl["alpha"]) + col[msk] * fl["alpha"]
+            if fl["alpha"] < 0.99 or fl["talpha"]:
+                aa = ta[msk][:, None]
+                reg[msk] = reg[msk] * (1 - aa) + col[msk] * aa
             else:
                 reg[msk] = col[msk]
                 sub[msk] = depth[msk]
@@ -202,7 +209,7 @@ def render_views(models, set_bytes, out_dir, views, night=False, suffix="", prop
     meshes = collect(models, texture_arrays(set_bytes), light)
     if props:
         meshes += prop_meshes(props, light)
-    meshes.sort(key=lambda m: m[5]["alpha"] < 0.99)          # translucent polygons after the opaque ones
+    meshes.sort(key=lambda m: m[5]["alpha"] < 0.99 or m[5]["talpha"])          # translucent polygons after the opaque ones
     paths = []
     for name, v in views.items():
         if v[0] == "cam":
