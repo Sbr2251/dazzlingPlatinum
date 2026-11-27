@@ -6,14 +6,21 @@
 #include "port/sim_hud_hd.h"
 
 #ifdef SDK_PORT
-extern void SIM_HudHD_Submit(const SIM_HudHD_Frame *frame) __attribute__((weak));
-extern int SIM_HudHD_IsSupported(void) __attribute__((weak));
+__attribute__((weak)) void SIM_HudHD_Submit(const SIM_HudHD_Frame *frame)
+{
+    (void)frame;
+}
+
+__attribute__((weak)) int SIM_HudHD_IsSupported(void)
+{
+    return 0;
+}
 #endif
 
 BOOL GameHudHD_IsSupported(void)
 {
 #ifdef SDK_PORT
-    return (SIM_HudHD_IsSupported != NULL && SIM_HudHD_IsSupported()) ? TRUE : FALSE;
+    return SIM_HudHD_IsSupported() ? TRUE : FALSE;
 #else
     return FALSE;
 #endif
@@ -22,7 +29,7 @@ BOOL GameHudHD_IsSupported(void)
 void GameHudHD_Submit(const SIM_HudHD_Frame *frame)
 {
 #ifdef SDK_PORT
-    if (frame != NULL && SIM_HudHD_Submit != NULL) {
+    if (frame != NULL) {
         SIM_HudHD_Submit(frame);
     }
 #else
