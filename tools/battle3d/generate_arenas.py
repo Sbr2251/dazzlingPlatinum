@@ -763,6 +763,7 @@ def build_indoors_gym() -> ArenaScene:
         wx, wz = math.cos(ang + math.pi / 12.0) * 15.8, math.sin(ang + math.pi / 12.0) * 15.8
         add_box(arch_sm, wx, 4.5, wz, 8.2, 9.0, 1.2, -(ang + math.pi / 12.0) + math.pi * 0.5, (0.56, 0.60, 0.70, 1.0), (0.72, 0.76, 0.84, 1.0))
         add_box(trim_sm, wx * 0.95, 8.2, wz * 0.95, 6.8, 0.35, 0.3, -(ang + math.pi / 12.0) + math.pi * 0.5, (0.76, 0.90, 1.0, 1.0))
+        add_box(trim_sm, wx * 0.96, 1.8, wz * 0.96, 5.4, 0.18, 0.25, -(ang + math.pi / 12.0) + math.pi * 0.5, (0.54, 0.76, 0.96, 1.0))
     return scene
 
 
