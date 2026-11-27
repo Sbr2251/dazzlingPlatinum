@@ -146,6 +146,23 @@
         "If your opponent’s Pokémon can’t\n",
         "move, it’s a big opportunity!"
       ]
+    },
+    {
+      "id": "Route207_Text_ManifestCrate",
+      "en_US": [
+        "A clipboard is strapped to the\n",
+        "crate. It's a shipping manifest.\r",
+        "TEAM ECLIPSE - STAGING YARD 207\n",
+        "Consignee: Mt. Coronet Survey.\r",
+        "Contents: shard containment\n",
+        "canisters, heat-shielded drills.\r",
+        "Destination: the molten depths\n",
+        "beyond the south cave.\r",
+        "Scrawled at the bottom...\n",
+        "Night convoy rolls at dusk.\r",
+        "Keep the racks sealed. If a\n",
+        "shard glows, don't touch it!"
+      ]
     }
   ]
 }

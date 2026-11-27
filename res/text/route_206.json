@@ -22,6 +22,19 @@
         "Rt. 206\n",
         "Oreburgh City"
       ]
+    },
+    {
+      "id": "Route206_Text_RoadClosedSign",
+      "en_US": [
+        "ROAD CLOSED\n",
+        "Heavy Transport Ahead\r",
+        "Partial Lane Closure -\n",
+        "Mt. Coronet Survey.\r",
+        "Cycling Road west lanes closed\n",
+        "for Eclipse supply convoys.\r",
+        "Cyclists, keep to the open lane.\n",
+        "Walkers, use the center path."
+      ]
     }
   ]
 }

@@ -34,6 +34,14 @@
             "z": 718,
             "y": 0,
             "player_facing_dir": "BG_EVENT_DIR_ALL"
+        },
+        {
+            "script": "Route207_ManifestCrate",
+            "type": "BG_EVENT_TYPE_FACING",
+            "x": 333,
+            "z": 710,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_NORTH"
         }
     ],
     "object_events": [

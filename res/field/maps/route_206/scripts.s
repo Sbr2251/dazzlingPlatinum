@@ -7,6 +7,7 @@
     ScriptEntry Route206_Hiker
     ScriptEntry Route206_ArrowSignpostEternaCity
     ScriptEntry Route206_ArrowSignpostOreburghCity
+    ScriptEntry Route206_RoadClosedSign
     ScriptEntryEnd
 
 Route206_OnTransition:
@@ -53,6 +54,10 @@ Route206_ArrowSignpostEternaCity:
 
 Route206_ArrowSignpostOreburghCity:
     ShowArrowSign Route206_Text_SignOreburghCity
+    End
+
+Route206_RoadClosedSign:
+    EventMessage Route206_Text_RoadClosedSign
     End
 
     .balign 4, 0

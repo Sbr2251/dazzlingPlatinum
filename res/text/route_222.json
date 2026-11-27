@@ -95,6 +95,52 @@
         "I just need enough shards to hold\n",
         "it."
       ]
+    },
+    {
+      "id": "Route222_Text_StrandedPsyduck",
+      "en_US": [
+        "Psyduck: Pwaa...\r",
+        "It shivers, staring east at the\n",
+        "violet light over the sea..."
+      ]
+    },
+    {
+      "id": "Route222_Text_StrandedPiplup",
+      "en_US": [
+        "Piplup: Pi... piplup...\r",
+        "It shivers, staring east at the\n",
+        "violet light over the sea...\r",
+        "The strange tide must have washed\n",
+        "it far from its home waters."
+      ]
+    },
+    {
+      "id": "Route222_Text_StrandedPrinplup",
+      "en_US": [
+        "Prinplup: Prrrin...\r",
+        "It shivers, staring east at the\n",
+        "violet light over the sea...\r",
+        "It won't go back into the water\n",
+        "while that glow hangs over it."
+      ]
+    },
+    {
+      "id": "Route222_Text_BlackoutLamp",
+      "en_US": [
+        "The coastal lamp is stone cold.\r",
+        "Only a faint violet static hums\n",
+        "inside the glass."
+      ]
+    },
+    {
+      "id": "Route222_Text_VioletLamp",
+      "en_US": [
+        "The lamp's glass crackles with\n",
+        "violet sparks.\r",
+        "Sunyshore's grid is dead...\r",
+        "The glow over Route 223 is\n",
+        "lighting it from within."
+      ]
     }
   ]
 }

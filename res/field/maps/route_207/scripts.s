@@ -11,6 +11,7 @@
     ScriptEntry Route207_ArrowSignpostMtCoronet
     ScriptEntry Route207_ArrowSignpostOreburghCity
     ScriptEntry Route207_TrainerTipsSignpost
+    ScriptEntry Route207_ManifestCrate
     ScriptEntryEnd
 
 Route207_OnTransition:
@@ -169,6 +170,10 @@ Route207_ArrowSignpostOreburghCity:
 
 Route207_TrainerTipsSignpost:
     ShowScrollingSign Route207_Text_TrainerTipsImmobilizedIfAsleepOrParalyzed
+    End
+
+Route207_ManifestCrate:
+    EventMessage Route207_Text_ManifestCrate
     End
 
     .balign 4, 0
