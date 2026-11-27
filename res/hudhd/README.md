@@ -1,6 +1,6 @@
 # HD Battle HUD Assets (`hudhd`)
 
-- **Font**: `MPLUSRounded1c-Medium.ttf`
+- **Font**: `MPLUSRounded1c-Bold.ttf` (fallback: `MPLUSRounded1c-Medium.ttf`)
   - **Family**: M PLUS Rounded 1c (Medium)
   - **Source**: Google Fonts (`https://github.com/google/fonts/tree/main/ofl/mplusrounded1c`)
   - **License**: SIL Open Font License 1.1 (`OFL.txt` in this directory)
