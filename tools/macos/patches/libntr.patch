@@ -18448,10 +18448,10 @@ index 0000000..a6e6d47
 +} // namespace SIM::Render
 diff --git a/libraries/sim/src/render_gpu/fx_hudhd.cpp b/libraries/sim/src/render_gpu/fx_hudhd.cpp
 new file mode 100644
-index 0000000..c27ab53
+index 0000000..5e7cd40
 --- /dev/null
 +++ b/libraries/sim/src/render_gpu/fx_hudhd.cpp
-@@ -0,0 +1,1055 @@
+@@ -0,0 +1,1067 @@
 +#include "fx_hudhd.hpp"
 +
 +#include "generated/hudhd_shaders.h"
@@ -18746,42 +18746,45 @@ index 0000000..c27ab53
 +  void DrawButtonIcon(int style, float ix, float iy, float r, Color4 col) {
 +    switch (style) {
 +      case SIM_HUDHD_BUTTON_FIGHT: {
-+        // Dynamic 6-ray starburst + center ball outline
-+        for (int i = 0; i < 6; ++i) {
-+          float ang = i * 1.0471975f + 0.2f;
++        // Dynamic 8-ray starburst + center Poké Ball silhouette
++        for (int i = 0; i < 8; ++i) {
++          float ang = i * 0.785398f + 0.18f;
 +          float c = std::cos(ang), s = std::sin(ang);
-+          Line(ix + c * r * 0.42f, iy + s * r * 0.42f,
-+               ix + c * r * 0.98f, iy + s * r * 0.98f, 0.95f, col);
++          float rIn = (i % 2 == 0) ? r * 0.42f : r * 0.52f;
++          float rOut = (i % 2 == 0) ? r * 1.04f : r * 0.88f;
++          Line(ix + c * rIn, iy + s * rIn,
++               ix + c * rOut, iy + s * rOut, 1.25f, col);
 +        }
-+        Circle(ix, iy, r * 0.40f, C4(0, 0, 0, 0.0f), C4(0, 0, 0, 0.0f), 0.9f, col);
++        Circle(ix, iy, r * 0.42f, C4(0, 0, 0, 0.0f), C4(0, 0, 0, 0.0f), 1.25f, col);
++        Circle(ix, iy, r * 0.14f, col, col);
 +        break;
 +      }
 +      case SIM_HUDHD_BUTTON_POKEMON: {
-+        Circle(ix, iy, r * 0.82f, C4(0, 0, 0, 0.0f), C4(0, 0, 0, 0.0f), 0.95f, col);
-+        Line(ix - r * 0.78f, iy, ix - r * 0.25f, iy, 0.9f, col);
-+        Line(ix + r * 0.25f, iy, ix + r * 0.78f, iy, 0.9f, col);
-+        Circle(ix, iy, r * 0.24f, C4(0, 0, 0, 0.0f), C4(0, 0, 0, 0.0f), 0.85f, col);
++        Circle(ix, iy, r * 0.88f, C4(0, 0, 0, 0.0f), C4(0, 0, 0, 0.0f), 1.35f, col);
++        Line(ix - r * 0.84f, iy, ix - r * 0.26f, iy, 1.25f, col);
++        Line(ix + r * 0.26f, iy, ix + r * 0.84f, iy, 1.25f, col);
++        Circle(ix, iy, r * 0.26f, C4(0, 0, 0, 0.0f), C4(0, 0, 0, 0.0f), 1.15f, col);
 +        break;
 +      }
 +      case SIM_HUDHD_BUTTON_BAG: {
 +        // Satchel outline: rounded body + top handle + flap line + clasp
-+        float bw = r * 1.45f, bh = r * 1.15f;
-+        RoundRect(ix - bw * 0.5f, iy - bh * 0.35f, bw, bh, 2.0f,
-+                  C4(0, 0, 0, 0.0f), C4(0, 0, 0, 0.0f), 0.9f, col);
-+        Line(ix - bw * 0.22f, iy - bh * 0.35f, ix - bw * 0.16f, iy - bh * 0.65f, 0.85f, col);
-+        Line(ix - bw * 0.16f, iy - bh * 0.65f, ix + bw * 0.16f, iy - bh * 0.65f, 0.85f, col);
-+        Line(ix + bw * 0.16f, iy - bh * 0.65f, ix + bw * 0.22f, iy - bh * 0.35f, 0.85f, col);
-+        Line(ix - bw * 0.45f, iy + bh * 0.05f, ix + bw * 0.45f, iy + bh * 0.05f, 0.8f, col);
-+        Circle(ix, iy + bh * 0.05f, 1.0f, col, col);
++        float bw = r * 1.55f, bh = r * 1.25f;
++        RoundRect(ix - bw * 0.5f, iy - bh * 0.35f, bw, bh, 2.2f,
++                  C4(0, 0, 0, 0.0f), C4(0, 0, 0, 0.0f), 1.25f, col);
++        Line(ix - bw * 0.24f, iy - bh * 0.35f, ix - bw * 0.16f, iy - bh * 0.68f, 1.15f, col);
++        Line(ix - bw * 0.16f, iy - bh * 0.68f, ix + bw * 0.16f, iy - bh * 0.68f, 1.15f, col);
++        Line(ix + bw * 0.16f, iy - bh * 0.68f, ix + bw * 0.24f, iy - bh * 0.35f, 1.15f, col);
++        Line(ix - bw * 0.46f, iy + bh * 0.06f, ix + bw * 0.46f, iy + bh * 0.06f, 1.10f, col);
++        Circle(ix, iy + bh * 0.06f, 1.25f, col, col);
 +        break;
 +      }
 +      case SIM_HUDHD_BUTTON_RUN: {
 +        // Running figure line art
-+        Circle(ix + r * 0.22f, iy - r * 0.55f, r * 0.22f, C4(0, 0, 0, 0.0f), C4(0, 0, 0, 0.0f), 0.85f, col);
-+        Line(ix + r * 0.15f, iy - r * 0.32f, ix - r * 0.10f, iy + r * 0.18f, 0.9f, col);
-+        Line(ix - r * 0.45f, iy - r * 0.15f, ix + r * 0.45f, iy - r * 0.05f, 0.85f, col);
-+        Line(ix - r * 0.10f, iy + r * 0.18f, ix + r * 0.38f, iy + r * 0.68f, 0.9f, col);
-+        Line(ix - r * 0.10f, iy + r * 0.18f, ix - r * 0.48f, iy + r * 0.62f, 0.9f, col);
++        Circle(ix + r * 0.24f, iy - r * 0.58f, r * 0.24f, C4(0, 0, 0, 0.0f), C4(0, 0, 0, 0.0f), 1.15f, col);
++        Line(ix + r * 0.16f, iy - r * 0.32f, ix - r * 0.12f, iy + r * 0.20f, 1.30f, col);
++        Line(ix - r * 0.48f, iy - r * 0.16f, ix + r * 0.48f, iy - r * 0.04f, 1.20f, col);
++        Line(ix - r * 0.12f, iy + r * 0.20f, ix + r * 0.42f, iy + r * 0.72f, 1.25f, col);
++        Line(ix - r * 0.12f, iy + r * 0.20f, ix - r * 0.52f, iy + r * 0.66f, 1.25f, col);
 +        break;
 +      }
 +      case SIM_HUDHD_BUTTON_CANCEL: {
@@ -18849,27 +18852,29 @@ index 0000000..c27ab53
 +  const char *envFont = std::getenv("SIM_HUDHD_FONT");
 +  const char *dataDir = SIM_Platform_DataDir();
 +  std::string exe = ExeDir();
-+  const char *kFontFile = "MPLUSRounded1c-Medium.ttf";
-+  std::string candidates[] = {
-+      envFont ? std::string(envFont) : std::string(),
-+      dataDir ? JoinPath(JoinPath(dataDir, "hudhd"), kFontFile) : std::string(),
-+      JoinPath("hudhd", kFontFile),
-+      exe.empty() ? std::string() : JoinPath(JoinPath(exe, "hudhd"), kFontFile),
-+      exe.empty() ? std::string() : JoinPath(JoinPath(exe, "../Resources/game/hudhd"), kFontFile),
-+      exe.empty() ? std::string() : JoinPath(JoinPath(exe, "../res/hudhd"), kFontFile),
-+      JoinPath("res/hudhd", kFontFile),
-+      JoinPath("../res/hudhd", kFontFile),
-+  };
-+
++  const char *fontNames[] = {"MPLUSRounded1c-Bold.ttf", "MPLUSRounded1c-Medium.ttf"};
 +  std::string found;
-+  for (const auto &c : candidates) {
-+    if (FileExists(c)) {
-+      found = c;
-+      break;
++  for (const char *kFontFile : fontNames) {
++    std::string candidates[] = {
++        envFont ? std::string(envFont) : std::string(),
++        dataDir ? JoinPath(JoinPath(dataDir, "hudhd"), kFontFile) : std::string(),
++        JoinPath("hudhd", kFontFile),
++        exe.empty() ? std::string() : JoinPath(JoinPath(exe, "hudhd"), kFontFile),
++        exe.empty() ? std::string() : JoinPath(JoinPath(exe, "../Resources/game/hudhd"), kFontFile),
++        exe.empty() ? std::string() : JoinPath(JoinPath(exe, "../res/hudhd"), kFontFile),
++        JoinPath("res/hudhd", kFontFile),
++        JoinPath("../res/hudhd", kFontFile),
++    };
++    for (const auto &c : candidates) {
++      if (FileExists(c)) {
++        found = c;
++        break;
++      }
 +    }
++    if (!found.empty()) break;
 +  }
 +  if (found.empty()) {
-+    std::fprintf(stderr, "FxHudHD: font %s not found\n", kFontFile);
++    std::fprintf(stderr, "FxHudHD: font not found\n");
 +    return false;
 +  }
 +
@@ -18985,7 +18990,7 @@ index 0000000..c27ab53
 +  auto &ec = mLatched.cards[0];
 +  ec.visible = 1;
 +  ec.isPlayer = 0;
-+  ec.rect = {241.0f, 11.0f, 95.0f, 22.0f};
++  ec.rect = {237.0f, 10.0f, 99.0f, 25.0f};
 +  std::snprintf(ec.name, sizeof(ec.name), "Bibarel");
 +  ec.gender = SIM_HUDHD_GENDER_MALE;
 +  ec.level = 27;
@@ -18997,7 +19002,7 @@ index 0000000..c27ab53
 +  auto &pc = mLatched.cards[1];
 +  pc.visible = 1;
 +  pc.isPlayer = 1;
-+  pc.rect = {6.0f, 146.0f, 99.0f, 30.0f};
++  pc.rect = {6.0f, 142.0f, 102.0f, 33.0f};
 +  std::snprintf(pc.name, sizeof(pc.name), "Infernape");
 +  pc.gender = SIM_HUDHD_GENDER_MALE;
 +  pc.level = 42;
@@ -19012,7 +19017,7 @@ index 0000000..c27ab53
 +  // Player party strip underneath player card
 +  auto &ps = mLatched.partyStrips[0];
 +  ps.visible = 1;
-+  ps.rect = {14.0f, 178.0f, 52.0f, 9.0f};
++  ps.rect = {13.0f, 177.0f, 60.0f, 11.5f};
 +  ps.count = 6;
 +  ps.balls[0] = SIM_HUDHD_BALL_OK;
 +  ps.balls[1] = SIM_HUDHD_BALL_OK;
@@ -19132,7 +19137,7 @@ index 0000000..c27ab53
 +  mScaleX = mViewW / cw;
 +  mScaleY = mViewH / ch;
 +
-+  const float bakePx = std::clamp(std::round(10.0f * mScaleY), 16.0f, 72.0f);
++  const float bakePx = std::clamp(std::round(11.5f * mScaleY), 20.0f, 80.0f);
 +  EnsureAtlas(device, frame, bakePx);
 +
 +  const bool headless = SIM_Headless_Enabled() != 0;
@@ -19271,25 +19276,25 @@ index 0000000..c27ab53
 +                 0.55f, C4(48, 54, 64, alpha));
 +
 +    // Name, gender badge, caught icon, level
-+    const float namePt = 7.4f;
-+    drawText(c.name, x + 5.0f, y + 2.4f, namePt, C4(36, 42, 50, alpha), false);
++    const float namePt = 10.6f;
++    drawText(c.name, x + 5.0f, y + 1.2f, namePt, C4(36, 42, 50, alpha), false);
 +    float nameW = measureText(c.name, namePt);
 +    if (c.gender != SIM_HUDHD_GENDER_NONE) {
-+      db.DrawGenderBadge(x + 5.0f + nameW + 5.2f, y + 6.4f, c.gender, alpha);
++      db.DrawGenderBadge(x + 5.0f + nameW + 5.5f, y + 6.8f, c.gender, alpha);
 +    }
 +
 +    char lvBuf[16];
 +    std::snprintf(lvBuf, sizeof(lvBuf), "Lv. %d", c.level);
-+    float lvW = measureText(lvBuf, 6.8f);
-+    drawText(lvBuf, x + w - 5.0f - lvW, y + 2.8f, 6.8f, C4(36, 42, 50, alpha), false);
++    float lvW = measureText(lvBuf, 9.4f);
++    drawText(lvBuf, x + w - 5.0f - lvW, y + 1.8f, 9.4f, C4(36, 42, 50, alpha), false);
 +
 +    if (!c.isPlayer && c.caught) {
-+      db.DrawPokeBall(x + w - 5.0f - lvW - 5.0f, y + 6.4f, 2.7f, SIM_HUDHD_BALL_OK, alpha);
++      db.DrawPokeBall(x + w - 5.0f - lvW - 5.5f, y + 6.8f, 3.0f, SIM_HUDHD_BALL_OK, alpha);
 +    }
 +
-+    // Status badge (left of HP bar or top-right)
++    // Status badge (left of HP bar)
 +    float hpX = x + 5.0f;
-+    float hpY = y + 12.2f;
++    float hpY = y + 13.6f;
 +    float hpW = w - 10.0f;
 +    if (c.status != SIM_HUDHD_STATUS_NONE) {
 +      struct StInfo { const char *lbl; Color4 bg; };
@@ -19314,17 +19319,17 @@ index 0000000..c27ab53
 +    }
 +
 +    // HP bar track + red "HP" tab + eased fill
-+    const float barH = 4.6f;
-+    db.RoundRect(hpX, hpY, hpW, barH, 1.8f,
++    const float barH = 5.0f;
++    db.RoundRect(hpX, hpY, hpW, barH, 1.9f,
 +                 C4(38, 43, 50, alpha), C4(28, 32, 38, alpha),
 +                 0.4f, C4(24, 28, 34, alpha));
 +    // Red HP left cap
-+    db.RoundRect(hpX + 0.5f, hpY + 0.5f, 10.5f, barH - 1.0f, 1.3f,
++    db.RoundRect(hpX + 0.5f, hpY + 0.5f, 11.5f, barH - 1.0f, 1.4f,
 +                 C4(212, 52, 52, alpha), C4(168, 32, 32, alpha));
-+    drawText("HP", hpX + 1.8f, hpY + 0.3f, 4.3f, C4(255, 240, 240, alpha), false);
++    drawText("HP", hpX + 1.9f, hpY + 0.0f, 5.0f, C4(255, 240, 240, alpha), false);
 +
-+    float fillX = hpX + 11.8f;
-+    float fillMaxW = std::max(0.0f, hpW - 12.6f);
++    float fillX = hpX + 12.8f;
++    float fillMaxW = std::max(0.0f, hpW - 13.6f);
 +    float frac = mCardAnim[i].displayedHp;
 +    if (frac > 0.002f && fillMaxW > 1.0f) {
 +      Color4 hpTop = C4(76, 218, 92, alpha), hpBot = C4(42, 180, 58, alpha);
@@ -19341,7 +19346,7 @@ index 0000000..c27ab53
 +    if (c.isPlayer && c.showHpNumbers) {
 +      char hpBuf[24];
 +      std::snprintf(hpBuf, sizeof(hpBuf), "%d/%d", c.hp, c.maxHp);
-+      drawText(hpBuf, x + 5.2f, y + 17.6f, 6.4f, C4(42, 48, 56, alpha), false);
++      drawText(hpBuf, x + 5.2f, y + 19.2f, 8.2f, C4(42, 48, 56, alpha), false);
 +    }
 +    if (c.isPlayer && c.showExp) {
 +      float expX = x + 5.2f, expY = y + h - 4.0f, expW = w - 10.4f;
@@ -19364,7 +19369,7 @@ index 0000000..c27ab53
 +                 0.35f, C4(220, 228, 238, 0.35f));
 +    const int n = std::min(6, ps.count);
 +    const float slotW = (ps.rect.w - 6.0f) / 6.0f;
-+    const float r = std::min(2.7f, ps.rect.h * 0.34f);
++    const float r = std::min(3.5f, ps.rect.h * 0.36f);
 +    for (int b = 0; b < n; ++b) {
 +      float bx = ps.rect.x + 3.0f + slotW * (b + 0.5f);
 +      float by = ps.rect.y + ps.rect.h * 0.5f;
@@ -19413,20 +19418,22 @@ index 0000000..c27ab53
 +      db.ShadowRect(x - 0.6f, y - 0.6f, w + 1.2f, h + 1.2f, 3.0f, 2.2f,
 +                    (0.28f + 0.14f * pulse) * alpha);
 +    }
-+    db.RoundRect(x, y, w, h, 2.6f, top, bot, 0.55f, C4(34, 38, 46, alpha));
++    db.RoundRect(x, y, w, h, 2.6f, top, bot,
++                 b.selected ? 0.75f : 0.55f,
++                 b.selected ? C4(255, 255, 255, 0.92f * alpha) : C4(34, 38, 46, alpha));
 +
 +    if (b.style == SIM_HUDHD_BUTTON_QUICK_BALL) {
-+      db.DrawPokeBall(x + 7.5f, y + h * 0.5f, 4.0f, SIM_HUDHD_BALL_OK, alpha);
-+      db.RoundRect(x + 14.0f, y + 3.0f, 9.0f, h - 6.0f, 1.5f,
++      db.DrawPokeBall(x + 7.5f, y + h * 0.5f, 4.2f, SIM_HUDHD_BALL_OK, alpha);
++      db.RoundRect(x + 14.0f, y + 2.6f, 10.0f, h - 5.2f, 1.6f,
 +                   C4(248, 212, 68, alpha), C4(218, 168, 28, alpha),
 +                   0.35f, C4(40, 32, 12, alpha));
-+      drawText("X", x + 16.5f, y + 3.4f, 6.8f, C4(36, 28, 10, alpha), false);
-+      drawText(b.label, x + 26.0f, y + (h - 7.6f) * 0.5f, 7.6f, C4(255, 255, 255, alpha), true);
++      drawText("X", x + 16.5f, y + 2.2f, 8.6f, C4(36, 28, 10, alpha), false);
++      drawText(b.label, x + 26.5f, y + (h - 9.0f) * 0.44f, 9.0f, C4(255, 255, 255, alpha), true);
 +    } else {
-+      const float pt = (h >= 18.0f) ? 8.2f : 7.0f;
-+      drawText(b.label, x + 7.0f, y + (h - pt) * 0.48f, pt, C4(255, 255, 255, alpha), true);
-+      db.DrawButtonIcon(b.style, x + w - h * 0.62f, y + h * 0.5f, h * 0.42f,
-+                        C4(255, 255, 255, 0.42f * alpha));
++      const float pt = (h >= 18.0f) ? 11.2f : 8.4f;
++      drawText(b.label, x + 6.5f, y + (h - pt) * 0.42f, pt, C4(255, 255, 255, alpha), true);
++      db.DrawButtonIcon(b.style, x + w - h * 0.65f, y + h * 0.5f, h * 0.48f,
++                        C4(255, 255, 255, 0.52f * alpha));
 +    }
 +    if (b.selected) {
 +      db.DrawSelectionBrackets(x, y, w, h, pulse);
@@ -19449,21 +19456,26 @@ index 0000000..c27ab53
 +      db.ShadowRect(x - 0.6f, y - 0.6f, w + 1.2f, h + 1.2f, 3.0f, 2.2f,
 +                    (0.28f + 0.14f * pulse) * alpha);
 +    }
-+    db.RoundRect(x, y, w, h, 2.5f, top, bot, 0.55f, C4(34, 38, 46, alpha));
++    db.RoundRect(x, y, w, h, 2.5f, top, bot,
++                 m.selected ? 0.75f : 0.55f,
++                 m.selected ? C4(255, 255, 255, 0.92f * alpha) : C4(34, 38, 46, alpha));
 +
-+    drawText(m.name, x + 5.0f, y + 2.2f, 7.2f, C4(255, 255, 255, alpha), true);
++    drawText(m.name, x + 5.0f, y + 1.4f, 8.8f, C4(255, 255, 255, alpha), true);
 +    db.DrawCategoryIcon(x + 8.5f, y + h - 5.5f, m.category, alpha);
 +
 +    char ppBuf[20];
 +    std::snprintf(ppBuf, sizeof(ppBuf), "PP %d/%d", m.pp, m.maxPp);
-+    float ppW = measureText(ppBuf, 5.8f);
-+    drawText(ppBuf, x + w - 4.5f - ppW, y + h - 8.2f, 5.8f, C4(248, 250, 255, alpha), true);
++    float ppW = measureText(ppBuf, 7.0f);
++    drawText(ppBuf, x + w - 4.5f - ppW, y + h - 9.2f, 7.0f, C4(248, 250, 255, alpha), true);
 +
 +    const char *effStr = nullptr;
 +    Color4 effCol = C4(255, 255, 255, alpha);
 +    if (m.effectiveness == SIM_HUDHD_EFF_SUPER) {
 +      effStr = "Super effective";
 +      effCol = C4(255, 244, 128, alpha);
++    } else if (m.effectiveness == SIM_HUDHD_EFF_NORMAL) {
++      effStr = "Effective";
++      effCol = C4(240, 246, 255, 0.90f * alpha);
 +    } else if (m.effectiveness == SIM_HUDHD_EFF_NOT_VERY) {
 +      effStr = "Not very effective";
 +      effCol = C4(225, 225, 232, 0.90f * alpha);
