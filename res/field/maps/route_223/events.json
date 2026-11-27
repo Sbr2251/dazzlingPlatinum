@@ -13,6 +13,38 @@
             "z": 656,
             "y": 0,
             "player_facing_dir": "BG_EVENT_DIR_ALL"
+        },
+        {
+            "script": "Route223_KingdraRift",
+            "type": "BG_EVENT_TYPE_FACING",
+            "x": 851,
+            "z": 697,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_NORTH"
+        },
+        {
+            "script": "Route223_KingdraRift",
+            "type": "BG_EVENT_TYPE_FACING",
+            "x": 852,
+            "z": 697,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_NORTH"
+        },
+        {
+            "script": "Route223_SummitPillar",
+            "type": "BG_EVENT_TYPE_FACING",
+            "x": 844,
+            "z": 611,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_WEST"
+        },
+        {
+            "script": "Route223_SummitPillar",
+            "type": "BG_EVENT_TYPE_FACING",
+            "x": 849,
+            "z": 612,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_EAST"
         }
     ],
     "object_events": [
