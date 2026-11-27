@@ -14,6 +14,8 @@
     ScriptEntry Route215_Arc2Crate
     ScriptEntry Route215_Arc2CrateSign
     ScriptEntry Route215_Arc2CyrusTalk
+    ScriptEntry Route215_EclipseCrates
+    ScriptEntry Route215_DrainageSign
     ScriptEntryEnd
 
 Route215_OnTransition:
@@ -178,6 +180,24 @@ Route215_Arc2CrateSign:
     PlaySE SE_CONFIRM_sseq_3
     LockAll
     Message Route215_Text_Arc2CrateEmpty
+    WaitABPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+Route215_EclipseCrates:
+    PlaySE SE_CONFIRM_sseq_3
+    LockAll
+    Message Route215_Text_EclipseCrates
+    WaitABPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+Route215_DrainageSign:
+    PlaySE SE_CONFIRM_sseq_3
+    LockAll
+    Message Route215_Text_DrainageSign
     WaitABPadPress
     CloseMessage
     ReleaseAll

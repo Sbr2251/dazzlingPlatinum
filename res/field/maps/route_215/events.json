@@ -20,6 +20,22 @@
             "z": 591,
             "y": 0,
             "player_facing_dir": "BG_EVENT_DIR_ALL"
+        },
+        {
+            "script": "Route215_EclipseCrates",
+            "type": "BG_EVENT_TYPE_FACING",
+            "x": 655,
+            "z": 592,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_ALL"
+        },
+        {
+            "script": "Route215_DrainageSign",
+            "type": "BG_EVENT_TYPE_FACING",
+            "x": 594,
+            "z": 590,
+            "y": 0,
+            "player_facing_dir": "BG_EVENT_DIR_ALL"
         }
     ],
     "object_events": [
