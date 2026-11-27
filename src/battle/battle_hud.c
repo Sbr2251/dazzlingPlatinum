@@ -19,6 +19,8 @@
 // 3D-only in the composite) and the bottom panel is suppressed.
 
 #include "battle/battle_hud.h"
+#include "battle/battle_bdsp_dialogue.h"
+#include "battle/battle_bdsp_overlay.h"
 
 #include <nitro.h>
 #include <stdio.h>
@@ -3335,6 +3337,8 @@ void BattleHud_SyncFrame(BattleSystem *battleSys)
     }
 
     HdHudDumpFrame(&frame);
+    BattleBdspDialogue_FillFrame(battleSys, &frame);
+    BattleBdspOverlay_TickAndFillFrame(battleSys, &frame);
     GameHudHD_Submit(&frame);
 }
 
@@ -3354,6 +3358,8 @@ void BattleHud_Reset(void)
     frame.canvasW = (float)WIDE_HUD_WIDTH_PX;
     frame.canvasH = (float)HW_LCD_HEIGHT;
     HdHudDumpFrame(&frame);
+    BattleBdspDialogue_Reset();
+    BattleBdspOverlay_Reset();
     GameHudHD_Submit(&frame);
 }
 

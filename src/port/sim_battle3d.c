@@ -36,6 +36,13 @@ __attribute__((weak)) int SIM_Battle3D_HasActor(int kind)
     (void)kind;
     return 0;
 }
+__attribute__((weak)) int SIM_Battle3D_GetActorBonePos(int actorIdx, int boneKind, float outPos[3])
+{
+    (void)actorIdx;
+    (void)boneKind;
+    (void)outPos;
+    return 0;
+}
 #endif
 
 BOOL SIM_Battle3D_IsEnabled(void)
@@ -203,6 +210,21 @@ BOOL SIM_Battle3D_HasActorLoaded(int kind)
     return SIM_Battle3D_HasActor(kind) ? TRUE : FALSE;
 #else
     (void)kind;
+    return FALSE;
+#endif
+}
+
+BOOL SIM_Battle3D_GetActorHandPos(int actorIdx, int boneKind, float outPos[3])
+{
+#ifdef SDK_PORT
+    if (!SIM_Battle3D_ModelsEnabled() || outPos == NULL) {
+        return FALSE;
+    }
+    return SIM_Battle3D_GetActorBonePos(actorIdx, boneKind, outPos) ? TRUE : FALSE;
+#else
+    (void)actorIdx;
+    (void)boneKind;
+    (void)outPos;
     return FALSE;
 #endif
 }

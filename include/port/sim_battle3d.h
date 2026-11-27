@@ -58,6 +58,7 @@ typedef struct SIM_Battle3DBattler {
     float animTime;
     int animNonce;
     int use3dModel;
+    float flashAmount;
 } SIM_Battle3DBattler;
 typedef struct SIM_Battle3DFrame {
     int active;
@@ -86,7 +87,19 @@ typedef struct SIM_Battle3DFrame {
         int animState;
         float animTime;
         int animNonce;
+        int attachActorIdx;
+        int attachBoneKind;
+        float attachOffset[3];
     } actors[4];
+    struct SIM_Battle3DBurst {
+        int active;
+        float worldX;
+        float worldY;
+        float worldZ;
+        float progress;
+        float radius;
+        float color[3];
+    } burst;
 } SIM_Battle3DFrame;
 #define SIM_BATTLE3D_MAX_ACTORS 4
 typedef struct SIM_Battle3DActor SIM_Battle3DActor;
@@ -134,6 +147,7 @@ BOOL SIM_Battle3D_HasArenaLoaded(int biome);
 
 // TRUE when an extracted 3D trainer/ball actor .glb is available and models are enabled.
 BOOL SIM_Battle3D_HasActorLoaded(int kind);
+BOOL SIM_Battle3D_GetActorHandPos(int actorIdx, int boneKind, float outPos[3]);
 
 #ifdef __cplusplus
 }

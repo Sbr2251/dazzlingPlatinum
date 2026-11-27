@@ -570,6 +570,8 @@ pokeplatinum_c = files(
     'battle/battle_stage.c',
     'battle/battle_bdsp_cam.c',
     'battle/battle_bdsp_trainer.c',
+    'battle/battle_bdsp_dialogue.c',
+    'battle/battle_bdsp_overlay.c',
     'battle/battle_textbox.c',
     'battle/battle_stage_sprites.c',
     'battle/battle_stage_stream.c',

@@ -2334,10 +2334,10 @@ index 4c50209..fea3d68 100644
  
 diff --git a/include/simulator/sim_battle3d.h b/include/simulator/sim_battle3d.h
 new file mode 100644
-index 0000000..dfbdc03
+index 0000000..470db62
 --- /dev/null
 +++ b/include/simulator/sim_battle3d.h
-@@ -0,0 +1,186 @@
+@@ -0,0 +1,206 @@
 +#ifndef SIM_BATTLE3D_H
 +#define SIM_BATTLE3D_H
 +
@@ -2408,6 +2408,7 @@ index 0000000..dfbdc03
 +    float animTime;    // Elapsed seconds in current animState
 +    int animNonce;     // Increments each time a one-shot animation triggers
 +    int use3dModel;    // 1 when the game wants the 3D .glb model drawn (and suppressed 2D sprite)
++    float flashAmount; // 0..1 bright white/red send-out materialization glow
 +} SIM_Battle3DBattler;
 +
 +typedef struct SIM_Battle3DFrame {
@@ -2438,7 +2439,23 @@ index 0000000..dfbdc03
 +        int animState;     // enum SIM_Battle3DTrainerAnim
 +        float animTime;    // deterministic seconds
 +        int animNonce;
++        // Bone socket attachment (e.g. Poke Ball held in trainer RHand during wind-up):
++        // attachBoneKind: 0 = world space, 1 = RHand, 2 = LHand.
++        // When attachBoneKind != 0, attachActorIdx (0..3) names the parent actor.
++        int attachActorIdx;
++        int attachBoneKind;
++        float attachOffset[3];
 +    } actors[4];
++    // 3D Poke Ball open / materialization light burst VFX
++    struct SIM_Battle3DBurst {
++        int active;
++        float worldX;
++        float worldY;
++        float worldZ;
++        float progress;    // 0..1 normalized burst timeline
++        float radius;      // peak burst radius in meters (e.g. 1.6)
++        float color[3];    // RGB tint (e.g. 1.0, 0.88, 0.72)
++    } burst;
 +} SIM_Battle3DFrame;
 +
 +#define SIM_BATTLE3D_MAX_ACTORS 4
@@ -2518,6 +2535,9 @@ index 0000000..dfbdc03
 +int SIM_Battle3D_HasArena(int biome);
 +// Returns 1 if <bdsp_assets>/trainers/<actor>.glb exists and is usable.
 +int SIM_Battle3D_HasActor(int kind);
++// Queries the live world-space position of an actor's named hand bone (1=RHand, 2=LHand).
++// Returns 1 and writes outPos[3] if the actor is loaded and the bone was evaluated.
++int SIM_Battle3D_GetActorBonePos(int actorIdx, int boneKind, float outPos[3]);
 +
 +#ifdef __cplusplus
 +}
@@ -3011,10 +3031,10 @@ index 0000000..240e2b0
 +}  // namespace SIM::Helpers
 diff --git a/include/simulator/sim_hud_hd.h b/include/simulator/sim_hud_hd.h
 new file mode 100644
-index 0000000..7bd7e47
+index 0000000..2183992
 --- /dev/null
 +++ b/include/simulator/sim_hud_hd.h
-@@ -0,0 +1,175 @@
+@@ -0,0 +1,246 @@
 +#ifndef SIMULATOR_SIM_HUD_HD_H
 +#define SIMULATOR_SIM_HUD_HD_H
 +
@@ -3155,6 +3175,75 @@ index 0000000..7bd7e47
 +    int enabled;                    // 0: no PP / disabled
 +} SIM_HudHD_MoveCard;
 +
++// --- BDSP HD Dialogue Bar (replaces pixel-art BG_LAYER_MAIN_1 battle text box) ---
++typedef struct SIM_HudHD_Dialogue {
++    int visible;
++    char text[320];        // UTF-8 currently visible (typewriter-sliced) text
++    int waitArrow;         // 1 = waiting for A press (animated down triangle)
++    float alpha;           // 0..1
++} SIM_HudHD_Dialogue;
++
++// --- BDSP HD In-Battle Bag / Party / Summary Overlays ---
++#define SIM_HUDHD_OVERLAY_NONE    0
++#define SIM_HUDHD_OVERLAY_BAG     1
++#define SIM_HUDHD_OVERLAY_PARTY   2
++#define SIM_HUDHD_OVERLAY_SUMMARY 3
++#define SIM_HUDHD_MAX_OVERLAY_ITEMS 10
++#define SIM_HUDHD_MAX_OVERLAY_TABS  4
++#define SIM_HUDHD_MAX_OVERLAY_PARTY 6
++
++typedef struct SIM_HudHD_OverlayItem {
++    int valid;
++    int itemId;
++    char name[32];
++    int count;
++    int selected;
++    int usable;
++} SIM_HudHD_OverlayItem;
++
++typedef struct SIM_HudHD_OverlayMon {
++    int valid;
++    char name[SIM_HUDHD_NAME_LEN];
++    int gender;
++    int level;
++    int hp, maxHp;
++    int status;
++    int isActive;          // currently on battlefield
++    int isFainted;
++    int selected;
++    int selectable;
++    char heldItem[32];
++    char ability[32];
++    int stats[6];          // HP, Atk, Def, SpA, SpD, Spe
++    char moveNames[4][SIM_HUDHD_NAME_LEN];
++    int moveTypes[4];
++    int movePp[4];
++    int moveMaxPp[4];
++} SIM_HudHD_OverlayMon;
++
++typedef struct SIM_HudHD_Overlay {
++    int kind;              // SIM_HUDHD_OVERLAY_*
++    char title[32];
++    char subtitle[64];
++    char desc[180];
++    char footerHint[96];
++    int numTabs;
++    int activeTab;
++    char tabNames[SIM_HUDHD_MAX_OVERLAY_TABS][24];
++    int numItems;
++    int scrollOffset;
++    int totalItems;
++    SIM_HudHD_OverlayItem items[SIM_HUDHD_MAX_OVERLAY_ITEMS];
++    int numParty;
++    int partyCursor;
++    SIM_HudHD_OverlayMon party[SIM_HUDHD_MAX_OVERLAY_PARTY];
++    int confirmMode;       // 0=list, 1=action prompt (Use/Cancel or Shift/Summary/Cancel)
++    int confirmCursor;
++    int confirmCount;
++    char confirmLabels[3][24];
++    char errorMsg[128];
++} SIM_HudHD_Overlay;
++
 +typedef struct SIM_HudHD_Frame {
 +    int active;                     // 0: draw nothing this frame
 +    float canvasW, canvasH;         // 342, 192
@@ -3178,6 +3267,8 @@ index 0000000..7bd7e47
 +    } infoCard;
 +    int quickBallCount;    // >0 shows remaining ball count on Quick Ball pill
 +    int showKeyHints;      // 1 = draw BDSP A/B/X/Y key-guide badges
++    SIM_HudHD_Dialogue dialogue;
++    SIM_HudHD_Overlay overlay;
 +} SIM_HudHD_Frame;
 +
 +typedef struct SIM_HudHD_InfoCard SIM_HudHD_InfoCard;
@@ -16209,7 +16300,7 @@ index 0000000..f1c4cec
 +
 +#endif // #ifndef IMGUI_DISABLE
 diff --git a/libraries/sim/src/meson.build b/libraries/sim/src/meson.build
-index 2d852bf..718a4fe 100644
+index 2d852bf..05f8e0a 100644
 --- a/libraries/sim/src/meson.build
 +++ b/libraries/sim/src/meson.build
 @@ -8,7 +8,8 @@ libsim_srcs = files(
@@ -16222,7 +16313,7 @@ index 2d852bf..718a4fe 100644
      'imgui/imgui_tables.cpp',
      'imgui/imgui_widgets.cpp',
      'queue.c',
-@@ -18,12 +19,25 @@ libsim_srcs = files(
+@@ -18,12 +19,27 @@ libsim_srcs = files(
      'sim_debug.cpp',
      'sim_NitroMainThread.cpp',
      'sim_g2.cpp',
@@ -16246,10 +16337,12 @@ index 2d852bf..718a4fe 100644
 +    'render_gpu/fx_battle3d_gltf.cpp',
 +    'render_gpu/fx_hudhd.cpp',
 +    'render_gpu/fx_hudhd_atlas.cpp',
++  'render_gpu/fx_hudhd_dialogue.cpp',
++  'render_gpu/fx_hudhd_overlay.cpp',
      'sim_g3_Texture.cpp',
      'sim_g3_TextureCache.cpp',
      'sim_g3_Utilities.cpp',
-@@ -31,7 +45,17 @@ libsim_srcs = files(
+@@ -31,7 +47,17 @@ libsim_srcs = files(
      'sim_gui_config.cpp',
      'sim_gui_net.cpp',
      'sim_gui_pad.cpp',
@@ -16267,7 +16360,7 @@ index 2d852bf..718a4fe 100644
      'sim_net.cpp',
      'sim_RenderContextManager.cpp',
      'sim_RomExtractor.cpp',
-@@ -48,6 +72,25 @@ if(build_target == 'prospero')
+@@ -48,6 +74,25 @@ if(build_target == 'prospero')
  libsim_srcs += files('ps5_heap.cpp')
  endif
  
@@ -21042,11 +21135,12 @@ index 0000000..fc10367
 +} // namespace SIM::Render
 diff --git a/libraries/sim/src/render_gpu/fx_hudhd.cpp b/libraries/sim/src/render_gpu/fx_hudhd.cpp
 new file mode 100644
-index 0000000..2daccc1
+index 0000000..9d038b2
 --- /dev/null
 +++ b/libraries/sim/src/render_gpu/fx_hudhd.cpp
-@@ -0,0 +1,1556 @@
+@@ -0,0 +1,1602 @@
 +#include "fx_hudhd.hpp"
++#include "fx_hudhd_ext.hpp"
 +
 +#include "generated/hudhd_shaders.h"
 +
@@ -22572,6 +22666,51 @@ index 0000000..2daccc1
 +    }
 +  }
 +
++  // 7. Phase-3 extensions: HD BDSP dialogue bar + HD in-battle Bag/Party/Summary overlays
++  if (mLatched.dialogue.visible || mLatched.overlay.kind != SIM_HUDHD_OVERLAY_NONE) {
++    auto toC4 = [](HudExtColor c) -> Color4 { return {c.r, c.g, c.b, c.a}; };
++    HudExtDraw ext{};
++    ext.atlas = &mUiAtlas;
++    ext.useBdspUi = useBdspUi;
++    ext.timeSec = mTimeSec;
++    ext.canvasW = mLatched.canvasW > 0.0f ? mLatched.canvasW : 342.0f;
++    ext.canvasH = mLatched.canvasH > 0.0f ? mLatched.canvasH : 192.0f;
++    ext.roundRect = [&](float x, float y, float w, float h, float r, HudExtColor top, HudExtColor bot, float b, HudExtColor bc) {
++      db.RoundRect(x, y, w, h, r, toC4(top), toC4(bot), b, toC4(bc));
++    };
++    ext.shadowRect = [&](float x, float y, float w, float h, float r, float soft, float a) {
++      db.ShadowRect(x, y, w, h, r, soft, a);
++    };
++    ext.circle = [&](float cx, float cy, float r, HudExtColor top, HudExtColor bot) {
++      db.Circle(cx, cy, r, toC4(top), toC4(bot));
++    };
++    ext.line = [&](float x0, float y0, float x1, float y1, float t, HudExtColor col) {
++      db.Line(x0, y0, x1, y1, t, toC4(col));
++    };
++    ext.sprite = [&](const HudSprite *sp, float x, float y, float w, float h, HudExtColor tint) {
++      db.DrawSprite(sp, x, y, w, h, toC4(tint));
++    };
++    ext.spriteNineSlice = [&](const HudSprite *sp, float x, float y, float w, float h, float bs, HudExtColor tint) {
++      db.DrawSpriteNineSlice(sp, x, y, w, h, bs, toC4(tint));
++    };
++    ext.spriteAspectFit = [&](const HudSprite *sp, float x, float y, float w, float h, HudExtColor tint) {
++      db.DrawSpriteAspectFit(sp, x, y, w, h, toC4(tint));
++    };
++    ext.measureText = [&](const char *str, float sz) -> float { return measureText(str, sz); };
++    ext.drawText = [&](const char *str, float x, float y, float sz, HudExtColor col, bool sh) {
++      drawText(str, x, y, sz, toC4(col), sh);
++    };
++    ext.drawWrappedText = [&](const char *str, float x, float y, float mw, float sz, float lh, int ml, HudExtColor col, bool sh) {
++      drawWrappedText(str, x, y, mw, sz, lh, ml, toC4(col), sh);
++    };
++    if (mLatched.dialogue.visible) {
++      RenderHudDialogue(ext, mLatched.dialogue);
++    }
++    if (mLatched.overlay.kind != SIM_HUDHD_OVERLAY_NONE) {
++      RenderHudOverlay(ext, mLatched.overlay);
++    }
++  }
++
 +  if (db.verts.empty()) return;
 +
 +  frame->BindPipeline(pipe);
@@ -23256,6 +23395,85 @@ index 0000000..14c710a
 +  std::uint32_t mHeight = 0;
 +  std::unordered_map<std::string, HudUiSprite> mSprites;
 +};
++
++} // namespace SIM::Render
+diff --git a/libraries/sim/src/render_gpu/fx_hudhd_dialogue.cpp b/libraries/sim/src/render_gpu/fx_hudhd_dialogue.cpp
+new file mode 100644
+index 0000000..9fa2ea1
+--- /dev/null
++++ b/libraries/sim/src/render_gpu/fx_hudhd_dialogue.cpp
+@@ -0,0 +1,10 @@
++#include "fx_hudhd_ext.hpp"
++
++namespace SIM::Render {
++
++void RenderHudDialogue(const HudExtDraw &ext, const SIM_HudHD_Dialogue &dlg) {
++  (void)ext;
++  (void)dlg;
++}
++
++} // namespace SIM::Render
+diff --git a/libraries/sim/src/render_gpu/fx_hudhd_ext.hpp b/libraries/sim/src/render_gpu/fx_hudhd_ext.hpp
+new file mode 100644
+index 0000000..faed217
+--- /dev/null
++++ b/libraries/sim/src/render_gpu/fx_hudhd_ext.hpp
+@@ -0,0 +1,41 @@
++#pragma once
++
++#include "fx_hudhd_atlas.hpp"
++#include <simulator/sim_hud_hd.h>
++#include <functional>
++
++namespace SIM::Render {
++
++struct HudExtColor {
++  float r, g, b, a;
++};
++
++inline HudExtColor HudC4(int r, int g, int b, float a = 1.0f) {
++  return {r / 255.0f, g / 255.0f, b / 255.0f, a};
++}
++
++struct HudExtDraw {
++  const HudUiAtlas *atlas = nullptr;
++  bool useBdspUi = false;
++  float timeSec = 0.0f;
++  float canvasW = 342.0f;
++  float canvasH = 192.0f;
++
++  std::function<void(float x, float y, float w, float h, float radius,
++                     HudExtColor top, HudExtColor bot, float border, HudExtColor borderCol)> roundRect;
++  std::function<void(float x, float y, float w, float h, float radius, float soft, float alpha)> shadowRect;
++  std::function<void(float cx, float cy, float r, HudExtColor top, HudExtColor bot)> circle;
++  std::function<void(float x0, float y0, float x1, float y1, float thick, HudExtColor col)> line;
++  std::function<void(const HudSprite *sp, float x, float y, float w, float h, HudExtColor tint)> sprite;
++  std::function<void(const HudSprite *sp, float x, float y, float w, float h, float borderScale, HudExtColor tint)> spriteNineSlice;
++  std::function<void(const HudSprite *sp, float x, float y, float w, float h, HudExtColor tint)> spriteAspectFit;
++  std::function<float(const char *str, float sizeCanvas)> measureText;
++  std::function<void(const char *str, float x, float y, float sizeCanvas, HudExtColor col, bool shadow)> drawText;
++  std::function<void(const char *str, float x, float y, float maxW, float sizeCanvas, float lineH,
++                     int maxLines, HudExtColor col, bool shadow)> drawWrappedText;
++};
++
++void RenderHudDialogue(const HudExtDraw &ext, const SIM_HudHD_Dialogue &dlg);
++void RenderHudOverlay(const HudExtDraw &ext, const SIM_HudHD_Overlay &ov);
++
++} // namespace SIM::Render
+diff --git a/libraries/sim/src/render_gpu/fx_hudhd_overlay.cpp b/libraries/sim/src/render_gpu/fx_hudhd_overlay.cpp
+new file mode 100644
+index 0000000..fb81de4
+--- /dev/null
++++ b/libraries/sim/src/render_gpu/fx_hudhd_overlay.cpp
+@@ -0,0 +1,10 @@
++#include "fx_hudhd_ext.hpp"
++
++namespace SIM::Render {
++
++void RenderHudOverlay(const HudExtDraw &ext, const SIM_HudHD_Overlay &ov) {
++  (void)ext;
++  (void)ov;
++}
 +
 +} // namespace SIM::Render
 diff --git a/libraries/sim/src/render_gpu/fx_lighting.cpp b/libraries/sim/src/render_gpu/fx_lighting.cpp
