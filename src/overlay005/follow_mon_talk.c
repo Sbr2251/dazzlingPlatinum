@@ -260,29 +260,33 @@ static void FollowMon_DestroyEmote(void)
 
 static int EmoteKindToArchiveOffset(FollowMonEmoteKind emote)
 {
+    // Exact HGSS emote BTX0 order in follow_mon.narc (members 574..587):
+    // 0: fuki_heart, 1..5: fuki_kao1..5, 6: fuki_onpu (music), 7: fuki_hatena (?),
+    // 8: fuki_bikkuri (!), 9: fuki_ase (sweat), 10: fuki_komari (troubled),
+    // 11: fuki_doku (poison), 12: fuki_chinmoku (...), 13: fuki_pikon (spark/excited)
     switch (emote) {
-    case FOLLOW_MON_EMOTE_EXCLAMATION:
-        return 0;
-    case FOLLOW_MON_EMOTE_QUESTION:
-        return 1;
-    case FOLLOW_MON_EMOTE_MUSIC:
-        return 2;
     case FOLLOW_MON_EMOTE_HEART:
-        return 3;
+        return 0;
     case FOLLOW_MON_EMOTE_HAPPY:
-        return 4;
-    case FOLLOW_MON_EMOTE_SWEAT:
-        return 5;
+        return 1;
     case FOLLOW_MON_EMOTE_ANGRY:
-        return 6;
-    case FOLLOW_MON_EMOTE_POISON:
-        return 7;
-    case FOLLOW_MON_EMOTE_SLEEPY:
-        return 8;
-    case FOLLOW_MON_EMOTE_SURPRISE:
-        return 9;
-    default:
         return 4;
+    case FOLLOW_MON_EMOTE_MUSIC:
+        return 6;
+    case FOLLOW_MON_EMOTE_QUESTION:
+        return 7;
+    case FOLLOW_MON_EMOTE_EXCLAMATION:
+        return 8;
+    case FOLLOW_MON_EMOTE_SWEAT:
+        return 9;
+    case FOLLOW_MON_EMOTE_POISON:
+        return 11;
+    case FOLLOW_MON_EMOTE_SLEEPY:
+        return 12;
+    case FOLLOW_MON_EMOTE_SURPRISE:
+        return 13;
+    default:
+        return 1;
     }
 }
 
