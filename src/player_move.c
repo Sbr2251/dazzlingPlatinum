@@ -14,6 +14,7 @@
 
 #include "field/field_system.h"
 #include "global/utility.h"
+#include "overlay005/follow_mon.h"
 #include "overlay005/land_data_manager_decl.h"
 #include "overlay005/ov5_021DFB54.h"
 #include "overlay009/ov9_02249960.h"
@@ -1860,8 +1861,30 @@ static void PlayerAvatar_SetMovement_BikeFourthGearBrake(PlayerAvatar *playerAva
  */
 static void PlayerAvatar_SetMovement(PlayerAvatar *playerAvatar, MapObject *mapObj, enum MovementAction movementAction, int speed)
 {
+    int oldX = MapObject_GetX(mapObj);
+    int oldZ = MapObject_GetZ(mapObj);
+
     PlayerAvatar_SetMovementActionAndSpeed(playerAvatar, movementAction, speed);
     LocalMapObj_SetAnimationCode(mapObj, movementAction);
+
+    if (speed != PLAYER_ACTION_SPEED_NONE
+        && speed != PLAYER_ACTION_SPEED_NOT_MOVING
+        && !(movementAction >= MOVEMENT_ACTION_FACE_NORTH && movementAction <= MOVEMENT_ACTION_FACE_EAST)
+        && !(movementAction >= MOVEMENT_ACTION_WALK_ON_SPOT_SLOWER_NORTH && movementAction <= MOVEMENT_ACTION_JUMP_ON_SPOT_FAST_EAST)) {
+        int moveDir = MovementAction_GetDirFromAction(movementAction);
+        if (moveDir >= DIR_NORTH && moveDir <= DIR_EAST) {
+            BOOL isJump = (movementAction >= MOVEMENT_ACTION_JUMP_NEAR_FAST_NORTH && movementAction <= MOVEMENT_ACTION_JUMP_FAR_EAST)
+                || (movementAction >= MOVEMENT_ACTION_JUMP_NEAR_SLOW_WEST && movementAction <= MOVEMENT_ACTION_JUMP_FARTHER_EAST);
+            int stepTiles = 1;
+            if ((movementAction >= MOVEMENT_ACTION_JUMP_FAR_NORTH && movementAction <= MOVEMENT_ACTION_JUMP_FAR_EAST)
+                || (movementAction >= MOVEMENT_ACTION_JUMP_FARTHER_WEST && movementAction <= MOVEMENT_ACTION_JUMP_FARTHER_EAST)) {
+                stepTiles = 2;
+            }
+            int newX = oldX + MapObject_GetDxFromDir(moveDir) * stepTiles;
+            int newZ = oldZ + MapObject_GetDzFromDir(moveDir) * stepTiles;
+            FollowMon_OnPlayerStep(MapObject_FieldSystem(mapObj), oldX, oldZ, newX, newZ, moveDir, speed, isJump);
+        }
+    }
 }
 
 /**

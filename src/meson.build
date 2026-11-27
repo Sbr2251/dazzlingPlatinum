@@ -366,6 +366,8 @@ pokeplatinum_c = files(
     'nintendo_wfc/main.c',
     'nintendo_wfc/voice_chat.c',
     'overlay005/fieldmap.c',
+    'overlay005/follow_mon.c',
+    'overlay005/follow_mon_talk.c',
     'overlay005/ov5_021D1A94.c',
     'overlay005/field_control.c',
     'overlay005/sprite_resource_manager.c',

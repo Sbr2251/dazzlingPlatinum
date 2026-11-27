@@ -18,6 +18,7 @@
 #include "field/field_system.h"
 #include "field/field_system_sub2_t.h"
 #include "overlay005/daycare.h"
+#include "overlay005/follow_mon.h"
 #include "overlay005/honey_tree.h"
 #include "overlay005/ov5_021DFB54.h"
 #include "overlay005/ov5_021E1154.h"
@@ -355,6 +356,10 @@ BOOL FieldInput_Process(const FieldInput *input, FieldSystem *fieldSystem)
             return TRUE;
         }
 
+        if (FollowMon_TryTalk(fieldSystem) == TRUE) {
+            return TRUE;
+        }
+
         int fogScript = FieldMoves_GetFogInteractScript(fieldSystem);
 
         if (fogScript != 0xffff) {
@@ -636,6 +641,7 @@ static BOOL Field_CheckMapTransition(FieldSystem *fieldSystem, const FieldInput 
                 HearthomeGym_CheckIfEnteredIncorrectDoor(fieldSystem, playerX, playerZ, &transitionDir);
             }
 
+            FollowMon_OnPlayerWarp(fieldSystem);
             sub_02056BDC(fieldSystem, nextMap.mapHeaderID, nextMap.warpId, 0, 0, transitionDir, 1);
 
             return TRUE;
@@ -683,6 +689,7 @@ static BOOL Field_CheckMapTransition(FieldSystem *fieldSystem, const FieldInput 
     } else if (TileBehavior_IsWarpEntranceEast(tileBehavior) || TileBehavior_IsWarpEast(tileBehavior)
         || TileBehavior_IsWarpEntranceWest(tileBehavior) || TileBehavior_IsWarpWest(tileBehavior)
         || TileBehavior_IsWarpEntranceSouth(tileBehavior) || TileBehavior_IsWarpSouth(tileBehavior)) {
+        FollowMon_OnPlayerWarp(fieldSystem);
         sub_02056C18(fieldSystem, nextMap.mapHeaderID, nextMap.warpId, 0, 0, input->transitionDir);
         return TRUE;
     } else {

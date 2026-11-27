@@ -14,9 +14,11 @@
 #include "port/debug_field.h"
 #include "port/headless_game.h"
 #include "port/headless_battle.h"
+#include "port/sim_config_prj.h"
 
 #include "field/field_system.h"
 #include "field/field_system_sub2_t.h"
+#include "overlay005/follow_mon.h"
 #include "overlay005/land_data.h"
 #include "overlay005/map_name_popup.h"
 #include "field_map_change.h"
@@ -144,6 +146,17 @@ static void OutFmt(Out *o, const char *fmt, ...) {
 }
 static void ErrOut(char *reply, size_t cap, const char *msg) {
     snprintf(reply, cap, "{\"ok\":false,\"error\":\"%s\"}", msg);
+}
+static void OutJsonEscaped(Out *o, const char *s) {
+    OutFmt(o, "\"");
+    if (s != NULL) {
+        for (const unsigned char *p = (const unsigned char *)s; *p != 0; p++) {
+            if (*p == '"' || *p == '\\') OutFmt(o, "\\%c", (char)*p);
+            else if (*p == '\n') OutFmt(o, "\\n");
+            else if (*p >= 0x20) OutFmt(o, "%c", (char)*p);
+        }
+    }
+    OutFmt(o, "\"");
 }
 
 // "memory": live + peak-ever heaps (lane heap) and VRAM manager usage.
@@ -432,6 +445,72 @@ static void CmdReloadScripts(const char *line, char *reply, size_t cap) {
              mapName ? mapName : "MAP_HEADER_?", r.mapHeader, r.scriptArchive, r.textBank, r.scriptBytes, r.textBytes);
 }
 
+static const char *FollowMonEmoteName(int emote) {
+    switch (emote) {
+    case FOLLOW_MON_EMOTE_EXCLAMATION: return "exclamation";
+    case FOLLOW_MON_EMOTE_QUESTION: return "question";
+    case FOLLOW_MON_EMOTE_HEART: return "heart";
+    case FOLLOW_MON_EMOTE_MUSIC: return "music";
+    case FOLLOW_MON_EMOTE_HAPPY: return "happy";
+    case FOLLOW_MON_EMOTE_SWEAT: return "sweat";
+    case FOLLOW_MON_EMOTE_ANGRY: return "angry";
+    case FOLLOW_MON_EMOTE_POISON: return "poison";
+    case FOLLOW_MON_EMOTE_SLEEPY: return "sleepy";
+    case FOLLOW_MON_EMOTE_SURPRISE: return "surprise";
+    default: return "none";
+    }
+}
+
+static void CmdFollowerState(const char *line, char *reply, size_t cap) {
+    (void)line;
+    int fx = 0, fz = 0, fdir = DIR_NONE;
+    FollowMon_GetPosition(&fx, &fz, &fdir);
+    int sp = FollowMon_GetSpecies();
+    const char *spName = sp > 0 ? Headless_NameOf(kHeadlessSpecies, kHeadlessSpeciesCount, sp) : "SPECIES_NONE";
+    Out o = { reply, cap, 0 };
+    OutFmt(&o, "{\"ok\":true,\"available\":%s,\"active\":%s,\"species\":%d,\"species_name\":\"%s\","
+               "\"shiny\":%s,\"large\":%s,\"x\":%d,\"z\":%d,\"dir\":\"%s\",\"mood\":%d,\"hidden\":%s}",
+           FollowMon_IsAvailable() ? "true" : "false",
+           FollowMon_IsActive() ? "true" : "false",
+           sp,
+           spName ? spName : "SPECIES_NONE",
+           FollowMon_IsShiny() ? "true" : "false",
+           FollowMon_IsLarge() ? "true" : "false",
+           fx, fz,
+           DirName(fdir),
+           FollowMon_GetMood(),
+           FollowMon_IsHidden() ? "true" : "false");
+}
+
+static void CmdFollowerTalk(const char *line, char *reply, size_t cap) {
+    (void)line;
+    FieldSystem *fsys = DEBUG_GetFieldSystem();
+    if (!fsys) { ErrOut(reply, cap, "not in the field"); return; }
+    int emote = FOLLOW_MON_EMOTE_NONE;
+    int mood = 0;
+    char msg[192];
+    memset(msg, 0, sizeof(msg));
+    if (!FollowMon_HeadlessTalk(fsys, &emote, &mood, msg, (int)sizeof(msg))) {
+        ErrOut(reply, cap, "follower not active or hidden");
+        return;
+    }
+    Out o = { reply, cap, 0 };
+    OutFmt(&o, "{\"ok\":true,\"emote\":%d,\"emote_name\":\"%s\",\"mood\":%d,\"message\":",
+           emote, FollowMonEmoteName(emote), mood);
+    OutJsonEscaped(&o, msg);
+    OutFmt(&o, "}");
+}
+
+static void CmdSetFollower(const char *line, char *reply, size_t cap) {
+    BOOL enabled = TRUE;
+    if (!JsonBoolVal(line, "enabled", &enabled)) {
+        ErrOut(reply, cap, "set_follower needs enabled bool");
+        return;
+    }
+    SIM_Config_prj_GetConfig()->followerEnabled = enabled;
+    snprintf(reply, cap, "{\"ok\":true,\"enabled\":%s}", SIM_Config_prj_FollowerEnabled() ? "true" : "false");
+}
+
 int HeadlessGame_Command(const char *line, char *reply, size_t cap) {
     char cmd[64];
     if (!JsonStr(line, "cmd", cmd, sizeof(cmd))) return 0;
@@ -447,6 +526,9 @@ int HeadlessGame_Command(const char *line, char *reply, size_t cap) {
     else if (strcmp(cmd, "give_item") == 0) CmdGiveItem(line, reply, cap);
     else if (strcmp(cmd, "talk") == 0) CmdTalk(line, reply, cap);
     else if (strcmp(cmd, "objects") == 0) CmdObjects(line, reply, cap);
+    else if (strcmp(cmd, "follower_state") == 0) CmdFollowerState(line, reply, cap);
+    else if (strcmp(cmd, "follower_talk") == 0) CmdFollowerTalk(line, reply, cap);
+    else if (strcmp(cmd, "set_follower") == 0) CmdSetFollower(line, reply, cap);
     else if (strcmp(cmd, "battle_decide") == 0) {
         BattleDecision d; memset(&d, 0, sizeof(d)); d.target = -1; d.moveSlot = -1; long v;
         if (JsonLong(line, "battler", &v)) d.battler = (int)v;

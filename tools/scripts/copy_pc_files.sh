@@ -18,6 +18,11 @@ cp_u "$BUILDDIR/../res/pc_port/header.bin" "$OUTPUTDIR/header.bin"
 cp_u "$BUILDDIR/../res/pc_port/dwc_nv.bin" "$OUTPUTDIR/firmware.bin"
 cp_u "$BUILDDIR/../language.csv" "$OUTPUTDIR/language.csv"
 
+# Optional Following Pokemon archive (built from user HGSS ROM + Gen 5 icons if ROM found)
+if [ -f "$BUILDDIR/../tools/follow_mon/build_follow_mon.py" ]; then
+  python3 "$BUILDDIR/../tools/follow_mon/build_follow_mon.py" --optional --if-stale --out "$OUTPUTDIR/follow_mon.narc"
+fi
+
 if [[ "$4" == "-ios" ]]; then
   : # iOS: files sit next to main in the build dir; tools/ios/make_app.sh packages the .app
 else
