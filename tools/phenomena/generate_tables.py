@@ -595,7 +595,7 @@ def generate_header() -> str:
         "#include <nitro/types.h>\n"
         "\n"
         '#include "generated/items.h"\n'
-        '#include "generated/map_headers.h"\n'
+        '#include "constants/fieldmap.h"\n'
         '#include "generated/species.h"\n'
         "\n"
         "enum PhenomenonType {\n"

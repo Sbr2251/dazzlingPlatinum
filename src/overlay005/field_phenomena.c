@@ -522,6 +522,41 @@ static void DrawQuadXZ(fx16 x0, fx16 z0, fx16 x1, fx16 z1, fx16 y)
     G3_Vtx(x0, y, z1);
 }
 
+static void DrawDiscXZ(fx16 cx, fx16 cz, fx16 rx, fx16 rz, fx16 y, int segs)
+{
+    G3_Begin(GX_BEGIN_TRIANGLES);
+    for (int i = 0; i < segs; i++) {
+        u16 a0 = (u16)((i * 65536) / segs);
+        u16 a1 = (u16)(((i + 1) * 65536) / segs);
+        fx16 x0 = (fx16)(cx + ((FX_CosIdx(a0) * rx) >> FX32_SHIFT));
+        fx16 z0 = (fx16)(cz + ((FX_SinIdx(a0) * rz) >> FX32_SHIFT));
+        fx16 x1 = (fx16)(cx + ((FX_CosIdx(a1) * rx) >> FX32_SHIFT));
+        fx16 z1 = (fx16)(cz + ((FX_SinIdx(a1) * rz) >> FX32_SHIFT));
+        G3_Vtx(cx, y, cz);
+        G3_Vtx(x0, y, z0);
+        G3_Vtx(x1, y, z1);
+    }
+    G3_End();
+}
+
+static void DrawRingXZ(fx16 cx, fx16 cz, fx16 rInner, fx16 rOuter, fx16 y, int segs)
+{
+    G3_Begin(GX_BEGIN_QUADS);
+    for (int i = 0; i < segs; i++) {
+        u16 a0 = (u16)((i * 65536) / segs);
+        u16 a1 = (u16)(((i + 1) * 65536) / segs);
+        fx32 c0 = FX_CosIdx(a0);
+        fx32 s0 = FX_SinIdx(a0);
+        fx32 c1 = FX_CosIdx(a1);
+        fx32 s1 = FX_SinIdx(a1);
+        G3_Vtx((fx16)(cx + ((c0 * rInner) >> FX32_SHIFT)), y, (fx16)(cz + ((s0 * rInner) >> FX32_SHIFT)));
+        G3_Vtx((fx16)(cx + ((c0 * rOuter) >> FX32_SHIFT)), y, (fx16)(cz + ((s0 * rOuter) >> FX32_SHIFT)));
+        G3_Vtx((fx16)(cx + ((c1 * rOuter) >> FX32_SHIFT)), y, (fx16)(cz + ((s1 * rOuter) >> FX32_SHIFT)));
+        G3_Vtx((fx16)(cx + ((c1 * rInner) >> FX32_SHIFT)), y, (fx16)(cz + ((s1 * rInner) >> FX32_SHIFT)));
+    }
+    G3_End();
+}
+
 static void DrawVerticalBlade(fx16 cx, fx16 cz, fx16 halfW, fx16 baseY, fx16 topY, fx16 tiltX, fx16 tiltZ)
 {
     G3_Vtx((fx16)(cx - halfW), baseY, cz);
@@ -544,82 +579,135 @@ void FieldPhenomena_Draw(FieldSystem *fieldSystem)
     fx32 cosVal = FX_CosIdx(angle);
     u16 angle2 = (u16)(((sPhenomena.animFrame + 24) * 1400) & 0xFFFF);
     fx32 sinVal2 = FX_SinIdx(angle2);
+    fx32 cosVal2 = FX_CosIdx(angle2);
 
-    NNS_G3dGlbFlush();
+    G3_MtxMode(GX_MTXMODE_PROJECTION);
+    G3_LoadMtx44(NNS_G3dGlbGetProjectionMtx());
 
     G3_MtxMode(GX_MTXMODE_POSITION_VECTOR);
     G3_PushMtx();
+    G3_LoadMtx43(NNS_G3dGlbGetCameraMtx());
     G3_Translate(sPhenomena.worldX, sPhenomena.worldY, sPhenomena.worldZ);
     G3_Scale(FX32_ONE * 8, FX32_ONE * 8, FX32_ONE * 8);
 
     G3_TexImageParam(GX_TEXFMT_NONE, GX_TEXGEN_NONE, GX_TEXSIZE_S8, GX_TEXSIZE_T8, GX_TEXREPEAT_NONE, GX_TEXFLIP_NONE, GX_TEXPLTTCOLOR0_USE, 0);
+    G3_MaterialColorDiffAmb(GX_RGB(31, 31, 31), GX_RGB(31, 31, 31), FALSE);
+    G3_MaterialColorSpecEmi(GX_RGB(0, 0, 0), GX_RGB(0, 0, 0), FALSE);
 
     switch (sPhenomena.type) {
     case PHENOMENON_GRASS: {
-        fx16 sway1 = (fx16)((sinVal * 900) >> FX32_SHIFT);
-        fx16 sway2 = (fx16)((cosVal * 900) >> FX32_SHIFT);
-        fx16 lift = (fx16)(FX32_ONE / 4 + ((AbsInt((int)sinVal) * 600) >> FX32_SHIFT));
+        // BW2-style vigorous rustling grass tuft + fluttering leaf particles
+        fx16 sway1 = (fx16)((sinVal * 1500) >> FX32_SHIFT);
+        fx16 sway2 = (fx16)((cosVal * 1500) >> FX32_SHIFT);
+        fx16 lift = (fx16)(FX16_CONST(0.25f) + ((AbsInt((int)sinVal) * 1100) >> FX32_SHIFT));
+        fx16 leafY1 = (fx16)(FX16_CONST(0.95f) + (((sPhenomena.animFrame % 24) * 120)));
+        fx16 leafY2 = (fx16)(FX16_CONST(0.85f) + ((((sPhenomena.animFrame + 12) % 24) * 120)));
 
-        G3_PolygonAttr(GX_LIGHTMASK_NONE, GX_POLYGONMODE_MODULATE, GX_CULL_NONE, 0, 28, 0);
+        // Subtle dark base shadow under shaking patch
+        G3_PolygonAttr(GX_LIGHTMASK_NONE, GX_POLYGONMODE_MODULATE, GX_CULL_NONE, 0, 14, 0);
+        G3_Color(GX_RGB(3, 10, 3));
+        DrawDiscXZ(0, 0, FX16_CONST(0.95f), FX16_CONST(0.75f), FX16_CONST(0.06f), 10);
+
+        // Rich multi-blade shaking grass cluster (back dark green + front bright lime blades)
+        G3_PolygonAttr(GX_LIGHTMASK_NONE, GX_POLYGONMODE_MODULATE, GX_CULL_NONE, 0, 31, 0);
         G3_Begin(GX_BEGIN_QUADS);
-        G3_Color(GX_RGB(8, 28, 6));
-        DrawVerticalBlade(-FX16_CONST(0.45f), -FX16_CONST(0.30f), FX16_CONST(0.14f), FX16_CONST(0.05f), (fx16)(FX16_CONST(1.10f) + lift), sway1, FX16_CONST(0.10f));
-        DrawVerticalBlade(FX16_CONST(0.40f), -FX16_CONST(0.25f), FX16_CONST(0.14f), FX16_CONST(0.05f), (fx16)(FX16_CONST(1.15f) + lift), sway2, -FX16_CONST(0.10f));
-        G3_Color(GX_RGB(18, 31, 10));
-        DrawVerticalBlade(0, FX16_CONST(0.35f), FX16_CONST(0.16f), FX16_CONST(0.05f), (fx16)(FX16_CONST(1.25f) + lift), (fx16)(-sway1), sway2);
-        DrawVerticalBlade(-FX16_CONST(0.20f), FX16_CONST(0.05f), FX16_CONST(0.12f), FX16_CONST(0.05f), (fx16)(FX16_CONST(1.00f) + lift), sway2, sway1);
-        G3_Color(GX_RGB(31, 31, 18));
-        DrawQuadXZ((fx16)(-FX16_CONST(0.15f) + sway1), (fx16)(-FX16_CONST(0.15f) + sway2), (fx16)(FX16_CONST(0.15f) + sway1), (fx16)(FX16_CONST(0.15f) + sway2), (fx16)(FX16_CONST(1.35f) + lift));
+        G3_Color(GX_RGB(4, 17, 4));
+        DrawVerticalBlade(-FX16_CONST(0.65f), -FX16_CONST(0.35f), FX16_CONST(0.22f), FX16_CONST(0.08f), (fx16)(FX16_CONST(1.30f) + lift), (fx16)(-FX16_CONST(0.25f) + sway1), FX16_CONST(0.10f));
+        DrawVerticalBlade(FX16_CONST(0.60f), -FX16_CONST(0.30f), FX16_CONST(0.22f), FX16_CONST(0.08f), (fx16)(FX16_CONST(1.35f) + lift), (fx16)(FX16_CONST(0.25f) + sway2), -FX16_CONST(0.10f));
+        DrawVerticalBlade(0, -FX16_CONST(0.45f), FX16_CONST(0.24f), FX16_CONST(0.08f), (fx16)(FX16_CONST(1.50f) + lift), sway1, FX16_CONST(0.12f));
+
+        G3_Color(GX_RGB(12, 27, 7));
+        DrawVerticalBlade(-FX16_CONST(0.40f), FX16_CONST(0.15f), FX16_CONST(0.22f), FX16_CONST(0.08f), (fx16)(FX16_CONST(1.25f) + lift), (fx16)(-sway2), sway1);
+        DrawVerticalBlade(FX16_CONST(0.40f), FX16_CONST(0.20f), FX16_CONST(0.22f), FX16_CONST(0.08f), (fx16)(FX16_CONST(1.25f) + lift), sway1, -sway2);
+
+        G3_Color(GX_RGB(21, 31, 11));
+        DrawVerticalBlade(0, FX16_CONST(0.35f), FX16_CONST(0.20f), FX16_CONST(0.10f), (fx16)(FX16_CONST(1.35f) + lift), (fx16)(-sway1), sway2);
+
+        // Two leaping leaf flecks popping out of the rustling grass
+        G3_Color(GX_RGB(25, 31, 12));
+        DrawQuadXZ((fx16)(-FX16_CONST(0.55f) + sway1), (fx16)(-FX16_CONST(0.15f) + sway2), (fx16)(-FX16_CONST(0.22f) + sway1), (fx16)(FX16_CONST(0.15f) + sway2), leafY1);
+        DrawQuadXZ((fx16)(FX16_CONST(0.22f) - sway2), (fx16)(-FX16_CONST(0.20f) - sway1), (fx16)(FX16_CONST(0.55f) - sway2), (fx16)(FX16_CONST(0.10f) - sway1), leafY2);
         G3_End();
         break;
     }
 
     case PHENOMENON_DUST: {
-        fx16 ox = (fx16)((sinVal * 900) >> FX32_SHIFT);
-        fx16 oz = (fx16)((cosVal * 900) >> FX32_SHIFT);
-        fx16 rise1 = (fx16)(FX16_CONST(0.20f) + ((AbsInt((int)sinVal) * 1400) >> FX32_SHIFT));
-        fx16 rise2 = (fx16)(FX16_CONST(0.45f) + ((AbsInt((int)sinVal2) * 1600) >> FX32_SHIFT));
-        fx16 r = FX16_CONST(0.45f);
+        // BW2-style swirling multi-puff cave dust cloud (layered soft circular puffs)
+        fx16 ox = (fx16)((sinVal * 1500) >> FX32_SHIFT);
+        fx16 oz = (fx16)((cosVal * 1300) >> FX32_SHIFT);
+        fx16 ox2 = (fx16)((cosVal2 * 1400) >> FX32_SHIFT);
+        fx16 oz2 = (fx16)((sinVal2 * 1200) >> FX32_SHIFT);
+        fx16 rBase = (fx16)(FX16_CONST(0.70f) + ((AbsInt((int)sinVal) * 700) >> FX32_SHIFT));
+        fx16 rTop = (fx16)(FX16_CONST(0.55f) + ((AbsInt((int)cosVal) * 600) >> FX32_SHIFT));
+        fx16 rise1 = (fx16)(FX16_CONST(0.30f) + ((AbsInt((int)sinVal) * 1400) >> FX32_SHIFT));
+        fx16 rise2 = (fx16)(FX16_CONST(0.65f) + ((AbsInt((int)sinVal2) * 1500) >> FX32_SHIFT));
 
-        G3_PolygonAttr(GX_LIGHTMASK_NONE, GX_POLYGONMODE_MODULATE, GX_CULL_NONE, 0, 22, 0);
-        G3_Begin(GX_BEGIN_QUADS);
-        G3_Color(GX_RGB(22, 19, 15));
-        DrawQuadXZ((fx16)(ox - r), (fx16)(oz - r), (fx16)(ox + r), (fx16)(oz + r), rise1);
-        G3_Color(GX_RGB(26, 24, 20));
-        DrawQuadXZ((fx16)(-ox - r), (fx16)(-oz - r), (fx16)(-ox + r), (fx16)(-oz + r), rise2);
-        DrawVerticalBlade(ox, oz, FX16_CONST(0.32f), FX16_CONST(0.05f), rise2, (fx16)(-ox), (fx16)(-oz));
-        G3_End();
+        // Ground shadow ring
+        G3_PolygonAttr(GX_LIGHTMASK_NONE, GX_POLYGONMODE_MODULATE, GX_CULL_NONE, 0, 16, 0);
+        G3_Color(GX_RGB(10, 8, 6));
+        DrawDiscXZ(0, 0, FX16_CONST(1.05f), FX16_CONST(0.90f), FX16_CONST(0.06f), 12);
+
+        // Swirling billowing dust puffs
+        G3_PolygonAttr(GX_LIGHTMASK_NONE, GX_POLYGONMODE_MODULATE, GX_CULL_NONE, 0, 25, 0);
+        G3_Color(GX_RGB(21, 18, 14));
+        DrawDiscXZ(ox, oz, rBase, rBase, rise1, 10);
+        DrawDiscXZ((fx16)(-ox), (fx16)(-oz), (fx16)(rBase - FX16_CONST(0.10f)), (fx16)(rBase - FX16_CONST(0.10f)), (fx16)(rise1 + FX16_CONST(0.18f)), 10);
+
+        G3_PolygonAttr(GX_LIGHTMASK_NONE, GX_POLYGONMODE_MODULATE, GX_CULL_NONE, 0, 27, 0);
+        G3_Color(GX_RGB(27, 25, 21));
+        DrawDiscXZ(ox2, oz2, rTop, rTop, rise2, 10);
+        DrawDiscXZ((fx16)(-ox2 / 2), (fx16)(-oz2 / 2), (fx16)(rTop * 4 / 5), (fx16)(rTop * 4 / 5), (fx16)(rise2 + FX16_CONST(0.25f)), 10);
         break;
     }
 
     case PHENOMENON_WATER: {
-        fx16 phase1 = (fx16)((sPhenomena.animFrame % 30) * (FX32_ONE / 30));
-        fx16 phase2 = (fx16)(((sPhenomena.animFrame + 15) % 30) * (FX32_ONE / 30));
-        fx16 r1 = (fx16)(FX16_CONST(0.25f) + ((phase1 * 3) >> 2));
-        fx16 r2 = (fx16)(FX16_CONST(0.25f) + ((phase2 * 3) >> 2));
+        // BW2-style hollow concentric rippling water rings + dark center swirl + splash droplet
+        int p1 = sPhenomena.animFrame % 36;
+        int p2 = (sPhenomena.animFrame + 18) % 36;
+        fx16 r1Outer = (fx16)(FX16_CONST(0.32f) + ((p1 * FX16_CONST(0.85f)) / 36));
+        fx16 r1Inner = (fx16)(r1Outer > FX16_CONST(0.16f) ? r1Outer - FX16_CONST(0.16f) : 0);
+        fx16 r2Outer = (fx16)(FX16_CONST(0.32f) + ((p2 * FX16_CONST(0.85f)) / 36));
+        fx16 r2Inner = (fx16)(r2Outer > FX16_CONST(0.16f) ? r2Outer - FX16_CONST(0.16f) : 0);
+        int a1 = 29 - (p1 * 18) / 36;
+        int a2 = 29 - (p2 * 18) / 36;
 
-        G3_PolygonAttr(GX_LIGHTMASK_NONE, GX_POLYGONMODE_MODULATE, GX_CULL_NONE, 0, 24, 0);
-        G3_Begin(GX_BEGIN_QUADS);
-        G3_Color(GX_RGB(16, 28, 31));
-        DrawQuadXZ(-r1, -r1, r1, r1, FX16_CONST(0.12f));
+        // Subtle dark water depression in the center
+        G3_PolygonAttr(GX_LIGHTMASK_NONE, GX_POLYGONMODE_MODULATE, GX_CULL_NONE, 0, 18, 0);
+        G3_Color(GX_RGB(4, 12, 22));
+        DrawDiscXZ(0, 0, FX16_CONST(0.42f), FX16_CONST(0.36f), FX16_CONST(0.08f), 12);
+
+        // Two expanding hollow white/cyan foam ripple rings
+        G3_PolygonAttr(GX_LIGHTMASK_NONE, GX_POLYGONMODE_MODULATE, GX_CULL_NONE, 0, a1, 0);
         G3_Color(GX_RGB(28, 31, 31));
-        DrawQuadXZ(-r2, -r2, r2, r2, FX16_CONST(0.18f));
-        DrawVerticalBlade(0, 0, FX16_CONST(0.10f), FX16_CONST(0.15f), (fx16)(FX16_CONST(0.55f) + ((AbsInt((int)sinVal) * 800) >> FX32_SHIFT)), (fx16)((sinVal * 400) >> FX32_SHIFT), 0);
+        DrawRingXZ(0, 0, r1Inner, r1Outer, FX16_CONST(0.14f), 14);
+
+        G3_PolygonAttr(GX_LIGHTMASK_NONE, GX_POLYGONMODE_MODULATE, GX_CULL_NONE, 0, a2, 0);
+        G3_Color(GX_RGB(19, 29, 31));
+        DrawRingXZ(0, 0, r2Inner, r2Outer, FX16_CONST(0.16f), 14);
+
+        // Tiny center splash jet
+        G3_PolygonAttr(GX_LIGHTMASK_NONE, GX_POLYGONMODE_MODULATE, GX_CULL_NONE, 0, 28, 0);
+        G3_Begin(GX_BEGIN_QUADS);
+        G3_Color(GX_RGB(30, 31, 31));
+        DrawVerticalBlade(0, 0, FX16_CONST(0.12f), FX16_CONST(0.14f), (fx16)(FX16_CONST(0.65f) + ((AbsInt((int)sinVal) * 900) >> FX32_SHIFT)), (fx16)((sinVal * 400) >> FX32_SHIFT), 0);
         G3_End();
         break;
     }
 
     case PHENOMENON_SHADOW: {
-        fx16 swoopX = (fx16)((sinVal * 1100) >> FX32_SHIFT);
+        // BW2-style smooth dark circular bird shadow pulsing/swooping across the Cycling Road deck
+        fx16 swoopX = (fx16)((sinVal * 900) >> FX32_SHIFT);
         fx16 swoopZ = (fx16)((cosVal * 600) >> FX32_SHIFT);
-        fx16 wing = (fx16)(FX16_CONST(0.65f) + ((AbsInt((int)sinVal2) * 900) >> FX32_SHIFT));
+        fx16 pulse = (fx16)(FX16_CONST(0.75f) + ((AbsInt((int)sinVal2) * 1100) >> FX32_SHIFT));
+
+        // Soft outer penumbra + darker crisp core oval
+        G3_PolygonAttr(GX_LIGHTMASK_NONE, GX_POLYGONMODE_MODULATE, GX_CULL_NONE, 0, 12, 0);
+        G3_Color(GX_RGB(3, 3, 6));
+        DrawDiscXZ(swoopX, swoopZ, (fx16)(pulse + FX16_CONST(0.24f)), (fx16)(pulse + FX16_CONST(0.12f)), FX16_CONST(0.10f), 14);
 
         G3_PolygonAttr(GX_LIGHTMASK_NONE, GX_POLYGONMODE_MODULATE, GX_CULL_NONE, 0, 22, 0);
-        G3_Begin(GX_BEGIN_QUADS);
-        G3_Color(GX_RGB(4, 3, 7));
-        DrawQuadXZ((fx16)(swoopX - FX16_CONST(0.45f)), (fx16)(swoopZ - FX16_CONST(0.45f)), (fx16)(swoopX + FX16_CONST(0.45f)), (fx16)(swoopZ + FX16_CONST(0.45f)), FX16_CONST(0.12f));
-        DrawQuadXZ((fx16)(swoopX - wing), (fx16)(swoopZ - FX16_CONST(0.18f)), (fx16)(swoopX + wing), (fx16)(swoopZ + FX16_CONST(0.18f)), FX16_CONST(0.14f));
-        G3_End();
+        G3_Color(GX_RGB(2, 2, 5));
+        DrawDiscXZ(swoopX, swoopZ, pulse, (fx16)(pulse * 4 / 5), FX16_CONST(0.12f), 14);
         break;
     }
 

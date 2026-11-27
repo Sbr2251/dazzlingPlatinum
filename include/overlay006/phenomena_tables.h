@@ -3,8 +3,8 @@
 
 #include <nitro/types.h>
 
+#include "constants/fieldmap.h"
 #include "generated/items.h"
-#include "generated/map_headers.h"
 #include "generated/species.h"
 
 enum PhenomenonType {
