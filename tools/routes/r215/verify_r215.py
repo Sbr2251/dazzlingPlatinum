@@ -30,10 +30,10 @@ VIEWPOINTS = [
     ("02_west_entry_boardwalk", 582, 598, "DIR_EAST"),
     ("03_flooded_boardwalk", 600, 592, "DIR_EAST"),
     ("04_east_flood_boardwalk", 620, 592, "DIR_NORTH"),
-    ("05_north_staging_yard", 633, 586, "DIR_WEST"),
+    ("05_north_staging_yard", 633, 585, "DIR_WEST"),
     ("06_south_field_ruts_crates", 652, 592, "DIR_EAST"),
     ("07_lane_ruts", 652, 598, "DIR_EAST"),
-    ("08_veilstone_staging_yard", 664, 598, "DIR_EAST"),
+    ("08_veilstone_staging_yard", 663, 598, "DIR_EAST"),
 ]
 INTERACTIONS = [
     ("09_sign_eclipse_crates", "Eclipse crate stack (Route215_EclipseCrates)", 654, 592, "DIR_EAST"),

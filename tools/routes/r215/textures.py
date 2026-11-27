@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Route 215 flooded-lowland texture set (v2): map_texture_set_078 = stock map_texture_set_010 (git BASE_REV) +
-five procedurally painted pixel-art textures (NumPy), 16 texels per tile like Platinum's own terrain.
+"""Route 215 flooded-lowland texture set (v3): map_texture_set_078 = stock map_texture_set_010 (git BASE_REV) +
+nine procedurally painted pixel-art textures (NumPy), 16 texels per tile like Platinum's own terrain.
 
 The flood water itself is NOT a custom texture: the flood sheets use set 010's own animated `sea` texture (the
 field texture animation is keyed by texture name, so it animates in set 078 exactly as on the stock coast).
@@ -19,10 +19,17 @@ Idempotent: the base is always stock set 010 read from git, never the work tree,
 Textures:
   r215_board   pltt16 32x32 opaque. Wet dark-timber boardwalk planks (4-texel planks across the walk), stringer
                nails, wet sheen, mud splashes, dark edge beams at v 0 / 31.
-  r215_ruts    pltt16 32x64 c0=1. Sculpted dual-tyre truck ruts: per track a dark recessed wet trough with tread
-               bars and intermittent standing-rainwater glints, a lit / shaded groove wall, a lighter churned
-               ridge lip, then clods and crushed grass breaking up into transparency. u across the 2-tile lane,
-               v along it (4 tiles per repeat).
+  r215_ruts    pltt16 32x64 c0=1. Solid packed-mud road bed (two-level tone blobs, no isolated texels) between
+               cleanly stepped edges (runs of 4..10 rows, 1-texel steps), each a crisp 1-texel dark outline with a
+               light 1-texel rim; two sculpted tyre grooves (shaded / lit walls, tread bars, contiguous standing
+               rainwater). u across the 2-tile lane, v along it (4 tiles per repeat).
+  r215_rutcap  pltt16 32x16 c0=1. Rounded end cap: row 0 = the ruts' row 0, the bed narrows to a stepped round tip
+               with the same outline + rim, the grooves shallow out and end.
+  r215_padn /  pltt16 64x128 / 128x64 c0=1. Texel-aligned staging pads (PADS): the north yard's mud pad and the
+  r215_padg    gravel apron before the gate (stock blueglay tones, 2x2 pebbles), each with a clean 1-texel dark
+               outline and a mud rim.
+  r215_props   pltt16 64x32 c0=1. Wooden crate side/top, steel drum side/lid, pole, cross bar and the Team Eclipse
+               warning banner (eclipse emblem, swallowtail hem) (PROPS_UV).
   r215_shore   pltt16 32x16 c0=1. Flood shoreline fringe laid along the water's contour: v 0 = water side
                (silty shallows breaking up over the sea), wet dark mud lip, lighter churned mud, then stock-green
                grass blades overhanging the mud and thinning out into the stock grass (v 15).
@@ -156,66 +163,345 @@ def tex_board():
 
 
 # ---------------------------------------------------------------------------------------------------------------
-# r215_ruts: sculpted dual-tyre grooves
+# shared pixel-art helpers: stepped edges, 1-texel outlines, no isolated texels
 # ---------------------------------------------------------------------------------------------------------------
 
+def stepped(n, seed, lo=0, hi=2, rmin=4, rmax=10):
+    """Periodic piecewise-constant integer profile of length n: runs of rmin..rmax rows, each step +-1, the wrap
+    within one step too (a cleanly stepped edge, never a jagged 1-row flicker)."""
+    rng = np.random.RandomState(seed)
+    lev = int(rng.randint(lo, hi + 1))
+    out = []
+    while len(out) < n:
+        out += [lev] * int(rng.randint(rmin, rmax + 1))
+        lev = int(np.clip(lev + rng.choice([-1, 1]), lo, hi))
+    out = out[:n]
+    k = n - 1
+    while k > 0 and out[k - 1] == out[-1]:
+        k -= 1
+    if n - k < 3:                               # a short trailing run: fold it into the run before it
+        out[k:] = [out[k - 1]] * (n - k)
+    if abs(out[-1] - out[0]) > 1:
+        k = n - 1
+        while k > 0 and out[k - 1] == out[-1]:
+            k -= 1
+        out[k:] = [(lo + hi) // 2] * (n - k)
+    return np.array(out, int)
+
+
+def edge_rings(M, wrap_v=False):
+    """Inside mask M -> (outline, rim): the outline is every inside texel with an outside 4-neighbour (a clean
+    8-connected 1-texel line), the rim the inside texels 4-adjacent to the outline."""
+    def nb_any(A, fill):
+        P = np.pad(A, 1, mode="constant", constant_values=fill)
+        if wrap_v:
+            P[0, 1:-1] = A[-1]
+            P[-1, 1:-1] = A[0]
+        return P[:-2, 1:-1] | P[2:, 1:-1] | P[1:-1, :-2] | P[1:-1, 2:]
+    out = M & nb_any(~M, True)
+    rim = M & ~out & nb_any(out, False)
+    return out, rim
+
+
+def declump(img, keep=(), passes=2):
+    """Replace every isolated texel (no 4-neighbour of the same index) by its most common neighbour: tone patches
+    stay solid blobs, nothing reads as single-pixel noise. Indices in `keep` are left alone."""
+    h, w = img.shape
+    for _ in range(passes):
+        P = np.pad(img, 1, mode="edge")
+        nbs = np.stack([P[:-2, 1:-1], P[2:, 1:-1], P[1:-1, :-2], P[1:-1, 2:]], 0)
+        lone = (nbs != img[None]).all(0) & ~np.isin(img, list(keep))
+        for y, x in zip(*np.nonzero(lone)):
+            vals, cnt = np.unique(nbs[:, y, x], return_counts=True)
+            img[y, x] = vals[np.argmax(cnt)]
+    return img
+
+
+def patches(w, h, seed, lo_idx, mid_idx, hi_idx, cells=(3, 6), lo=0.36, hi=0.64, periodic=True):
+    """Two-level tone patches (large solid blobs, no jitter) over a base tone."""
+    n = 0.65 * pnoise(w, h, cells[0], cells[1], seed) + 0.35 * pnoise(w, h, cells[0] * 2, cells[1] * 2, seed + 1)
+    img = np.full((h, w), mid_idx)
+    img[n < lo] = lo_idx
+    img[n > hi] = hi_idx
+    return declump(img)
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# r215_ruts: a solid packed-mud road bed with dual-tyre grooves (v3)
+# ---------------------------------------------------------------------------------------------------------------
+
+RUT_PAL = [(255, 0, 255),
+           (36, 26, 24),                                      # 1 outline / deepest trough
+           (54, 40, 32),                                      # 2 trough
+           (74, 56, 42),                                      # 3 shaded groove wall / tread bars
+           (98, 76, 56),                                      # 4 damp packed mud
+           (114, 90, 66),                                     # 5 packed mud (road bed)
+           (132, 104, 76),                                    # 6 lit groove wall / low ridge
+           (154, 124, 92),                                    # 7 rim / ridge crest
+           (60, 78, 96), (96, 122, 146), (176, 204, 222),     # 8-10 standing rainwater: deep / mid / sky
+           (232, 242, 248),                                   # 11 glint
+           (52, 112, 66), (78, 150, 90),                      # 12-13 (spare greens)
+           (88, 68, 52),                                      # 14 (spare dark mud)
+           (124, 98, 72)]                                     # 15 dry packed mud
+RUT_GROOVES = (8, 24)
+
+
+def rut_bed_rows(h):
+    """Per row v: (l, r) = first / last inside texel of the road bed (stepped, 0..2 texels in from each side)."""
+    eL = stepped(h, 121)
+    eR = stepped(h, 133)
+    return eL, 31 - eR
+
+
+def paint_grooves(img, v0, v1, J, water_noise):
+    """Dual-tyre grooves on rows v0..v1-1 of a 32-wide road-bed image."""
+    for k, c in enumerate(RUT_GROOVES):
+        for v in range(v0, v1):
+            img[v, c - 3] = 6                               # low south ridge
+            img[v, c - 2] = 3                               # shaded south wall
+            img[v, c - 1] = 1                               # deep trough
+            img[v, c] = 2
+            img[v, c + 1] = 6                               # lit north wall (faces the camera / light)
+            img[v, c + 2] = 7                               # crest
+            if (v + 2 * k) % 4 == 0:                        # tyre tread bar across the trough
+                img[v, c - 1] = 3
+                img[v, c] = 3
+        # standing rainwater in contiguous stretches of the trough
+        wet = water_noise[k][v0:v1] > 0.6
+        run = 0
+        for i, v in enumerate(range(v0, v1)):
+            if wet[i]:
+                img[v, c - 1] = 8
+                img[v, c] = 10 if run == 0 else 9
+                if run == 2:
+                    img[v, c] = 11
+                run += 1
+            else:
+                run = 0
+    return img
+
+
 def tex_ruts():
-    """32 x 64: u across the 2-tile lane (u 0 = south / left of travel), v along it (4 tiles per repeat).
-    Light comes from the south (the stock light direction), so the groove wall at larger u (the north wall, facing
-    the camera) is lit and the wall at smaller u is in shade."""
-    pal = [(255, 0, 255),
-           (30, 22, 20), (44, 32, 28), (60, 44, 36),          # 1-3 trough: black-wet, dark, dark mud
-           (80, 60, 46), (104, 80, 60), (130, 102, 76),       # 4-6 mud wall shade / mid / lit ridge
-           (158, 128, 96),                                    # 7 ridge highlight
-           (60, 78, 96), (98, 124, 146), (176, 204, 222),     # 8-10 standing rainwater: deep / mid / sky
-           (238, 246, 250),                                   # 11 glint
-           (52, 112, 66), (78, 150, 90),                      # 12-13 crushed grass dark / mid
-           (92, 72, 54), (68, 52, 40)]                        # 14-15 clods
+    """32 x 64: u across the 2-tile lane (u 0 = the lane's left / south side), v along it (4 tiles per repeat).
+    A solid packed-mud road bed (two-level tone blobs, no noise) between cleanly stepped edges, each edge a crisp
+    1-texel dark outline with a 1-texel light rim inside; two sculpted tyre grooves (shaded / lit walls, tread
+    bars, contiguous standing rainwater). Periodic in v."""
     w, h = 32, RUTS_H
-    X, Y = grid(w, h)
     J = hashn(w, h, 571)
-    J2 = hashn(w, h, 577)
-    img = np.zeros((h, w), int)
-    mud = fbm(w, h, 51, ((4, 0.5), (8, 0.3), (16, 0.2)))
-    for k, c in enumerate((8.0, 24.0)):
-        wob = 0.7 * np.sin(TAU * Y / h + 0.7 + 2.3 * k) + 0.35 * np.sin(TAU * 3 * Y / h + 2.1 + 1.7 * k)
-        cc = c + wob
-        d = X + 0.5 - cc
-        ad = np.abs(d)
-        gw = 1.7 + 0.35 * np.sin(TAU * 2 * Y / h + 1.3 * k) + 0.4 * (pnoise(w, h, 2, 8, 70 + k) - 0.5)
-        lip_out = gw + 2.2 + 1.3 * pnoise(w, h, 4, 16, 80 + k)          # ragged outer edge of the ridge
-        # splatter halo: clods / crushed grass breaking up into transparency
-        sp = (ad > lip_out) & (ad < lip_out + 2.6)
-        fade = (ad - lip_out) / 2.6
-        keep = sp & (J > 0.66 + fade * 0.3)
-        img[keep] = np.where(J2[keep] > 0.45, 14, 12)
-        img[keep & (mud > 0.62)] = 15
-        # ridge lip: churned mud raised beside the groove (highlight on its groove-side crest)
-        lip = (ad > gw + 0.9) & (ad <= lip_out)
-        t = 0.55 + (mud - 0.5) * 0.9 - (ad - gw - 0.9) / (lip_out - gw - 0.9 + 1e-6) * 0.35
-        img[lip] = ramp(t[lip], [4, 5, 6, 7], J[lip], 0.8)
-        crest = lip & (ad <= gw + 1.9)
-        img[crest] = np.where(d[crest] > 0, 7, 5)                   # north crest catches the light
-        img[lip & (J2 < 0.08)] = 15                                 # dark clods on the ridge
-        # groove walls: lit north wall, shaded south wall
-        wall = (ad > gw) & (ad <= gw + 0.9)
-        img[wall] = np.where(d[wall] > 0, 6, 3)
-        # trough floor: wet black mud with tyre tread bars every 3 rows
-        floor = ad <= gw
-        tread = ((Y.astype(int) + 2 * k) % 3) == 0
-        img[floor] = np.where(tread[floor], 3, np.where(J[floor] > 0.75, 1, 2))
-        img[floor & (ad < 0.7) & ~tread] = 1
-        # intermittent standing rainwater pooled in the deepest stretches of the trough
-        wv = pnoise(w, h, 2, 5, 61 + 7 * k)
-        water = floor & (wv > 0.56) & (ad < gw - 0.25)
-        img[water] = 8
-        img[water & (d > -0.2)] = 9
-        img[water & (d > 0.3) & (J > 0.55)] = 10
-        img[water & (J2 > 0.93) & (wv > 0.62)] = 11
-    # between the tracks: flattened grass hump, a few clods
-    mid = (np.abs(X + 0.5 - 16) < 3.2) & (img == 0)
-    clod = mid & (J > 0.86)
-    img[clod] = np.where(J2[clod] > 0.5, 14, 12)
+    l, r = rut_bed_rows(h)
+    U = np.arange(w)[None, :]
+    M = (U >= l[:, None]) & (U <= r[:, None])
+    img = patches(w, h, 51, 4, 5, 15, cells=(2, 4))
+    water = [noise1(h, 5, 61 + 7 * k) for k in range(2)]
+    paint_grooves(img, 0, h, J, water)
+    out, rim = edge_rings(M, wrap_v=True)
+    img[rim] = 7
+    img[out] = 1
+    img[~M] = 0
+    return img, RUT_PAL
+
+
+def tex_rutcap():
+    """32 x 16 rounded end cap of the road bed: row 0 is the ruts' row 0 (the lane is laid out with an integer
+    number of 4-tile repeats, so both lane ends sit on that row), then the bed narrows to a rounded tip (stepped
+    arc, the same 1-texel outline + rim) and the grooves shallow out and end."""
+    w, h = 32, 16
+    rut, _ = tex_ruts()
+    l, r = rut_bed_rows(RUTS_H)
+    img = rut[:h].copy()
+    J = hashn(w, RUTS_H, 571)
+    base = patches(w, RUTS_H, 51, 4, 5, 15, cells=(2, 4))[:h]
+    img[1:] = base[1:]
+    water = [noise1(RUTS_H, 5, 61 + 7 * k) for k in range(2)]
+    paint_grooves(img, 1, 7, J, water)
+    for c in RUT_GROOVES:                                   # the grooves shallow out ...
+        img[7, c - 2:c + 2] = [4, 3, 3, 4]
+        img[7, c + 2] = 6
+        img[8, c - 1:c + 1] = 4
+    img[1:7][np.isin(img[1:7], (8, 9, 10, 11))] = 2        # ... with no water in the shallow end
+    R, A = 14.6, 14.5
+    M = np.zeros((h, w), bool)
+    for v in range(h):
+        f = A * (1 - np.sqrt(max(0.0, 1 - (v / R) ** 2))) if v < R else 99
+        lv, rv = l[v] + int(round(f)), r[v] - int(round(f))
+        if lv <= rv:
+            M[v, lv:rv + 1] = True
+    Mp = np.vstack([M[:1], M])                              # row -1 = row 0: the seam edge is open
+    out, rim = edge_rings(Mp)
+    out, rim = out[1:], rim[1:]
+    img[rim] = 7
+    img[out] = 1
+    img[~M] = 0
+    img[0] = rut[0]
+    return img, RUT_PAL
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# staging pads: texel-aligned decals (one quad each, 16 texels per tile) with a clean outlined border
+# ---------------------------------------------------------------------------------------------------------------
+
+# name -> origin (world tiles, multiple of 1/16), size (texels), rounded rects (x0, z0, x1, z1, radius) in world tiles
+# unioned with a smooth fillet, style. A rect reaching past the texture (gate pad, east) gets no border there.
+PADS = {
+    "r215_padn": dict(origin=(629.5, 581.5), size=(64, 128), style="mud",
+                      rects=[(629.62, 582.0, 633.0, 585.4, 0.38), (629.62, 584.8, 633.0, 587.3, 0.38)]),
+    "r215_padg": dict(origin=(664.0, 597.0), size=(128, 64), style="gravel",
+                      rects=[(667.62, 597.0, 673.5, 601.0, 0.38), (664.56, 599.12, 668.5, 601.0, 0.38)]),
+}
+
+PAD_GRAVEL_PAL = [(255, 0, 255),
+                  (44, 38, 42),                               # 1 outline
+                  (100, 80, 62),                              # 2 wet mud rim
+                  (150, 158, 172),                            # 3 gravel dark patch
+                  (172, 180, 190),                            # 4 gravel (stock blueglay tone)
+                  (184, 196, 206),                            # 5 gravel light patch
+                  (214, 222, 234),                            # 6 pebble light
+                  (126, 132, 146),                            # 7 pebble shadow
+                  (60, 78, 96), (96, 122, 146), (176, 204, 222), (232, 242, 248),   # 8-11 (spare water)
+                  (82, 64, 50), (120, 96, 72), (140, 148, 162), (196, 204, 218)]   # 12-15 (spare)
+
+
+def pad_mask(spec, pad=1):
+    ox, oz = spec["origin"]
+    w, h = spec["size"]
+    X, Y = grid(w + 2 * pad, h + 2 * pad)
+    px = ox + (X - pad + 0.5) / 16.0
+    pz = oz + (Y - pad + 0.5) / 16.0
+    d = None
+    for x0, z0, x1, z1, rad in spec["rects"]:
+        cx, cz, bx, bz = (x0 + x1) / 2, (z0 + z1) / 2, (x1 - x0) / 2, (z1 - z0) / 2
+        qx, qz = np.abs(px - cx) - (bx - rad), np.abs(pz - cz) - (bz - rad)
+        di = np.hypot(np.maximum(qx, 0), np.maximum(qz, 0)) + np.minimum(np.maximum(qx, qz), 0) - rad
+        if d is None:
+            d = di
+        else:                                               # smooth union: a rounded inner corner, no notch
+            k = 0.3
+            hh = np.clip(0.5 + 0.5 * (di - d) / k, 0, 1)
+            d = di * (1 - hh) + d * hh - k * hh * (1 - hh)
+    return d <= 0
+
+
+def tex_pad(name):
+    spec = PADS[name]
+    w, h = spec["size"]
+    Mp = pad_mask(spec)
+    out, rim = edge_rings(Mp)
+    M, out, rim = Mp[1:-1, 1:-1], out[1:-1, 1:-1], rim[1:-1, 1:-1]
+    if spec["style"] == "mud":
+        img = patches(w, h, 313, 4, 5, 15, cells=(4, 8))
+        img[rim] = 7
+        pal = RUT_PAL
+    else:
+        img = patches(w, h, 331, 3, 4, 5, cells=(8, 4))
+        # gravel: 2 x 2 pebbles (light top, shadowed bottom) on a jittered 6-texel lattice, never single texels
+        rng = np.random.RandomState(337)
+        for gy in range(0, h, 6):
+            for gx in range(0, w, 6):
+                if rng.rand() < 0.42:
+                    y, x = gy + rng.randint(0, 4), gx + rng.randint(0, 4)
+                    if y + 1 < h and x + 1 < w:
+                        img[y, x:x + 2] = 6
+                        img[y + 1, x:x + 2] = 7
+        img[rim] = 2
+        pal = PAD_GRAVEL_PAL
+    img[out] = 1
+    img[~M] = 0
+    return img, pal
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# r215_props: wooden crates, steel drums, the Team Eclipse warning banner (own palette)
+# ---------------------------------------------------------------------------------------------------------------
+
+PROPS_UV = {"wcrate_s": (0, 0, 16, 16), "wcrate_t": (16, 0, 32, 16), "barrel_s": (32, 0, 48, 16),
+            "barrel_t": (48, 0, 56, 8), "bar": (48, 8, 56, 16), "pole": (56, 0, 60, 16), "banner": (0, 16, 16, 32)}
+
+
+def tex_props():
+    pal = [(255, 0, 255),
+           (20, 14, 18),                                      # 1 outline
+           (92, 58, 34), (134, 90, 52), (174, 124, 72),       # 2-4 wood dark / mid / light
+           (204, 158, 98),                                    # 5 wood highlight
+           (36, 44, 60), (58, 70, 90), (92, 106, 128),        # 6-8 drum dark / mid / light
+           (150, 158, 172),                                   # 9 steel
+           (76, 40, 124), (116, 70, 176), (162, 120, 222),    # 10-12 eclipse violet
+           (240, 176, 64),                                    # 13 amber corona
+           (236, 228, 250),                                   # 14 pale emblem edge
+           (236, 200, 56)]                                    # 15 hazard yellow
+    img = np.zeros((32, 64), int)
+
+    def cell(key):
+        x0, y0, x1, y1 = PROPS_UV[key]
+        X, Y = grid(x1 - x0, y1 - y0)
+        return slice(y0, y1), slice(x0, x1), X.astype(int), Y.astype(int)
+
+    # wooden crate side: light 2-texel frame, horizontal planks, a diagonal brace, nail heads
+    ys, xs, X, Y = cell("wcrate_s")
+    c = np.where(((Y - 3) // 3) % 2 == 0, 3, 4)
+    c[(Y - 3) % 3 == 2] = 2
+    br = (np.abs(X - Y) <= 1) & (X >= 3) & (X <= 12)
+    c[br] = 4
+    c[br & (Y - X == 1)] = 2
+    fr = (X <= 2) | (X >= 13) | (Y <= 2) | (Y >= 13)
+    c[fr] = 4
+    c[fr & ((X == 1) | (Y == 1))] = 5
+    c[fr & ((X == 2) | (Y == 2) | (X == 14) | (Y == 14)) & ~((X == 1) | (Y == 1))] = 3
+    for nx, ny in ((2, 2), (13, 2), (2, 13), (13, 13)):
+        c[ny, nx] = 9
+    c[(X == 0) | (X == 15) | (Y == 0) | (Y == 15)] = 1
+    img[ys, xs] = c
+    # wooden crate top: planks along v, dark gaps, nails
+    ys, xs, X, Y = cell("wcrate_t")
+    c = np.where((X // 4) % 2 == 0, 4, 5)
+    c[X % 4 == 3] = 2
+    c[((Y == 2) | (Y == 13)) & (X % 4 == 1)] = 9
+    c[(X == 0) | (X == 15) | (Y == 0) | (Y == 15)] = 1
+    img[ys, xs] = c
+    # steel drum side (3 faces across u): cylinder shading, two steel hoops, a violet band
+    ys, xs, X, Y = cell("barrel_s")
+    shade = np.array([6, 7, 7, 8, 8, 9, 8, 8, 7, 7, 7, 6, 6, 7, 6, 6])
+    c = shade[X]
+    hoop = (Y == 2) | (Y == 13)
+    c[hoop] = 9
+    c[(Y == 3) | (Y == 14)] = 6
+    band = (Y >= 6) & (Y <= 9)
+    c[band] = np.where((X >= 4) & (X <= 6), 12, 11)[band]
+    c[band & ((Y == 9) | (X >= 13))] = 10
+    c[(Y == 0) | (Y == 15)] = 1
+    img[ys, xs] = c
+    # drum lid
+    ys, xs, X, Y = cell("barrel_t")
+    rr = np.hypot(X + 0.5 - 4, Y + 0.5 - 4)
+    c = np.where(rr < 2.3, 8, np.where(rr < 3.2, 9, 7))
+    c[(np.abs(X - 5) <= 0) & (np.abs(Y - 2) <= 0)] = 6
+    img[ys, xs] = c
+    # cross bar + pole (dark steel, light top edge)
+    ys, xs, X, Y = cell("bar")
+    c = np.full(X.shape, 7)
+    c[Y <= 1] = 9
+    c[Y >= 6] = 1
+    img[ys, xs] = c
+    ys, xs, X, Y = cell("pole")
+    c = np.array([1, 9, 7, 1])[X]
+    c[(Y >= 9) & (Y <= 12)] = np.where(((X + Y) // 2) % 2 == 0, 15, 1)[(Y >= 9) & (Y <= 12)]
+    img[ys, xs] = c
+    # Team Eclipse banner: violet cloth with folds, a dark hem with grommets, the eclipse emblem (dark disc, amber
+    # corona, pale limb) and a swallowtail bottom; 1-texel outline all round
+    ys, xs, X, Y = cell("banner")
+    c = np.full(X.shape, 11)
+    c[(X == 4) | (X == 11)] = 10
+    c[(X == 3) | (X == 10)] = 12
+    c[Y <= 2] = 10
+    c[(Y == 1) & ((X == 3) | (X == 12))] = 9
+    rr = np.hypot(X + 0.5 - 8, Y + 0.5 - 8)
+    c[(rr >= 2.6) & (rr < 4.0) & (Y > 2)] = 13
+    c[rr < 2.6] = 1
+    c[(rr >= 2.0) & (rr < 2.6) & (X >= 8) & (Y <= 7)] = 14
+    M = ~((Y >= 12) & (np.abs(X + 0.5 - 8) < (Y - 11.5) * 1.6))
+    out, _ = edge_rings(M)
+    c[out] = 1
+    c[~M] = 0
+    img[ys, xs] = c
     return img, pal
 
 
@@ -470,9 +756,11 @@ def tex_glow():
     return idx, alp
 
 
-TEXTURES = [("r215_board", tex_board, 3), ("r215_ruts", tex_ruts, 3), ("r215_shore", tex_shore, 3),
-            ("r215_crate", tex_crate, 3), ("r215_glow", None, 1)]
-TRANSPARENT = {"r215_ruts", "r215_shore", "r215_crate"}
+TEXTURES = [("r215_board", tex_board, 3), ("r215_ruts", tex_ruts, 3), ("r215_rutcap", tex_rutcap, 3),
+            ("r215_shore", tex_shore, 3), ("r215_crate", tex_crate, 3), ("r215_props", tex_props, 3),
+            ("r215_padn", lambda: tex_pad("r215_padn"), 3), ("r215_padg", lambda: tex_pad("r215_padg"), 3),
+            ("r215_glow", None, 1)]
+TRANSPARENT = {"r215_ruts", "r215_rutcap", "r215_shore", "r215_crate", "r215_props", "r215_padn", "r215_padg"}
 
 
 def pal_name(tex):

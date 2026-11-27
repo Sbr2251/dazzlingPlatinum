@@ -32,9 +32,9 @@ VIEWPOINTS = [
     ("01_west_entry", 582, 600),
     ("02_flooded_boardwalk", 600, 592),
     ("03_lowland_070", 620, 592),
-    ("04_north_ruts_crates", 634, 586),
+    ("04_north_staging_yard", 633, 585),
     ("05_south_field_crates", 652, 592),
-    ("06_veilstone_staging", 664, 598),
+    ("06_veilstone_gate_yard", 663, 598),
     ("07_west_flood_overlook", 591, 596),
 ]
 
@@ -129,14 +129,18 @@ def raster(batches, project, Wd, Ht, bg=(46, 58, 70)):
             inside = (w0 >= -1e-6) & (w1 >= -1e-6) & (w2 >= -1e-6)
             if not inside.any():
                 continue
-            z = w0 * zs[0] + w1 * zs[1] + w2 * zs[2]
+            # perspective-correct depth and texture coordinates (interpolate 1/z and uv/z, like the hardware):
+            # affine interpolation breaks down on the big pad / sheet polygons
+            iz = w0 / zs[0] + w1 / zs[1] + w2 / zs[2]
+            z = 1.0 / iz
+            p0, p1, p2 = w0 / zs[0] * z, w1 / zs[1] * z, w2 / zs[2] * z
             sub = zb[y0:y1 + 1, x0:x1 + 1]
             ok = inside & (z < sub - 0.02)
             if not ok.any():
                 continue
             uv = b["UV"][tri]
-            u = (w0 * uv[0, 0] + w1 * uv[1, 0] + w2 * uv[2, 0]) * tw
-            v = (w0 * uv[0, 1] + w1 * uv[1, 1] + w2 * uv[2, 1]) * th
+            u = (p0 * uv[0, 0] + p1 * uv[1, 0] + p2 * uv[2, 0]) * tw
+            v = (p0 * uv[0, 1] + p1 * uv[1, 1] + p2 * uv[2, 1]) * th
             iu = wrap(np.floor(u).astype(int), tw, b["rep"][0], b["flip"][0])
             iv = wrap(np.floor(v).astype(int), th, b["rep"][1], b["flip"][1])
             c = tex[iv, iu]

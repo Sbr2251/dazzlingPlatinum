@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Route 215 flooded-lowland art pass (v2): map_data_069/070/071 (stock terrain edited in place) + set 078 +
+"""Route 215 flooded-lowland art pass (v3): map_data_069/070/071 (stock terrain edited in place) + set 078 +
 lighting 006.
 
 Usage:
@@ -21,18 +21,27 @@ appended as new materials/shapes; stock props and BDHC are kept verbatim):
     (0x16) low byte (splashes + reflections; collision bits untouched).
   * Weathered timber boardwalks (BOARDWALKS) spanning right across the sheets: decks 0.06 tiles over the ground
     (the BDHC floor), mud-dark skirts, corner and edge pilings standing in the water.
-  * Eclipse truck ruts (RUTS) on DRY ground only (north field, south field / lane, gate approach): wobbling
-    mitred quad strips of the sculpted r215_ruts groove texture (never laid on a flood sheet; checked).
-  * Team Eclipse staging: the gate staging yard is a 3x3-tile landmark (pallets, multi-height dark-slate crate
-    stacks, a draped olive tarp, a tripod work lamp and a soft contact shadow); two smaller 2x2 clusters with mast
-    lamps in the north and south fields. Lamps glow through an unlit lamp glass plus smooth A3I5 halo / ground
-    pool cards (r215_glow): no dithered glow anywhere.
+  * Packed-mud truck roads (RUTS) on DRY ground only (never on a flood sheet, never over tall grass; checked):
+    solid road-bed strips of r215_ruts (cleanly stepped edges with a crisp 1-texel dark outline + light rim, two
+    sculpted tyre grooves) ending in rounded r215_rutcap caps where they meet the staging pad, the tall grass,
+    the gate stairs and the gravel apron (no square-cut ends).
+  * Staging pads (TX.PADS): one texel-aligned decal quad each with a clean 1-texel outlined border - the north
+    yard's mud pad + road turnaround, and the gravel apron before the Veilstone gate, which covers the stock
+    speckled 'blueglayp' edge. Pads and road beds sit under the stock 'allpeak' decals (+0.03); any tall-grass
+    tile a road or pad touches gets the stock 'nectgr' tile redrawn over it (none today).
+  * Team Eclipse staging: the north yard is a full 3x3 supply yard (offset slate / wooden crate stacks, a draped
+    olive tarp on a pallet, steel drums, an Eclipse warning banner post, a tripod work lamp, soft contact shadows);
+    the gate yard south of the gate approach keeps every prop off the road bed on screen (props projected along
+    the field camera: checked); a small south-field cluster with a mast lamp. Lamps glow through an unlit lamp
+    glass plus smooth A3I5 halo / ground pool cards (r215_glow): no dithered glow anywhere.
   * A flooded drainage sign post (SIGNS); its tile is blocked, a BG_EVENT reads it.
 """
 import json
 import math
 import os
 import sys
+
+import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -80,12 +89,19 @@ BOARDWALKS = [
 ]
 
 # truck ruts: polylines of lane centres (x, z) in tiles; the lane is 2 tiles wide; corners are filleted
+# packed-mud road beds, each end a rounded cap (r215_rutcap) where it meets something: the north lane runs from the
+# staging yard's turnaround pad east to the tall-grass patch at x 646 (the trucks cut through the grass and the x 654
+# corridor, unpaved); the south lane leaves the grass at x 649, turns down to the lane and runs east to the foot of
+# the gate stairs; the gate approach runs from the stairs onto the gravel apron. No road bed crosses tall grass.
 RUTS = [
-    [(630.3, 586.0), (656.6, 586.0)],                                   # MAP_070 -> 071 north field, eastbound
-    [(653.2, 591.0), (645.0, 591.0), (645.0, 598.0), (658.6, 598.0)],   # MAP_071 south field -> lane -> stairs
-    [(660.8, 598.0), (670.3, 598.0)],                                   # MAP_071 gate approach (low ground)
+    [(630.4, 586.0), (645.95, 586.0)],                                  # MAP_070/071 north field
+    [(648.95, 591.0), (645.0, 591.0), (645.0, 598.0), (658.95, 598.0)],  # MAP_071 south field -> lane -> stairs
+    [(660.05, 598.0), (670.9, 598.0)],                                  # MAP_071 gate approach (low ground)
 ]
-RUT_FILLET = 1.25
+RUT_FILLET = 1.6
+H_PAD, H_RUT = 0.012, 0.020   # pads and the road bed sit UNDER the stock 'allpeak' tall-grass decals (+0.03), so
+                              # tall grass the road crosses still shows (and still reads as grass) over the mud
+PROJ = 1 / math.tan(math.radians(59.05))   # field camera: a height y covers the ground y * PROJ tiles to its north
 
 # Eclipse staging clusters: tiles they block (must be free of events / NPC routes) + their props
 CLUSTERS = {
@@ -186,6 +202,12 @@ class Art:
         "shore": ("r215_shore", 1, "none", 31, 0),
         "board": ("r215_board", 1, "back", 31, 0),
         "ruts": ("r215_ruts", 1, "back", 31, 0),
+        "rutcap": ("r215_rutcap", 1, "back", 31, 0),
+        "padn": ("r215_padn", 1, "back", 31, 0),
+        "padg": ("r215_padg", 1, "back", 31, 0),
+        "prop": ("r215_props", 1, "back", 31, 0),
+        "prop2": ("r215_props", 1, "none", 31, 0),
+        "grass": ("nectgr", 1, "back", 31, 0),     # stock tall grass redrawn over the road (same material bits)
         "crate": ("r215_crate", 1, "back", 31, 0),
         "crate2": ("r215_crate", 1, "none", 31, 0),
         "lamp": ("r215_crate", 0, "none", 31, 0),
@@ -193,7 +215,7 @@ class Art:
         "pool": ("r215_glow", 0, "back", 31, 2),
         "halo": ("r215_glow", 0, "none", 31, 3),
     }
-    PALETTE = {TX.WATER_TEXTURE: TX.WATER_TEXTURE}
+    PALETTE = {TX.WATER_TEXTURE: TX.WATER_TEXTURE, "nectgr": "nectgrass"}
 
     def __init__(self, table):
         self.mb = {c: C.MeshBuilder() for c in R.CHUNKS}
@@ -261,6 +283,12 @@ def cuv(key, inset=0.25, atlas=None):
 
 def guv(key, inset=0.5):
     return cuv(key, inset, TX.GLOW_UV)
+
+
+def puv(key, inset=0.25):
+    """r215_props atlas (64 x 32) texel box -> uv rect."""
+    x0, y0, x1, y1 = TX.PROPS_UV[key]
+    return ((x0 + inset) / 64, (y0 + inset) / 32, (x1 - inset) / 64, (y1 - inset) / 32)
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -716,7 +744,9 @@ def densify(poly, step=1.0):
 
 
 def build_ruts(F, S, sheet_polys):
-    covered = []
+    """Solid packed-mud road bed strips (r215_ruts) with rounded end caps (r215_rutcap). The strip v runs an
+    integer number of 4-tile repeats between the caps, so both caps seam onto texture row 0."""
+    covered, lanes = [], []
     for pi, poly in enumerate(RUTS):
         pts = densify(fillet(poly, RUT_FILLET), 1.0)
         n = len(pts)
@@ -728,7 +758,7 @@ def build_ruts(F, S, sheet_polys):
             L = math.hypot(dx, dz)
             dx, dz = dx / L, dz / L
             nx, nz = -dz, dx
-            w = 0.0 if i in (0, n - 1) else 0.10 * math.sin(i * 0.9 + pi) + 0.04 * math.sin(i * 2.3 + 2 * pi)
+            w = 0.0 if i in (0, 1, n - 2, n - 1) else 0.10 * math.sin(i * 0.9 + pi) + 0.04 * math.sin(i * 2.3 + 2 * pi)
             cen.append((pts[i][0] + nx * w, pts[i][1] + nz * w))
             nor.append((nx, nz))
         s, vs = 0.0, [0.0]
@@ -748,18 +778,107 @@ def build_ruts(F, S, sheet_polys):
                     hs.add(S.ground(tt, behaviours=(0, 2)))
                     covered.append(tt)
         assert None not in hs and len(hs) == 1, f"ruts {pi} leave flat walkable ground: {hs}"
-        h = hs.pop() + 0.034                       # over the stock 'allpeak' grass decals (+0.03)
+        h = hs.pop() + H_RUT
         L_ = [(cen[i][0] + nor[i][0], cen[i][1] + nor[i][1]) for i in range(n)]
         R_ = [(cen[i][0] - nor[i][0], cen[i][1] - nor[i][1]) for i in range(n)]
-        for i in range(n - 1):
+        span = vs[n - 2] - vs[1]
+        reps = max(1, round(span / 4.0))
+        vv = [(vs[i] - vs[1]) / span * reps for i in range(n)]
+        for i in range(1, n - 2):
             q = [(L_[i][0], h, L_[i][1]), (R_[i][0], h, R_[i][1]), (R_[i + 1][0], h, R_[i + 1][1]),
                  (L_[i + 1][0], h, L_[i + 1][1])]
-            uvs = [(0.0, vs[i] / 4), (1.0, vs[i] / 4), (1.0, vs[i + 1] / 4), (0.0, vs[i + 1] / 4)]
+            uvs = [(0.0, vv[i]), (1.0, vv[i]), (1.0, vv[i + 1]), (0.0, vv[i + 1])]
             F.add("ruts", q, uvs, (0, 1, 0), solid=False, rebase=False)
+        for seam, tip in ((1, 0), (n - 2, n - 1)):
+            q = [(L_[seam][0], h, L_[seam][1]), (R_[seam][0], h, R_[seam][1]), (R_[tip][0], h, R_[tip][1]),
+                 (L_[tip][0], h, L_[tip][1])]
+            F.add("rutcap", q, [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)], (0, 1, 0), solid=False,
+                  rebase=False)
         xs = [p[0] for p in L_ + R_]
         zs = [p[1] for p in L_ + R_]
         F.decals.append((min(xs), min(zs), max(xs), max(zs), h))
-    return covered
+        lanes.append(dict(cen=cen, h=h - H_RUT))
+    return covered, lanes
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# staging pads: one texel-aligned decal quad each (r215_padn mud, r215_padg gravel apron over the stock blueglayp
+# speckled edge), clean 1-texel outline + rim painted in the texture
+# ---------------------------------------------------------------------------------------------------------------
+
+X_MAX = 671.75
+
+
+def build_pads(F, S):
+    rep = []
+    for name, spec in TX.PADS.items():
+        ox, oz = spec["origin"]
+        w, hh = spec["size"]
+        x1, z1 = min(ox + w / 16.0, X_MAX), oz + hh / 16.0
+        M = TX.pad_mask(spec, pad=0)
+        tl = set()
+        for y, x in zip(*np.nonzero(M)):
+            px, pz = ox + (x + 0.5) / 16.0, oz + (y + 0.5) / 16.0
+            if px < X_MAX:
+                tl.add((int(math.floor(px)), int(math.floor(pz))))
+        hs = {S.ground(t, behaviours=(0, 2)) for t in tl} - {None}
+        assert len(hs) == 1, f"pad {name} spans several heights {hs}"
+        h = hs.pop()
+        warps = {(o["x"], o["z"]) for o in S.ev["warp_events"]}      # the gate door: the stock apron runs under it
+        bad = [t for t in tl if S.ground(t, behaviours=(0, 2)) is None and not S.tree_base(t, h) and
+               not (t in warps and S.h[t] is not None and abs(S.h[t] - h) < 0.01)]
+        u1 = (x1 - ox) * 16.0 / w
+        key = "padn" if spec["style"] == "mud" else "padg"
+        hp = h + H_PAD
+        F.add(key, [(ox, hp, z1), (x1, hp, z1), (x1, hp, oz), (ox, hp, oz)], [(0.0, 1.0), (u1, 1.0), (u1, 0.0),
+                                                                             (0.0, 0.0)],
+              (0, 1, 0), solid=False, rebase=False, chunk=R.chunk_of(int(math.floor((ox + x1) / 2))))
+        F.decals.append((ox, oz, x1, z1, hp))
+        rep.append(dict(name=name, h=h, tiles=len(tl), bad=bad))
+    return rep
+
+
+H_GRASS = 0.026    # tall grass redrawn over the road bed / pads: above the bed (+0.020), below 'allpeak' (+0.03)
+
+
+def regrass(F, S, blocked):
+    """Tall grass stays tall grass: every walkable behaviour-2 tile that a road bed or pad covers gets the stock
+    'nectgr' tile redrawn over it (same texture, palette, material bits and 1-tile UV mapping as the stock ground),
+    so no encounter tile ever hides under the mud."""
+    covers = []
+    for key, pts, uvs in F.faces:
+        if key in ("ruts", "rutcap"):
+            covers.append(("poly", [(p[0], p[2]) for p in pts]))
+    for name, spec in TX.PADS.items():
+        covers.append(("mask", (spec, TX.pad_mask(spec, pad=0))))
+    out = []
+    for t, p in sorted(S.perm.items()):
+        if p & 0x8000 or (p & 0xFF) != 2 or t in blocked:
+            continue
+        hit = False
+        for fz in (0.1, 0.3, 0.5, 0.7, 0.9):
+            for fx in (0.1, 0.3, 0.5, 0.7, 0.9):
+                px, pz = t[0] + fx, t[1] + fz
+                for kind, c in covers:
+                    if kind == "poly":
+                        if min(q[0] for q in c) <= px <= max(q[0] for q in c) and point_in(c, px, pz):
+                            hit = True
+                    else:
+                        spec, M = c
+                        ix = int((px - spec["origin"][0]) * 16)
+                        iz = int((pz - spec["origin"][1]) * 16)
+                        if 0 <= iz < M.shape[0] and 0 <= ix < M.shape[1] and M[iz, ix]:
+                            hit = True
+        if not hit:
+            continue
+        h = S.ground(t, behaviours=(2,))
+        assert h is not None, f"tall grass tile {t} under the road is not flat"
+        x, z, y = t[0], t[1], h + H_GRASS
+        F.add("grass", [(x, y, z + 1), (x + 1, y, z + 1), (x + 1, y, z), (x, y, z)],
+              [(0.0, 1.0), (1.0, 1.0), (1.0, 0.0), (0.0, 0.0)], (0, 1, 0), solid=False, rebase=False,
+              chunk=R.chunk_of(x))
+        out.append(t)
+    return out
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -767,14 +886,51 @@ def build_ruts(F, S, sheet_polys):
 # ---------------------------------------------------------------------------------------------------------------
 
 def crate(F, x0, z0, sx, sz, h0, hs, variant=1):
+    """Dark-slate Eclipse crate (north face skipped: it always faces away from the field camera)."""
     side = cuv("crate_s" if variant == 1 else "crate2_s")
     top = cuv("crate_t" if variant == 1 else "crate2_t")
-    F.box("crate", x0, z0, x0 + sx, z0 + sz, h0, h0 + hs, side, top)
+    F.box("crate", x0, z0, x0 + sx, z0 + sz, h0, h0 + hs, side, top, sides="sew")
+
+
+def wcrate(F, x0, z0, sx, sz, h0, hs):
+    """Wooden supply crate (r215_props)."""
+    F.box("prop", x0, z0, x0 + sx, z0 + sz, h0, h0 + hs, puv("wcrate_s"), puv("wcrate_t"), sides="sew")
 
 
 def pallet(F, x0, z0, sx, sz, h0):
-    F.box("crate", x0, z0, x0 + sx, z0 + sz, h0, h0 + 0.14, cuv("pallet_s"), cuv("pallet_t"))
+    F.box("crate", x0, z0, x0 + sx, z0 + sz, h0, h0 + 0.14, cuv("pallet_s"), cuv("pallet_t"), sides="sew")
     return h0 + 0.14
+
+
+def barrel(F, cx, cz, h0, r=0.19, hb=0.6):
+    """Steel drum: a hexagonal prism, only its three camera-facing walls (SW, S, SE) and its lid."""
+    V = [(cx + r * math.cos(math.radians(60 * k)), cz + r * math.sin(math.radians(60 * k))) for k in range(6)]
+    u0, v0, u1, v1 = puv("barrel_s")
+    for k in (2, 1, 0):
+        j = 2 - k
+        F.wall("prop", V[k + 1], V[k], h0, h0 + hb, (u0 + (u1 - u0) * j / 3, v0, u0 + (u1 - u0) * (j + 1) / 3, v1))
+    t0, t1, t2, t3 = puv("barrel_t")
+    ht = h0 + hb
+
+    def tuv(p):
+        return (t0 + (p[0] - cx + r) / (2 * r) * (t2 - t0), t1 + (p[1] - cz + r) / (2 * r) * (t3 - t1))
+    for quad in ((0, 1, 2, 3), (3, 4, 5, 0)):
+        F.add("prop", [(V[i][0], ht, V[i][1]) for i in quad], [tuv(V[i]) for i in quad], (0, 1, 0), solid=True,
+              rebase=False)
+
+
+def banner_post(F, x, z, h, ht=1.6, side=1):
+    """Team Eclipse warning post: a steel pole with a hazard collar, a cross bar and a hanging violet eclipse banner
+    (swallowtail hem) facing the camera; `side` = +1 hangs it east of the pole, -1 west."""
+    F.box("prop", x - 0.045, z - 0.045, x + 0.045, z + 0.045, h, h + ht, puv("pole"), puv("bar"), sides="sew")
+    xa, xb = (x - 0.02, x + 0.62) if side > 0 else (x - 0.62, x + 0.02)
+    F.box("prop", xa, z - 0.03, xb, z + 0.03, h + ht - 0.09, h + ht - 0.02, puv("bar"), puv("bar"), sides="sew")
+    ba, bb = (x + 0.07, x + 0.59) if side > 0 else (x - 0.59, x - 0.07)
+    u0, v0, u1, v1 = puv("banner")
+    zb = z + 0.045
+    F.add("prop2", [(ba, h + ht - 0.09, zb), (bb, h + ht - 0.09, zb), (bb, h + ht - 0.83, zb),
+                    (ba, h + ht - 0.83, zb)], [(u0, v0), (u1, v0), (u1, v1), (u0, v1)], (0, 0, 1), solid=True,
+          rebase=False)
 
 
 def drape(F, x0, z0, x1, z1, htop, drop, k=0):
@@ -803,7 +959,7 @@ def drape(F, x0, z0, x1, z1, htop, drop, k=0):
                   rebase=False)
 
 
-def glow(F, x, hy, z, size=1.45):
+def glow(F, x, hy, z, size=1.3):
     """Smooth A3I5 halo card around a lamp glass, tilted to face the field camera (pitch ~59 deg)."""
     g = guv("halo_amber")
     s = size / 2
@@ -830,7 +986,7 @@ def contact_shadow(F, x0, z0, x1, z1, h, pad=0.28):
           [(g[0], g[3]), (g[2], g[3]), (g[2], g[1]), (g[0], g[1])], (0, 1, 0), solid=False, rebase=False)
 
 
-def lamp_head(F, x, z, hh):
+def lamp_head(F, x, z, hh, halo=1.3):
     """Lamp housing with the unlit amber glass facing south (the camera)."""
     back, cap = cuv("lamp_back"), cuv("lamp_cap")
     F.box("crate", x - 0.17, z - 0.12, x + 0.17, z + 0.06, hh, hh + 0.30, back, cap, sides="new")
@@ -840,7 +996,7 @@ def lamp_head(F, x, z, hh):
           [(glass[0], glass[1]), (glass[2], glass[1]), (glass[2], glass[3]), (glass[0], glass[3])],
           (0, 0.2, 1), solid=True, rebase=False)
     F.box("crate", x - 0.19, z - 0.14, x + 0.19, z + 0.10, hh + 0.30, hh + 0.36, cap, cap)
-    glow(F, x, hh + 0.15, z + 0.1)
+    glow(F, x, hh + 0.15, z + 0.1, halo)
 
 
 def mast_lamp(F, x, z, h):
@@ -851,7 +1007,7 @@ def mast_lamp(F, x, z, h):
     lamp_head(F, x, z, h + 1.30)
 
 
-def tripod_lamp(F, x, z, h):
+def tripod_lamp(F, x, z, h, halo=1.3):
     """A tripod work lamp: three splayed legs, a mast and a lamp head."""
     met = cuv("metal")
     apex = h + 1.05
@@ -865,7 +1021,7 @@ def tripod_lamp(F, x, z, h):
               (math.cos(a), 0.2, math.sin(a)), solid=True, rebase=False)
     F.box("crate", x - 0.045, z - 0.045, x + 0.045, z + 0.045, apex - 0.1, h + 1.48,
           (met[0], met[1], met[0] + 0.05, met[3]))
-    lamp_head(F, x, z, h + 1.44)
+    lamp_head(F, x, z, h + 1.44, halo)
 
 
 def build_clusters(F, S):
@@ -877,48 +1033,72 @@ def build_clusters(F, S):
         h = hs.pop()
         for t in tiles(cl["block"]):
             blocked[t] = name
-        contact_shadow(F, x0 + 0.05, z0 + 0.1, x1 + 0.95, z1 + 0.95, h, pad=0.22 if cl["kind"] == "small" else 0.3)
+
+        def sh(a, b, c, d, pad=0.16):
+            contact_shadow(F, x0 + a, z0 + b, x0 + c, z0 + d, h, pad=pad)
         if cl["kind"] == "yard":
-            # 3x3 roadside staging yard (front = south = camera side): pallet stack + tarp stack in front, the tall
-            # three-high stack back right, a tripod work lamp and a loose crate back left
-            ph = pallet(F, x0 + 0.10, z0 + 1.68, 1.25, 1.20, h)
-            crate(F, x0 + 0.18, z0 + 1.78, 0.98, 0.98, ph, 0.92)
-            crate(F, x0 + 0.30, z0 + 1.88, 0.76, 0.76, ph + 0.92, 0.70, variant=2)
-            ph2 = pallet(F, x0 + 1.52, z0 + 1.64, 1.38, 1.24, h)
-            crate(F, x0 + 1.60, z0 + 1.74, 1.04, 1.04, ph2, 0.86, variant=2)
-            crate(F, x0 + 1.68, z0 + 1.82, 0.88, 0.88, ph2 + 0.86, 0.78)
-            drape(F, x0 + 1.60, z0 + 1.74, x0 + 2.64, z0 + 2.78, ph2 + 1.64, 0.95, k=1)
-            crate(F, x0 + 1.86, z0 + 0.10, 0.98, 0.98, h, 0.90)
-            crate(F, x0 + 1.92, z0 + 0.16, 0.86, 0.86, h + 0.90, 0.82, variant=2)
-            crate(F, x0 + 2.02, z0 + 0.26, 0.66, 0.66, h + 1.72, 0.60)
-            crate(F, x0 + 0.14, z0 + 0.14, 0.66, 0.66, h, 0.58, variant=2)
-            tripod_lamp(F, x0 + 1.08, z0 + 0.66, h)
-            light_pool(F, x0 + 1.2, z0 + 0.5, h, rx=1.9, rz=1.45)
+            # the 3x3 north staging yard on its mud pad (front = south = camera side; the road runs along the
+            # front, so props rise away from it). Back row: a two-high slate stack, the Eclipse warning banner
+            # with two drums, a tall slate + wooden stack. Middle: the tripod work lamp, a tarp-draped stack on a
+            # pallet. Front: a pallet of wooden crates, three drums.
+            crate(F, x0 + 0.10, z0 + 0.12, 0.92, 0.90, h, 0.86)
+            crate(F, x0 + 0.18, z0 + 0.18, 0.76, 0.74, h + 0.86, 0.70, variant=2)
+            sh(0.10, 0.12, 1.02, 1.02)
+            banner_post(F, x0 + 1.24, z0 + 0.40, h, ht=1.75)
+            barrel(F, x0 + 1.52, z0 + 0.78, h)
+            barrel(F, x0 + 1.86, z0 + 0.66, h)
+            sh(1.30, 0.44, 2.06, 0.98, pad=0.1)
+            crate(F, x0 + 2.05, z0 + 0.10, 0.86, 0.88, h, 0.90)
+            crate(F, x0 + 2.10, z0 + 0.16, 0.76, 0.76, h + 0.90, 0.80, variant=2)
+            wcrate(F, x0 + 2.20, z0 + 0.26, 0.56, 0.52, h + 1.70, 0.44)
+            sh(2.05, 0.10, 2.91, 0.98)
+            tripod_lamp(F, x0 + 0.52, z0 + 1.48, h)
+            light_pool(F, x0 + 0.70, z0 + 1.55, h, rx=1.6, rz=1.25)
+            ph = pallet(F, x0 + 1.24, z0 + 1.06, 1.24, 1.10, h)
+            crate(F, x0 + 1.34, z0 + 1.12, 1.04, 0.96, ph, 0.82, variant=2)
+            drape(F, x0 + 1.34, z0 + 1.12, x0 + 2.38, z0 + 2.08, ph + 0.82, 0.62, k=1)
+            sh(1.24, 1.06, 2.48, 2.16)
+            ph = pallet(F, x0 + 0.08, z0 + 2.12, 1.10, 0.80, h)
+            wcrate(F, x0 + 0.12, z0 + 2.16, 0.52, 0.66, ph, 0.50)
+            wcrate(F, x0 + 0.66, z0 + 2.20, 0.48, 0.60, ph, 0.44)
+            crate(F, x0 + 0.20, z0 + 2.26, 0.38, 0.40, ph + 0.50, 0.34, variant=2)
+            sh(0.08, 2.12, 1.18, 2.92)
+            for bx, bz in ((1.66, 2.62), (2.08, 2.50), (2.50, 2.66)):
+                barrel(F, x0 + bx, z0 + bz, h)
+            sh(1.46, 2.32, 2.70, 2.86, pad=0.1)
         elif cl["kind"] == "gate":
-            # 3x3 yard by the Veilstone gate, whose south row sits behind the tree canopy: the pallet stack and the
-            # tripod lamp face the road (north), the tall stack and the tarp stack stand in front and rise over
-            # the canopy
-            ph = pallet(F, x0 + 0.10, z0 + 0.10, 1.25, 1.20, h)
-            crate(F, x0 + 0.18, z0 + 0.20, 0.98, 0.98, ph, 0.92)
-            crate(F, x0 + 0.30, z0 + 0.30, 0.76, 0.76, ph + 0.92, 0.70, variant=2)
-            tripod_lamp(F, x0 + 2.25, z0 + 0.62, h)
-            light_pool(F, x0 + 1.8, z0 + 0.3, h, rx=1.9, rz=1.4)
-            ph2 = pallet(F, x0 + 1.52, z0 + 1.62, 1.38, 1.24, h)
-            crate(F, x0 + 1.60, z0 + 1.72, 1.04, 1.04, ph2, 0.86, variant=2)
-            crate(F, x0 + 1.68, z0 + 1.80, 0.88, 0.88, ph2 + 0.86, 0.78)
-            drape(F, x0 + 1.60, z0 + 1.72, x0 + 2.64, z0 + 2.76, ph2 + 1.64, 0.95, k=3)
-            crate(F, x0 + 0.12, z0 + 1.90, 0.98, 0.98, h, 0.90)
-            crate(F, x0 + 0.18, z0 + 1.96, 0.86, 0.86, h + 0.90, 0.82, variant=2)
-            crate(F, x0 + 0.28, z0 + 2.06, 0.66, 0.66, h + 1.72, 0.60)
+            # 3x3 yard south of the gate approach road, on the gravel apron. The road runs along its NORTH edge, so
+            # everything is set back and kept low in front: no prop (projected along the field camera) reaches the
+            # road bed. Front: a pallet of wooden crates, two drums, the warning banner. Back (rising over the
+            # tree canopy): a tarp-draped stack, a slate + wooden stack, the tripod work lamp.
+            ph = pallet(F, x0 + 0.12, z0 + 0.62, 1.18, 0.90, h)
+            wcrate(F, x0 + 0.18, z0 + 0.68, 0.52, 0.60, ph, 0.42)
+            wcrate(F, x0 + 0.74, z0 + 0.70, 0.48, 0.56, ph, 0.38)
+            sh(0.12, 0.62, 1.30, 1.52)
+            barrel(F, x0 + 1.62, z0 + 0.86, h)
+            barrel(F, x0 + 2.02, z0 + 0.80, h)
+            banner_post(F, x0 + 2.62, z0 + 1.08, h, ht=1.5, side=-1)
+            sh(1.40, 0.62, 2.70, 1.10, pad=0.1)
+            ph = pallet(F, x0 + 0.10, z0 + 1.56, 1.20, 1.10, h)
+            crate(F, x0 + 0.18, z0 + 1.62, 1.04, 0.98, ph, 0.92, variant=2)
+            drape(F, x0 + 0.18, z0 + 1.62, x0 + 1.22, z0 + 2.60, ph + 0.92, 0.70, k=3)
+            crate(F, x0 + 1.40, z0 + 1.58, 0.90, 0.90, h, 0.90)
+            crate(F, x0 + 1.46, z0 + 1.64, 0.78, 0.76, h + 0.90, 0.80, variant=2)
+            wcrate(F, x0 + 1.56, z0 + 1.88, 0.56, 0.50, h + 1.70, 0.42)
+            sh(0.10, 1.56, 2.30, 2.66)
+            tripod_lamp(F, x0 + 2.45, z0 + 1.66, h, halo=1.15)
+            light_pool(F, x0 + 1.9, z0 + 1.2, h, rx=1.5, rz=1.05)
         else:
+            # the south-field cluster under the road's corridor corner: its north row is kept low so nothing
+            # projects onto the road bed
             ph = pallet(F, x0 + 0.08, z0 + 0.95, 1.10, 1.00, h)
             crate(F, x0 + 0.14, z0 + 1.02, 0.90, 0.88, ph, 0.82)
-            crate(F, x0 + 0.24, z0 + 1.10, 0.70, 0.70, ph + 0.82, 0.62, variant=2)
             crate(F, x0 + 1.06, z0 + 0.92, 0.86, 0.90, h, 0.84, variant=2)
             drape(F, x0 + 1.06, z0 + 0.92, x0 + 1.92, z0 + 1.82, h + 0.84, 0.62, k=2)
-            crate(F, x0 + 1.12, z0 + 0.12, 0.72, 0.70, h, 0.56)
-            mast_lamp(F, x0 + 0.38, z0 + 0.40, h)
-            light_pool(F, x0 + 0.6, z0 + 0.9, h, rx=1.7, rz=1.35)
+            wcrate(F, x0 + 0.10, z0 + 0.20, 0.62, 0.56, h, 0.48)
+            mast_lamp(F, x0 + 1.50, z0 + 0.42, h)
+            light_pool(F, x0 + 1.2, z0 + 0.8, h, rx=1.7, rz=1.35)
+            sh(0.06, 0.16, 1.94, 1.95, pad=0.18)
     return blocked
 
 
@@ -1039,7 +1219,9 @@ def build():
     blocked.update(build_signs(F, S))
     wet, sheets, polys = build_sheets(F, S, BOARDWALKS, set(blocked))
     decks = build_boardwalks(F, S)
-    ruts = build_ruts(F, S, polys)
+    ruts, lanes = build_ruts(F, S, polys)
+    pads = build_pads(F, S)
+    grass = regrass(F, S, set(blocked))
     perm = dict(S.perm)
     for t in wet:
         if (perm[t] & 0xFF) == 0 and not perm[t] & 0x8000:
@@ -1057,7 +1239,7 @@ def build():
         data = edit.pack(g, model)
         out[c] = dict(edit=edit, model=model, data=data, grid=g, stats=edit.stats(model), polys=F.mb[c].polygons())
     return dict(S=S, F=F, tex=texres, out=out, perm=perm, wet=wet, sheets=sheets, polys=polys, decks=decks,
-                blocked=blocked, ruts=ruts)
+                blocked=blocked, ruts=ruts, lanes=lanes, pads=pads, grass=grass)
 
 
 def checks(res):
@@ -1147,6 +1329,33 @@ def checks(res):
                                            sh["rect"][1] - 1 <= t[1] <= sh["rect"][3] + 1 for sh in SHEETS.values())]
     rs.append((f"truck ruts only on dry ground (rut tiles under water: {wet_rut[:4]}, near a sheet: {rut_x[:4]})",
                not wet_rut and not rut_x))
+    # screen-space clearance: every vertex of every solid prop, slid along the field camera onto the ground
+    # (z - height * PROJ), stays off the road bed (lane half-width 1 tile from the centreline)
+    def seg_d(px, pz, a, b):
+        dx, dz = b[0] - a[0], b[1] - a[1]
+        t = max(0.0, min(1.0, ((px - a[0]) * dx + (pz - a[1]) * dz) / (dx * dx + dz * dz)))
+        return math.hypot(px - a[0] - t * dx, pz - a[1] - t * dz)
+    over = []
+    for pts in F.solids:
+        for (x, y, z) in pts:
+            t = (int(math.floor(x)), int(math.floor(z)))
+            g = S.h.get(t)
+            if g is None:
+                continue
+            pz = z - (y - g) * PROJ
+            for li, ln in enumerate(res["lanes"]):
+                c = ln["cen"]
+                d = min(seg_d(x, pz, c[i], c[i + 1]) for i in range(len(c) - 1))
+                if d < 1.0:
+                    over.append((li, round(x, 2), round(z, 2), round(y - g, 2), round(d, 2)))
+    rs.append((f"no prop sits on the road bed on screen (props projected along the field camera; overlaps "
+               f"{over[:4]})", not over))
+    pr = res["pads"]
+    rs.append((f"staging pads on flat dry ground (or tree bases under the canopy): "
+               + ", ".join(f"{p['name']} h {p['h']} {p['tiles']} tiles, off-ground {p['bad']}" for p in pr),
+               all(not p["bad"] for p in pr)))
+    rs.append((f"tall grass under the road / pads redrawn in stock 'nectgr' over the mud ({len(res['grass'])} tiles: "
+               f"{res['grass']})", True))
     keys = {k for k, _, _ in F.faces}
     rs.append(("no dithered glow decal: lamp glow is unlit glass + smooth A3I5 halo / pool cards only "
                f"(materials {sorted(keys)})", "glow" not in keys and "puddle" not in keys and
