@@ -70,14 +70,15 @@ MATS = {
     "ev_spiral_flw": ("ev_spiral_flw", True, "back"), "ev_cobble": ("ev_cobble", True, "back"),
     "ev_water": ("sea", True, "back"), "ev_marble": ("ev_marble", True, "back"),
     "ev_cliff": ("ev_cliff", True, "back"), "ev_blossom": ("ev_blossom", True, "back"),
-    "ev_tree": ("tree01", True, "none"),
+    "ev_tree": ("tree01", True, "none"), "ev_tshadow": ("tshadow", True, "back"),
+    "ev_tuft": ("ev_tuft_decal", True, "none"), "ev_flw_lit": ("ev_flw_decal", True, "none"),
     "ev_bridge": ("ev_bridge", True, "back"),
     "u_marble": ("ev_marble", False, "back"), "u_water": ("sea", False, "back"),
     "u_jet": ("ev_marble", False, "none"), "u_gv": ("ev_gardevoir", False, "back"),
     "u_gv2": ("ev_gardevoir", False, "none"), "u_crystal": ("ev_crystal", False, "back"),
     "u_mushroom": ("ev_mushroom", False, "back"), "u_blossom": ("ev_flw_decal", False, "none"),
 }
-TEX_SIZES = {"sea": [16, 16], "tree01": [64, 64], "conttree_t": [64, 64], "conttree_b": [64, 64]}
+TEX_SIZES = {"sea": [16, 16], "nhana": [16, 16], "tshadow": [32, 32], "tree01": [64, 64], "conttree_t": [64, 64], "conttree_b": [64, 64]}
 
 
 # groups whose vertices snap to the 1/16-tile grid (fountain, crystal, and spiral decals keep full fx16 precision)
@@ -420,70 +421,36 @@ def is_tree(t, x, z):
 
 
 def build_forest(F, t):
-    """Blossom canopy heightfield over every tree tile (2x2 cells deep in the forest, 1x1 near its edges, the
-    cells' edge midpoints interpolated so there are no cracks), then rounded crowns on alternate forest-edge trees
-    that face the glade (south / east / west), each with a plum trunk."""
+    """Authentic Platinum cherry-blossom woodland: NO stretched canopy sheet! Packs overlapping 4-tier stacked
+    Sakura tree01 (64x64, c0=1 transparent) across every visible forest border (depth 1-2 tiles back from open
+    glade/water) over Platinum's dark tshadow forest floor."""
     trees = {k for k, v in t.items() if v[2] == "tree"}
-    near_edge = {(x, z) for x, z in trees if any(not is_tree(t, x + a, z + b) for a in (-1, 0, 1) for b in (-1, 0, 1))}
-    blocks = set()
-    for x, z in trees:
-        if x % 2 == 0 and z % 2 == 0 and all((x + a, z + b) in trees and (x + a, z + b) not in near_edge
-                                             for a in (0, 1) for b in (0, 1)) and chunk_of_x(x) == chunk_of_x(x + 1):
-            blocks.add((x, z))
-    in_block = {(x + a, z + b) for x, z in blocks for a in (0, 1) for b in (0, 1)}
-
-    def corner_h(cx, cz):
-        n = sum(is_tree(t, cx - a, cz - b) for a in (0, 1) for b in (0, 1))
-        if n < 4:
-            return CANOPY_EDGE + 0.08 * (hash01(cx, cz, 7) - 0.5)
-        return CANOPY_H + 0.42 * (hash01(cx, cz, 3) - 0.5) + 0.18 * math.sin(cx * 0.9 + cz * 0.6)
-
-    H = {}
-    for x, z in trees:
-        for a in (0, 1):
-            for b in (0, 1):
-                H.setdefault((x + a, z + b), corner_h(x + a, z + b))
-    for x, z in blocks:                       # edge midpoints of the 2x2 cells follow the cell edges (no cracks)
-        for (mx, mz), (p, q) in (((x + 1, z), ((x, z), (x + 2, z))), ((x + 1, z + 2), ((x, z + 2), (x + 2, z + 2))),
-                                 ((x, z + 1), ((x, z), (x, z + 2))), ((x + 2, z + 1), ((x + 2, z), (x + 2, z + 2)))):
-            H[(mx, mz)] = (H[p] + H[q]) / 2
-
-    def nrm(cx, cz):
-        hl, hr = H.get((cx - 1, cz), H[(cx, cz)]), H.get((cx + 1, cz), H[(cx, cz)])
-        hu, hd = H.get((cx, cz - 1), H[(cx, cz)]), H.get((cx, cz + 1), H[(cx, cz)])
-        return GF.norm((hl - hr, 1.4, hu - hd))
-
-    def cell(x0, z0, s):
-        cs = [(x0, z0 + s), (x0 + s, z0 + s), (x0 + s, z0), (x0, z0)]
-        pts = [(cx, H[(cx, cz)], cz) for cx, cz in cs]
-        F.add("ev_blossom", pts, [planar(p) for p in pts], normals=[nrm(cx, cz) for cx, cz in cs], facing=(0, 1, 0),
-              chunk=chunk_of_x(x0), group="canopy", solid=False)
-    for x, z in sorted(blocks):
-        cell(x, z, 2)
-    for x, z in sorted(trees - in_block):
-        cell(x, z, 1)
-    n_crowns = 0
-    # Authentic Platinum 4-tier stacked tree01 (64x64, c0=1 transparent) re-paletted to cherry-blossom Sakura!
     # Exact tree01 atlas quadrants: trunk (top-right), lower canopy (bottom-right), mid canopy (top-left), peak (bottom-left).
     TREE_LAYERS = [
         # (u0, v0, u1, v1, half_w, half_d, h, dz_off)
-        (34 / 64,  2 / 64, 63 / 64, 28 / 64, 0.52, 0.45, 0.28,  0.10),  # trunk + grass base
-        (22 / 64, 29 / 64, 63 / 64, 63 / 64, 0.88, 0.74, 0.82, -0.04),  # wide lower sakura canopy
-        ( 0 / 64,  0 / 64, 34 / 64, 30 / 64, 0.72, 0.62, 1.32, -0.14),  # mid cherry-blossom tier
-        ( 0 / 64, 42 / 64, 21 / 64, 63 / 64, 0.44, 0.44, 1.80, -0.22),  # top pale blush peak
+        (34 / 64,  2 / 64, 63 / 64, 28 / 64, 0.56, 0.48, 0.28,  0.10),  # trunk + spring grass base
+        (22 / 64, 29 / 64, 63 / 64, 63 / 64, 0.96, 0.80, 0.84, -0.04),  # wide lower sakura canopy
+        ( 0 / 64,  0 / 64, 34 / 64, 30 / 64, 0.78, 0.66, 1.36, -0.14),  # mid cherry-blossom tier
+        ( 0 / 64, 42 / 64, 21 / 64, 63 / 64, 0.48, 0.46, 1.86, -0.22),  # top pale blush peak
     ]
+    n_crowns = 0
     for x, z in sorted(trees):
-        open_dirs = [(dx, dz) for dx, dz in ((0, 1), (1, 0), (-1, 0), (0, -1))
-                     if (x + dx, z + dz) in t and t[(x + dx, z + dz)][2] not in ("tree", "gate_pad")]
-        if not open_dirs or (x + z) % 2:
+        d1 = any((x + dx, z + dz) in t and t[(x + dx, z + dz)][2] not in ("tree", "gate_pad")
+                 for dx in (-1, 0, 1) for dz in (-1, 0, 1))
+        d2 = (not d1) and any((x + dx, z + dz) in t and t[(x + dx, z + dz)][2] not in ("tree", "gate_pad")
+                              for dx in (-2, -1, 0, 1, 2) for dz in (-2, -1, 0, 1, 2))
+        if not (d1 or d2):
             continue
-        cx = x + 0.5 + (hash01(x, z, 11) - 0.5) * 0.16
-        cz = z + 0.5 + (hash01(x, z, 13) - 0.5) * 0.14
-        sc = 0.94 + 0.14 * hash01(x, z, 17)
+        if d1 and (x + z) % 2 != 0:
+            continue
+        if d2 and (x % 2 != 0 or z % 2 != 0):
+            continue
+        cx = x + 0.5 + (hash01(x, z, 11) - 0.5) * 0.18
+        cz = z + 0.5 + (hash01(x, z, 13) - 0.5) * 0.16
+        sc = 0.98 + 0.14 * hash01(x, z, 17)
         c = chunk_of_x(x)
         for (u0, v0, u1, v1, hw, hd, hh, dzo) in TREE_LAYERS:
             hw_s, hd_s, h_s = hw * sc, hd * sc, hh * sc
-            # Gently tilted ~20 deg toward the south camera so tiers stack naturally like real Platinum pines
             pts = [
                 (cx - hw_s, h_s + hd_s * 0.35, cz + dzo - hd_s * 0.94),
                 (cx + hw_s, h_s + hd_s * 0.35, cz + dzo - hd_s * 0.94),
@@ -493,7 +460,83 @@ def build_forest(F, t):
             uvs = [(u0, v0), (u1, v0), (u1, v1), (u0, v1)]
             F.add("ev_tree", pts, uvs, facing=(0.0, 0.94, 0.34), chunk=c, group="crowns", solid=False)
         n_crowns += 1
-    return n_crowns, len(blocks)
+    return n_crowns, 0
+
+
+def build_transitions_and_foliage(F, t):
+    """Real Gen-4 autotile transitions & 3D depth:
+      1. Overhanging spring grass fringes where grass borders cobble paths (kills razor-sharp grid seams).
+      2. Soft dithered shoreline foam lapping against cliffs over sea water.
+      3. Standing 3D tall-grass blade cards across tallgrass / spiral_grass so sprites wade inside real grass.
+      4. Authentic Platinum animated nhana flowers swaying in clearings & approaches.
+    """
+    edge_uv = GF.uvbox(TM.TUFT_UV["edge"])
+    foam_uv = GF.uvbox(TM.TUFT_UV["foam"])
+    tuft_a = GF.uvbox(TM.TUFT_UV["tuft_a"])
+    tuft_b = GF.uvbox(TM.TUFT_UV["tuft_b"])
+    grass_kinds = {"grass", "tallgrass", "spiral_grass", "spiral_flw", "tree", "mushroom", "sign"}
+    water_kinds = {"water", "water_block"}
+    n_trans = n_tufts = n_nhana = 0
+
+    u0, v0, u1, v1 = edge_uv
+    fr = 0.36
+    for (x, z), v in sorted(t.items()):
+        if v[2] != "cobble":
+            continue
+        c = chunk_of_x(x)
+        if (x, z - 1) in t and t[(x, z - 1)][2] in grass_kinds:
+            pts = [(x, G + 0.014, z + fr), (x + 1, G + 0.014, z + fr), (x + 1, G + 0.014, z), (x, G + 0.014, z)]
+            F.add("ev_tuft", pts, [(u0, v1), (u1, v1), (u1, v0), (u0, v0)], facing=(0, 1, 0), chunk=c, group="spiral", solid=False)
+            n_trans += 1
+        if (x, z + 1) in t and t[(x, z + 1)][2] in grass_kinds:
+            pts = [(x, G + 0.014, z + 1), (x + 1, G + 0.014, z + 1), (x + 1, G + 0.014, z + 1 - fr), (x, G + 0.014, z + 1 - fr)]
+            F.add("ev_tuft", pts, [(u0, v0), (u1, v0), (u1, v1), (u0, v1)], facing=(0, 1, 0), chunk=c, group="spiral", solid=False)
+            n_trans += 1
+        if (x - 1, z) in t and t[(x - 1, z)][2] in grass_kinds:
+            pts = [(x, G + 0.014, z + 1), (x + fr, G + 0.014, z + 1), (x + fr, G + 0.014, z), (x, G + 0.014, z)]
+            F.add("ev_tuft", pts, [(u0, v0), (u0, v1), (u1, v1), (u1, v0)], facing=(0, 1, 0), chunk=c, group="spiral", solid=False)
+            n_trans += 1
+        if (x + 1, z) in t and t[(x + 1, z)][2] in grass_kinds:
+            pts = [(x + 1 - fr, G + 0.014, z + 1), (x + 1, G + 0.014, z + 1), (x + 1, G + 0.014, z), (x + 1 - fr, G + 0.014, z)]
+            F.add("ev_tuft", pts, [(u0, v1), (u0, v0), (u1, v0), (u1, v1)], facing=(0, 1, 0), chunk=c, group="spiral", solid=False)
+            n_trans += 1
+
+    fu0, fv0, fu1, fv1 = foam_uv
+    fw = 0.42
+    for (x, z), v in sorted(t.items()):
+        if v[2] not in water_kinds:
+            continue
+        if (x, z - 1) in t and t[(x, z - 1)][2] not in water_kinds and t[(x, z - 1)][2] not in ("bridge", "pier"):
+            pts = [(x, WH + 0.02, z + fw), (x + 1, WH + 0.02, z + fw), (x + 1, WH + 0.02, z), (x, WH + 0.02, z)]
+            F.add("ev_tuft", pts, [(fu0, fv1), (fu1, fv1), (fu1, fv0), (fu0, fv0)], facing=(0, 1, 0), chunk=chunk_of_x(x), group="curb", solid=False)
+            n_trans += 1
+
+    for (x, z), v in sorted(t.items()):
+        if v[2] not in ("tallgrass", "spiral_grass"):
+            continue
+        c = chunk_of_x(x)
+        for row_i, (ox, oz) in enumerate(((0.32, 0.34), (0.68, 0.72))):
+            jx = (hash01(x, z, 31 + row_i) - 0.5) * 0.16
+            jz = (hash01(x, z, 41 + row_i) - 0.5) * 0.12
+            px, pz = x + ox + jx, z + oz + jz
+            hw = 0.34
+            hh = 0.44 + 0.08 * hash01(x, z, 51 + row_i)
+            uv = tuft_b if (v[2] == "spiral_grass" and hash01(x, z, 61 + row_i) > 0.55) else tuft_a
+            tu0, tv0, tu1, tv1 = uv
+            pts = [(px - hw, hh, pz - 0.10), (px + hw, hh, pz - 0.10), (px + hw, G, pz + 0.06), (px - hw, G, pz + 0.06)]
+            F.add("ev_tuft", pts, [(tu0, tv0), (tu1, tv0), (tu1, tv1), (tu0, tv1)], facing=(0.0, 0.35, 0.94), chunk=c, group="spiral", solid=False)
+            n_tufts += 1
+
+    # 4. Transparent pastel wildflower clusters on open grass approaches & clearings (no bright-green square boxes)
+    flw_keys = ["pink", "lav", "cream", "mix"]
+    for (x, z), v in sorted(t.items()):
+        if v[2] == "grass" and hash01(x, z, 77) > 0.80:
+            fk = flw_keys[int(hash01(x, z, 79) * len(flw_keys))]
+            F.flat("ev_flw_lit", x + 0.12, z + 0.12, x + 0.88, z + 0.88, G + 0.015, group="spiral",
+                   uv=GF.uvbox(TM.BLOSSOMS[fk]))
+            n_nhana += 1
+
+    return n_trans, n_tufts, n_nhana
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -701,6 +744,7 @@ def art_faces():
     build_curbs(F, t)
     info = {}
     info["crowns"], info["canopy_blocks"] = build_forest(F, t)
+    info["transitions"], info["tufts"], info["nhana"] = build_transitions_and_foliage(F, t)
     build_bridge(F)
     build_pier(F)
     info["lanterns"] = build_lanterns(F, t)
@@ -871,11 +915,11 @@ LIGHT_CURVE = {
     7200: NIGHT,                                                                         # 00:00-04:00 night
     8100: ((13, 12, 21), (12, 11, 16), (12, 11, 15), (10, 9, 15), (10, 9, 14)),          # 04:00-04:30 pre-dawn
     9000: ((16, 13, 21), (12, 11, 14), (11, 10, 13), (12, 11, 15), (13, 11, 15)),        # 04:30-05:00 rose dawn
-    14400: ((19, 18, 24), (13, 13, 14), (9, 9, 10), (13, 13, 15), (14, 14, 17)),         # 05:00-08:00 lavender morning
-    20700: ((22, 22, 25), (14, 14, 15), (9, 9, 11), (14, 14, 16), (14, 14, 16)),         # 08:00-11:30 day
-    21600: ((24, 24, 26), (15, 15, 16), (10, 10, 11), (16, 16, 17), (14, 14, 15)),       # 11:30-12:00
-    27000: ((25, 24, 27), (16, 16, 16), (10, 11, 12), (18, 18, 19), (14, 14, 15)),       # 12:00-15:00 peak
-    27900: ((24, 22, 25), (15, 15, 16), (11, 11, 12), (17, 17, 18), (13, 13, 14)),       # 15:00-15:30
+    14400: ((22, 21, 24), (15, 15, 15), (10, 10, 11), (15, 15, 16), (14, 14, 15)),         # 05:00-08:00 fresh spring morning
+    20700: ((25, 25, 26), (16, 16, 16), (10, 11, 11), (16, 16, 16), (14, 14, 15)),         # 08:00-11:30 crisp Sinnoh day
+    21600: ((26, 26, 26), (17, 17, 17), (11, 11, 11), (17, 17, 17), (14, 14, 14)),         # 11:30-12:00 bright noon
+    27000: ((27, 26, 26), (18, 18, 17), (11, 12, 12), (18, 18, 18), (14, 14, 14)),         # 12:00-15:00 warm sunlit peak
+    27900: ((26, 24, 25), (17, 16, 16), (11, 11, 12), (17, 17, 17), (13, 13, 14)),         # 15:00-15:30
     30600: ((23, 20, 23), (15, 15, 15), (11, 11, 12), (17, 16, 17), (13, 12, 13)),       # 15:30-17:00 golden lavender
     32400: ((22, 17, 21), (15, 14, 15), (11, 11, 13), (16, 15, 17), (12, 10, 12)),       # 17:00-18:00 rose evening
     33300: ((20, 14, 20), (14, 13, 15), (12, 11, 13), (15, 14, 16), (11, 9, 12)),        # 18:00-18:30 rose-violet
