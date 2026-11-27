@@ -24,6 +24,8 @@ done
 for f in header.bin firmware.bin language.csv; do cp "$BUILDDIR/$f" "$A/game/$f"; done
 [ -d "$BUILDDIR/battle_specs" ] && cp -R "$BUILDDIR/battle_specs" "$A/game/battle_specs"
 [ -d "$ROOT/tools/texpack/demo/TexturePack" ] && cp -R "$ROOT/tools/texpack/demo/TexturePack" "$A/game/TexturePack"
+[ -d "$ROOT/res/battle3d" ] && cp -R "$ROOT/res/battle3d" "$A/game/battle3d"
+[ -d "$ROOT/res/hudhd" ] && cp -R "$ROOT/res/hudhd" "$A/game/hudhd"
 
 cp "$BUILDDIR/main" "$A/DazzlingPlatinum"
 chmod +x "$A/DazzlingPlatinum"
