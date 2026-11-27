@@ -2091,19 +2091,19 @@ static void HdHudPopulateButtonsAndMoves(BattleSubscreen *btlSubscreen, SIM_HudH
         }
 
         {
-            String *cancelStr = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_Cancel2);
+            String *cancelStr = NULL;
             SIM_HudHD_Button *cb = &frame->buttons[frame->numButtons];
             cb->visible = 1;
             cb->style = SIM_HUDHD_BUTTON_CANCEL;
             cb->rect = moveData->megaEvolutionAvailable
                 ? (SIM_HudHD_Rect){ 274.0f, 168.0f, 60.0f, 18.0f }
                 : (SIM_HudHD_Rect){ 254.0f, 168.0f, 80.0f, 18.0f };
-            HudStringToUtf8(cancelStr, cb->label, sizeof(cb->label));
+            snprintf(cb->label, sizeof(cb->label), "Back");
             cb->selected = (cy == 2 && (cx == 1 || !moveData->megaEvolutionAvailable)) ? 1 : 0;
             cb->enabled = 1;
             btnTouchIdx[frame->numButtons] = 0;
             frame->numButtons++;
-            String_Free(cancelStr);
+            (void)cancelStr;
         }
         return;
     }
@@ -2154,47 +2154,41 @@ static void HdHudPopulateButtonsAndMoves(BattleSubscreen *btlSubscreen, SIM_HudH
         }
 
         {
-            String *cancelStr = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_Cancel3);
             SIM_HudHD_Button *cb = &frame->buttons[frame->numButtons];
             cb->visible = 1;
             cb->style = SIM_HUDHD_BUTTON_CANCEL;
             cb->rect = (SIM_HudHD_Rect){ 146.0f, 166.0f, 188.0f, 18.0f };
-            HudStringToUtf8(cancelStr, cb->label, sizeof(cb->label));
+            snprintf(cb->label, sizeof(cb->label), "Back");
             cb->selected = cancelSel ? 1 : 0;
             cb->enabled = 1;
             btnTouchIdx[frame->numButtons] = 4;
             frame->numButtons++;
-            String_Free(cancelStr);
         }
         return;
     }
 
     if (menu >= 1 && menu <= 10) {
         if (menu == 5 || menu == 6) {
-            String *fight = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_Fight);
             SIM_HudHD_Button *b = &frame->buttons[0];
             b->visible = 1;
             b->style = SIM_HUDHD_BUTTON_FIGHT;
             b->rect = (SIM_HudHD_Rect){ 248.0f, 162.0f, 86.0f, 24.0f };
-            HudStringToUtf8(fight, b->label, sizeof(b->label));
+            snprintf(b->label, sizeof(b->label), "Battle");
             b->selected = 1;
             b->enabled = 1;
             btnTouchIdx[0] = 0;
             frame->numButtons = 1;
-            String_Free(fight);
             return;
         }
 
         if (menu == 9 || menu == 10) {
-            String *ball = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_BallPalPark);
-            String *run = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_Run);
             SIM_HudHD_Button *b0 = &frame->buttons[0];
             SIM_HudHD_Button *b1 = &frame->buttons[1];
 
             b0->visible = 1;
             b0->style = SIM_HUDHD_BUTTON_FIGHT;
             b0->rect = (SIM_HudHD_Rect){ 248.0f, 138.0f, 86.0f, 22.0f };
-            HudStringToUtf8(ball, b0->label, sizeof(b0->label));
+            snprintf(b0->label, sizeof(b0->label), "Ball");
             b0->selected = (cy == 0) ? 1 : 0;
             b0->enabled = 1;
             btnTouchIdx[0] = 0;
@@ -2202,14 +2196,12 @@ static void HdHudPopulateButtonsAndMoves(BattleSubscreen *btlSubscreen, SIM_HudH
             b1->visible = 1;
             b1->style = SIM_HUDHD_BUTTON_RUN;
             b1->rect = (SIM_HudHD_Rect){ 248.0f, 164.0f, 86.0f, 22.0f };
-            HudStringToUtf8(run, b1->label, sizeof(b1->label));
+            snprintf(b1->label, sizeof(b1->label), "Run");
             b1->selected = (cy == 1) ? 1 : 0;
             b1->enabled = 1;
             btnTouchIdx[1] = 1;
 
             frame->numButtons = 2;
-            String_Free(ball);
-            String_Free(run);
             return;
         }
 
@@ -2226,27 +2218,17 @@ static void HdHudPopulateButtonsAndMoves(BattleSubscreen *btlSubscreen, SIM_HudH
         }
 
         {
-            String *fight, *bag, *party, *run;
+            const char *fightLbl = (battleType & BATTLE_TYPE_SAFARI) ? "Ball" : "Battle";
+            const char *partyLbl = (battleType & BATTLE_TYPE_SAFARI) ? "Mud" : "Pok\xC3\xA9mon";
+            const char *bagLbl = (battleType & BATTLE_TYPE_SAFARI) ? "Bait" : "Bag";
+            const char *runLbl = btlSubscreen->activeMenuData.actionData.isWaitingForPartner ? "Back" : "Run";
             SIM_HudHD_Button *b;
-
-            if (battleType & BATTLE_TYPE_SAFARI) {
-                fight = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_Ball);
-                bag = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_Bait);
-                party = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_Mud);
-            } else {
-                fight = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_Fight);
-                bag = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_Bag);
-                party = MessageLoader_GetNewString(msgLoader, BattleStrings_Text_Pokemon);
-            }
-            run = MessageLoader_GetNewString(msgLoader,
-                btlSubscreen->activeMenuData.actionData.isWaitingForPartner
-                    ? BattleStrings_Text_Cancel : BattleStrings_Text_Run);
 
             b = &frame->buttons[frame->numButtons];
             b->visible = 1;
             b->style = SIM_HUDHD_BUTTON_FIGHT;
             b->rect = (SIM_HudHD_Rect){ 248.0f, 96.0f, 86.0f, 21.0f };
-            HudStringToUtf8(fight, b->label, sizeof(b->label));
+            snprintf(b->label, sizeof(b->label), "%s", fightLbl);
             b->selected = (cy == 0) ? 1 : 0;
             b->enabled = 1;
             btnTouchIdx[frame->numButtons++] = 0;
@@ -2255,7 +2237,7 @@ static void HdHudPopulateButtonsAndMoves(BattleSubscreen *btlSubscreen, SIM_HudH
             b->visible = 1;
             b->style = SIM_HUDHD_BUTTON_POKEMON;
             b->rect = (SIM_HudHD_Rect){ 248.0f, 119.0f, 86.0f, 21.0f };
-            HudStringToUtf8(party, b->label, sizeof(b->label));
+            snprintf(b->label, sizeof(b->label), "%s", partyLbl);
             b->selected = (cy == 1 && cx == 2) ? 1 : 0;
             b->enabled = 1;
             btnTouchIdx[frame->numButtons++] = 2;
@@ -2264,7 +2246,7 @@ static void HdHudPopulateButtonsAndMoves(BattleSubscreen *btlSubscreen, SIM_HudH
             b->visible = 1;
             b->style = SIM_HUDHD_BUTTON_BAG;
             b->rect = (SIM_HudHD_Rect){ 248.0f, 142.0f, 86.0f, 21.0f };
-            HudStringToUtf8(bag, b->label, sizeof(b->label));
+            snprintf(b->label, sizeof(b->label), "%s", bagLbl);
             b->selected = (cy == 1 && cx == 0) ? 1 : 0;
             b->enabled = 1;
             btnTouchIdx[frame->numButtons++] = 1;
@@ -2273,15 +2255,10 @@ static void HdHudPopulateButtonsAndMoves(BattleSubscreen *btlSubscreen, SIM_HudH
             b->visible = 1;
             b->style = SIM_HUDHD_BUTTON_RUN;
             b->rect = (SIM_HudHD_Rect){ 248.0f, 165.0f, 86.0f, 21.0f };
-            HudStringToUtf8(run, b->label, sizeof(b->label));
+            snprintf(b->label, sizeof(b->label), "%s", runLbl);
             b->selected = (cy == 1 && cx == 1) ? 1 : 0;
             b->enabled = 1;
             btnTouchIdx[frame->numButtons++] = 3;
-
-            String_Free(fight);
-            String_Free(bag);
-            String_Free(party);
-            String_Free(run);
         }
     }
 }
@@ -2355,19 +2332,19 @@ static SIM_HudHD_Rect HdHudCardRect(u8 healthboxType)
     case HEALTHBOX_TYPE_PLAYER_SOLO:
     case HEALTHBOX_TYPE_SAFARI_ZONE:
     case HEALTHBOX_TYPE_PAL_PARK:
-        return (SIM_HudHD_Rect){ 8.0f, 128.0f, 126.0f, 44.0f };
+        return (SIM_HudHD_Rect){ 8.0f, 144.0f, 110.0f, 33.0f };
     case HEALTHBOX_TYPE_ENEMY_SOLO:
-        return (SIM_HudHD_Rect){ 216.0f, 8.0f, 118.0f, 34.0f };
+        return (SIM_HudHD_Rect){ 234.0f, 8.0f, 100.0f, 22.0f };
     case HEALTHBOX_TYPE_PLAYER_SLOT_1:
-        return (SIM_HudHD_Rect){ 8.0f, 100.0f, 122.0f, 34.0f };
+        return (SIM_HudHD_Rect){ 8.0f, 118.0f, 102.0f, 29.0f };
     case HEALTHBOX_TYPE_PLAYER_SLOT_2:
-        return (SIM_HudHD_Rect){ 14.0f, 138.0f, 122.0f, 34.0f };
+        return (SIM_HudHD_Rect){ 8.0f, 149.0f, 102.0f, 29.0f };
     case HEALTHBOX_TYPE_ENEMY_SLOT_1:
-        return (SIM_HudHD_Rect){ 220.0f, 6.0f, 114.0f, 32.0f };
+        return (SIM_HudHD_Rect){ 236.0f, 6.0f, 98.0f, 21.0f };
     case HEALTHBOX_TYPE_ENEMY_SLOT_2:
-        return (SIM_HudHD_Rect){ 212.0f, 40.0f, 114.0f, 32.0f };
+        return (SIM_HudHD_Rect){ 236.0f, 29.0f, 98.0f, 21.0f };
     default:
-        return (SIM_HudHD_Rect){ 8.0f, 128.0f, 126.0f, 44.0f };
+        return (SIM_HudHD_Rect){ 8.0f, 144.0f, 110.0f, 33.0f };
     }
 }
 
@@ -2522,7 +2499,8 @@ static void HdHudFillPartyStrip(BattleSystem *battleSys, int battler, SIM_HudHD_
     if (count > 6) {
         count = 6;
     }
-    strip->count = count;
+    // Always draw 6 slots (unused slots remain SIM_HUDHD_BALL_EMPTY).
+    strip->count = 6;
     for (i = 0; i < count; i++) {
         strip->balls[i] = HdHudBallState(Party_GetPokemonBySlotIndex(party, i));
     }
@@ -2652,12 +2630,14 @@ void BattleHud_SyncFrame(BattleSystem *battleSys)
         anyPlayerCard = FALSE;
     }
     HdHudFillPartyStrip(battleSys, BATTLER_PLAYER_1,
-        (SIM_HudHD_Rect){ 10.0f, 174.0f, 122.0f, 12.0f },
+        (battleType & BATTLE_TYPE_DOUBLES)
+            ? (SIM_HudHD_Rect){ 8.0f, 180.0f, 102.0f, 10.0f }
+            : (SIM_HudHD_Rect){ 8.0f, 179.0f, 110.0f, 10.0f },
         anyPlayerCard, &frame.partyStrips[0]);
     HdHudFillPartyStrip(battleSys, BATTLER_ENEMY_1,
         (battleType & BATTLE_TYPE_DOUBLES)
-            ? (SIM_HudHD_Rect){ 216.0f, 74.0f, 118.0f, 12.0f }
-            : (SIM_HudHD_Rect){ 216.0f, 44.0f, 118.0f, 12.0f },
+            ? (SIM_HudHD_Rect){ 236.0f, 52.0f, 98.0f, 10.0f }
+            : (SIM_HudHD_Rect){ 234.0f, 32.0f, 100.0f, 11.0f },
         anyEnemyCard && (battleType & BATTLE_TYPE_TRAINER), &frame.partyStrips[1]);
 
     if (sHud.activeSubscreen != NULL) {
