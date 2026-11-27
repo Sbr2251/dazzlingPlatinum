@@ -2,7 +2,7 @@
   "areaData": "area_data_084",
   "mapGroup": "TownsAndRoutes",
   "locationName": "LocationNames_Text_Route223",
-  "textBank": "TEXT_BANK_JUBILIFE_CITY",
+  "textBank": "TEXT_BANK_ROUTE_223",
   "popupStyle": "MAP_LABEL_WINDOW_WATER",
   "weather": "OVERWORLD_WEATHER_CLEAR",
   "cameraType": "CAMERA_TYPE_SLIGHTLY_ZOOMED_OUT",

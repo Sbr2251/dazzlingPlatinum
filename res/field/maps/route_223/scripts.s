@@ -1,8 +1,12 @@
 #include "macros/scrcmd.inc"
 #include "constants/totem_battle.h"
+#include "res/text/bank/route_223.h"
 
 
     ScriptEntry TotemKingdra_Encounter
+    ScriptEntry Route223_KingdraRift
+    ScriptEntry Route223_SummitPillar
+    ScriptEntry Route223_SummitTerrace
     ScriptEntryEnd
 
 TotemKingdra_Encounter:
@@ -26,6 +30,33 @@ TotemKingdra_Encounter:
 
 TotemKingdra_Encounter_LostBattle:
     BlackOutFromBattle
+    ReleaseAll
+    End
+
+Route223_KingdraRift:
+    PlaySE SE_CONFIRM_sseq_3
+    LockAll
+    Message Route223_Text_KingdraRift
+    WaitABPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+Route223_SummitPillar:
+    PlaySE SE_CONFIRM_sseq_3
+    LockAll
+    Message Route223_Text_SummitPillar
+    WaitABPadPress
+    CloseMessage
+    ReleaseAll
+    End
+
+Route223_SummitTerrace:
+    PlaySE SE_CONFIRM_sseq_3
+    LockAll
+    Message Route223_Text_SummitTerrace
+    WaitABPadPress
+    CloseMessage
     ReleaseAll
     End
 
