@@ -3527,6 +3527,46 @@ static int BattleSystem_Cursor_Menu(BattleSubscreen *btlSubscreen, BOOL cursorHi
         button = BattleSystem_MoveCursor(cursor, 1, 1, sBattleMenuButtonLayout[0]);
         break;
     default: // normal fight menu, with bag, run and pokemon
+        if (BattleHud_IsBdspCornerHud()) {
+            // BDSP corner HUD draws a vertical stack (FIGHT, POKEMON, BAG,
+            // RUN from the top), so UP/DOWN step through that visual order
+            // while keeping the DS (x, y) values each button expects
+            // (FIGHT=(0,0), POKEMON=(2,1), BAG=(0,1), RUN=(1,1)).
+            // LEFT/RIGHT do nothing.
+            static const u8 sBdspActionOrderX[4] = { 0, 2, 0, 1 };
+            static const u8 sBdspActionOrderY[4] = { 0, 1, 1, 1 };
+            int cur = 0;
+
+            for (int i = 0; i < 4; i++) {
+                if (cursor->x == sBdspActionOrderX[i] && cursor->y == sBdspActionOrderY[i]) {
+                    cur = i;
+                    break;
+                }
+            }
+
+            if (gSystem.pressedKeys & PAD_KEY_UP) {
+                if (cur > 0) {
+                    cur--;
+                    cursor->x = sBdspActionOrderX[cur];
+                    cursor->y = sBdspActionOrderY[cur];
+                    Sound_PlayEffect(SE_CONFIRM_sseq_3);
+                    button = PAD_KEY_UP;
+                }
+            } else if (gSystem.pressedKeys & PAD_KEY_DOWN) {
+                if (cur < 3) {
+                    cur++;
+                    cursor->x = sBdspActionOrderX[cur];
+                    cursor->y = sBdspActionOrderY[cur];
+                    Sound_PlayEffect(SE_CONFIRM_sseq_3);
+                    button = PAD_KEY_DOWN;
+                }
+            } else if (gSystem.pressedKeys & PAD_BUTTON_A) {
+                button = PAD_BUTTON_A;
+            } else if (gSystem.pressedKeys & PAD_BUTTON_B) {
+                button = PAD_BUTTON_B;
+            }
+            break;
+        }
         buttonId = sBattleMenuButtonLayout[cursor->y][cursor->x];
 
         if (!(buttonId == 3 && gSystem.pressedKeys & PAD_KEY_UP)) {
@@ -3678,7 +3718,83 @@ static int BattleSystem_Cursor_Moves(BattleSubscreen *btlSubscreen, BOOL cursorH
         buttonLayout[2][0] = 0x0;
     }
 
-    button = BattleSystem_MoveCursor(cursor, 2, 3, buttonLayout[0]);
+    if (BattleHud_IsBdspCornerHud()) {
+        // BDSP corner HUD stacks the moves vertically (M1..M4, then the
+        // MEGA/CANCEL row), so UP/DOWN walk that visual order while keeping
+        // the DS (x, y) values. LEFT/RIGHT only move along the bottom
+        // MEGA/CANCEL row; empty move slots are skipped.
+        u8 orderX[6];
+        u8 orderY[6];
+        int count = 0;
+        int cur = -1;
+
+        for (int i = 0; i < 4; i++) {
+            int mv = buttonLayout[i >> 1][i & 1];
+            if (mv < 1 || mv > 4 || moveData->moveIDs[mv - 1] == 0) {
+                continue;
+            }
+            if (cursor->x == (i & 1) && cursor->y == (i >> 1)) {
+                cur = count;
+            }
+            orderX[count] = (u8)(i & 1);
+            orderY[count] = (u8)(i >> 1);
+            count++;
+        }
+        if (moveData->megaEvolutionAvailable) {
+            if (cursor->x == 0 && cursor->y == 2) {
+                cur = count;
+            }
+            orderX[count] = 0;
+            orderY[count] = 2;
+            count++;
+        }
+        if (cursor->x == 1 && cursor->y == 2) {
+            cur = count;
+        }
+        orderX[count] = 1;
+        orderY[count] = 2;
+        count++;
+
+        if (cur < 0) {
+            cur = 0;
+        }
+
+        if (gSystem.pressedKeys & PAD_KEY_UP) {
+            if (cur > 0) {
+                cur--;
+                cursor->x = orderX[cur];
+                cursor->y = orderY[cur];
+                Sound_PlayEffect(SE_CONFIRM_sseq_3);
+                button = PAD_KEY_UP;
+            }
+        } else if (gSystem.pressedKeys & PAD_KEY_DOWN) {
+            if (cur < count - 1) {
+                cur++;
+                cursor->x = orderX[cur];
+                cursor->y = orderY[cur];
+                Sound_PlayEffect(SE_CONFIRM_sseq_3);
+                button = PAD_KEY_DOWN;
+            }
+        } else if (gSystem.pressedKeys & PAD_KEY_LEFT) {
+            if (cursor->y == 2 && cursor->x == 1 && moveData->megaEvolutionAvailable) {
+                cursor->x = 0;
+                Sound_PlayEffect(SE_CONFIRM_sseq_3);
+                button = PAD_KEY_LEFT;
+            }
+        } else if (gSystem.pressedKeys & PAD_KEY_RIGHT) {
+            if (cursor->y == 2 && cursor->x == 0 && moveData->megaEvolutionAvailable) {
+                cursor->x = 1;
+                Sound_PlayEffect(SE_CONFIRM_sseq_3);
+                button = PAD_KEY_RIGHT;
+            }
+        } else if (gSystem.pressedKeys & PAD_BUTTON_A) {
+            button = PAD_BUTTON_A;
+        } else if (gSystem.pressedKeys & PAD_BUTTON_B) {
+            button = PAD_BUTTON_B;
+        }
+    } else {
+        button = BattleSystem_MoveCursor(cursor, 2, 3, buttonLayout[0]);
+    }
 
     switch (button) {
     case PAD_KEY_UP:

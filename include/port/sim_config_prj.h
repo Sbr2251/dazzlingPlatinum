@@ -32,8 +32,10 @@ typedef struct {
     int fieldLoadRadius; // fx-wide: loaded land-block window width (2 = DS 2x2, 3 = 3x3); app default 3
     BOOL debugWideCamera; // fx-wide: 16:9 aspect, zoomed-out field camera so the extra loaded blocks are visible
     BOOL battleHud; // battlehud: battle menus mirrored on the top screen; app default on, headless off unless SIM_FX_BATTLEHUD=1
+    BOOL battleHudStyleHd; // bdsp-parity: BattleHudStyle=hd|pixel (TRUE = hd, FALSE = pixel); default hd when supported, headless pixel unless SIM_FX_HUDHD=1
     BOOL weatherFx; // Lane weather: fog/shafts/heat/rain/lightning post effects (GPU only)
     BOOL waterReflections; // Lane weather: pixelated water reflections + shoreline foam (GPU only)
+    BOOL battleSpriteSizingHeight; // BDSP per-species sprite height sizing; app default TRUE (height), headless FALSE unless SIM_FX_BDSP_SIZING=1
 } SIM_Config_prj_type;
 
 // True when the game runs logic at 60 Hz AND time-based quantities must be

@@ -1,6 +1,7 @@
 #include "battle/healthbox.h"
 #include "battle/battle_hud.h"
 #include "battle/mega_evolution.h"
+#include "port/sim_battle3d.h"
 
 #include <nitro.h>
 #include <stdlib.h>
@@ -621,6 +622,41 @@ static void HealthBox_BaseXY(u8 type, int *outX, int *outY)
 {
     const SpriteTemplate *template = HealthBox_MainSpriteTemplate(type);
 
+    if (SIM_Battle3D_IsEnabled()) {
+        switch (type) {
+        case HEALTHBOX_TYPE_PLAYER_SOLO:
+        case HEALTHBOX_TYPE_SAFARI_ZONE:
+        case HEALTHBOX_TYPE_PAL_PARK:
+            // bdsp-fix: tucked into the corner (was 64,158) so it clears the
+            // player's back sprite, which moved right (BdspSpriteOffset).
+            *outX = 58;
+            *outY = 164;
+            return;
+        case HEALTHBOX_TYPE_ENEMY_SOLO:
+            *outX = 276;
+            *outY = 22;
+            return;
+        case HEALTHBOX_TYPE_PLAYER_SLOT_1:
+            *outX = 64;
+            *outY = 132;
+            return;
+        case HEALTHBOX_TYPE_PLAYER_SLOT_2:
+            *outX = 70;
+            *outY = 160;
+            return;
+        case HEALTHBOX_TYPE_ENEMY_SLOT_1:
+            *outX = 276;
+            *outY = 16;
+            return;
+        case HEALTHBOX_TYPE_ENEMY_SLOT_2:
+            *outX = 270;
+            *outY = 46;
+            return;
+        default:
+            break;
+        }
+    }
+
     if (BattleHud_IsWidePixelMode()) {
         switch (type) {
         case HEALTHBOX_TYPE_PLAYER_SOLO:
@@ -1072,14 +1108,36 @@ static void HealthBox_EnableArrow(HealthBox *battleSys, BOOL enable)
     ManagedSprite_SetDrawFlag(battleSys->arrowSprite, enable);
 }
 
-void HealthBox_Enable(HealthBox *battleSys, BOOL enable)
+void HealthBox_Enable(HealthBox *healthbox, BOOL enable)
 {
-    if (battleSys->mainSprite == NULL) {
+    healthbox->hdVisible = enable ? 1 : 0;
+
+    if (healthbox->mainSprite == NULL) {
         return;
     }
 
-    ManagedSprite_SetDrawFlag(battleSys->mainSprite, enable);
-    HealthBox_EnableArrow(battleSys, enable);
+    if (BattleHud_IsHdMode()) {
+        ManagedSprite_SetDrawFlag(healthbox->mainSprite, FALSE);
+        HealthBox_EnableArrow(healthbox, FALSE);
+        return;
+    }
+
+    ManagedSprite_SetDrawFlag(healthbox->mainSprite, enable);
+    HealthBox_EnableArrow(healthbox, enable);
+}
+
+BOOL HealthBox_IsVisible(const HealthBox *healthbox)
+{
+    if (healthbox == NULL) {
+        return FALSE;
+    }
+    if (BattleHud_IsHdMode()) {
+        return healthbox->hdVisible ? TRUE : FALSE;
+    }
+    if (healthbox->mainSprite == NULL) {
+        return FALSE;
+    }
+    return ManagedSprite_GetDrawFlag(healthbox->mainSprite) ? TRUE : FALSE;
 }
 
 void HealthBox_OffsetPositionXY(HealthBox *healthbox, int x, int y)
@@ -1099,7 +1157,8 @@ void HealthBox_OffsetPositionXY(HealthBox *healthbox, int x, int y)
 
 void HealthBox_Scroll(HealthBox *healthbox, enum HealthBoxScrollDirection direction)
 {
-    int scrollOut = BattleHud_IsWidePixelMode() ? 128 : HEALTHBOX_SCROLL_OUT_OFFSET;
+    BOOL bdsp3d = SIM_Battle3D_IsEnabled();
+    int scrollOut = (bdsp3d || BattleHud_IsWidePixelMode()) ? 128 : HEALTHBOX_SCROLL_OUT_OFFSET;
 
     GF_ASSERT(healthbox != NULL);
     GF_ASSERT(healthbox->mainSprite != NULL);
@@ -1114,13 +1173,13 @@ void HealthBox_Scroll(HealthBox *healthbox, enum HealthBoxScrollDirection direct
         case HEALTHBOX_TYPE_PLAYER_SLOT_2:
         case HEALTHBOX_TYPE_SAFARI_ZONE:
         case HEALTHBOX_TYPE_PAL_PARK:
-            // Player-side healthbox
-            HealthBox_OffsetPositionXY(healthbox, scrollOut, 0);
+            // Player-side healthbox (left corner in BDSP, right side in classic/wide)
+            HealthBox_OffsetPositionXY(healthbox, bdsp3d ? -scrollOut : scrollOut, 0);
             break;
 
         default:
-            // Enemy-side healthbox
-            HealthBox_OffsetPositionXY(healthbox, -scrollOut, 0);
+            // Enemy-side healthbox (right corner in BDSP, left side in classic/wide)
+            HealthBox_OffsetPositionXY(healthbox, bdsp3d ? scrollOut : -scrollOut, 0);
             break;
         }
     } else {
@@ -1141,7 +1200,8 @@ static void Healthbox_Task_Scroll(SysTask *task, void *data)
     HealthBox *healthbox = data;
     int done = 0;
     int baseX, baseY;
-    int scrollOut = BattleHud_IsWidePixelMode() ? 128 : HEALTHBOX_SCROLL_OUT_OFFSET;
+    BOOL bdsp3d = SIM_Battle3D_IsEnabled();
+    int scrollOut = (bdsp3d || BattleHud_IsWidePixelMode()) ? 128 : HEALTHBOX_SCROLL_OUT_OFFSET;
 
     HealthBox_BaseXY(healthbox->type, &baseX, &baseY);
 
@@ -1156,7 +1216,23 @@ static void Healthbox_Task_Scroll(SysTask *task, void *data)
     case HEALTHBOX_TYPE_SAFARI_ZONE:
     case HEALTHBOX_TYPE_PAL_PARK:
         // Player-side healthbox
-        if (healthbox->scrollDirection == HEALTHBOX_SCROLL_IN) {
+        if (bdsp3d) {
+            if (healthbox->scrollDirection == HEALTHBOX_SCROLL_IN) {
+                x += HEALTHBOX_SCROLL_SPEED;
+
+                if (x > baseX) {
+                    x = baseX;
+                    done++;
+                }
+            } else {
+                x -= HEALTHBOX_SCROLL_SPEED;
+
+                if (x < baseX - scrollOut) {
+                    x = baseX - scrollOut;
+                    done++;
+                }
+            }
+        } else if (healthbox->scrollDirection == HEALTHBOX_SCROLL_IN) {
             x -= HEALTHBOX_SCROLL_SPEED;
 
             if (x < baseX) {
@@ -1175,7 +1251,23 @@ static void Healthbox_Task_Scroll(SysTask *task, void *data)
 
     default:
         // Enemy-side healthbox
-        if (healthbox->scrollDirection == HEALTHBOX_SCROLL_IN) {
+        if (bdsp3d) {
+            if (healthbox->scrollDirection == HEALTHBOX_SCROLL_IN) {
+                x -= HEALTHBOX_SCROLL_SPEED;
+
+                if (x < baseX) {
+                    x = baseX;
+                    done++;
+                }
+            } else {
+                x += HEALTHBOX_SCROLL_SPEED;
+
+                if (x > baseX + scrollOut) {
+                    x = baseX + scrollOut;
+                    done++;
+                }
+            }
+        } else if (healthbox->scrollDirection == HEALTHBOX_SCROLL_IN) {
             x += HEALTHBOX_SCROLL_SPEED;
 
             if (x > baseX) {

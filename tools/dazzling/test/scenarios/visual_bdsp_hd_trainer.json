@@ -1,0 +1,146 @@
+{
+ "name": "visual_bdsp_hd_trainer",
+ "env": {
+  "SIM_FX_BATTLEHUD": "1",
+  "SIM_FX_BDSP_BATTLE": "1",
+  "SIM_FX_WIDE": "1",
+  "SIM_FX_HUDHD": "1",
+  "SIM_RENDERER": "gpu",
+  "SIM_FX_BDSP_SIZING": "1"
+ },
+ "config": {
+  "ScreenLayout": "wide"
+ },
+ "start": {
+  "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+ },
+ "steps": [
+  {
+   "step": 900
+  },
+  {
+   "frames": 10,
+   "press": "A"
+  },
+  {
+   "step": 290
+  },
+  {
+   "frames": 10,
+   "press": "A"
+  },
+  {
+   "step": 290
+  },
+  {
+   "frames": 10,
+   "press": "A"
+  },
+  {
+   "step": 290
+  },
+  {
+   "frames": 10,
+   "press": "A"
+  },
+  {
+   "step": 290
+  },
+  {
+   "frames": 10,
+   "press": "A"
+  },
+  {
+   "step": 290
+  },
+  {
+   "frames": 10,
+   "press": "A"
+  },
+  {
+   "step": 290
+  },
+  {
+   "frames": 10,
+   "press": "A"
+  },
+  {
+   "step": 290
+  },
+  {
+   "frames": 10,
+   "press": "A"
+  },
+  {
+   "step": 290
+  },
+  {
+   "step": 600
+  },
+  {
+   "warp": {
+    "map": "MAP_HEADER_ROUTE_202",
+    "x": 160,
+    "z": 810,
+    "dir": "DIR_EAST"
+   }
+  },
+  {
+   "step": 120
+  },
+  {
+   "talk": "LOCALID_YOUNGSTER_TRISTAN"
+  },
+  {
+   "frames": 10,
+   "press": "A"
+  },
+  {
+   "step": 180
+  },
+  {
+   "frames": 10,
+   "press": "A"
+  },
+  {
+   "step": 120
+  },
+  {
+   "frames": 10,
+   "press": "A"
+  },
+  {
+   "step": 120
+  },
+  {
+   "frames": 10,
+   "press": "A"
+  },
+  {
+   "step": 120
+  },
+  {
+   "frames": 10,
+   "press": "A"
+  },
+  {
+   "timeout_frames": 7200,
+   "wait_until": {
+    "op": "eq",
+    "path": "battle.waiting",
+    "value": true
+   }
+  },
+  {
+   "step": 60
+  },
+  {
+   "screenshot": "hd_trainer",
+   "reference": "../references/visual/visual_bdsp_hd_trainer.bmp",
+   "tolerance": 0.0
+  }
+ ],
+ "requires_exists": [
+  "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+ ]
+}

@@ -122,7 +122,9 @@ struct PokemonSprite {
     u32 needReloadChar : 1;
     u32 needReloadPltt : 1;
     u32 cut : 1; // frame 0 has pixels on its bottom row (set at each char load)
-    u32 padding_00_10 : 22;
+    u32 opaqueTop : 7;
+    u32 opaqueBottom : 7;
+    u32 padding_00_10 : 8;
     PokemonSpriteTemplate template;
     PokemonSpriteTemplate templateBackup;
     PokemonSpriteTransforms transforms;

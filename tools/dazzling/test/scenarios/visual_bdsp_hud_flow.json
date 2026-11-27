@@ -1,0 +1,299 @@
+{
+ "_note": "BDSP corner HUD (bdsp-fix 2026-11-26): wild Infernape vs Bibarel. Player back sprite clear of the bottom-left card; d-pad walks the vertical action stack (first press shows the cursor); move stack; bag open (healthboxes hidden) -> back (wide 2D canvas restored, cursor on BAG); party open -> back.",
+ "config": {
+  "ScreenLayout": "wide"
+ },
+ "env": {
+  "SIM_FX_BATTLEHUD": "1",
+  "SIM_FX_BDSP_BATTLE": "1",
+  "SIM_FX_WIDE": "1",
+  "SIM_RENDERER": "gpu"
+ },
+ "name": "visual_bdsp_hud_flow",
+ "requires_exists": [
+  "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+ ],
+ "start": {
+  "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+ },
+ "steps": [
+  {
+   "step": 900
+  },
+  {
+   "frames": 10,
+   "press": "A"
+  },
+  {
+   "step": 290
+  },
+  {
+   "frames": 10,
+   "press": "A"
+  },
+  {
+   "step": 290
+  },
+  {
+   "frames": 10,
+   "press": "A"
+  },
+  {
+   "step": 290
+  },
+  {
+   "frames": 10,
+   "press": "A"
+  },
+  {
+   "step": 290
+  },
+  {
+   "frames": 10,
+   "press": "A"
+  },
+  {
+   "step": 290
+  },
+  {
+   "frames": 10,
+   "press": "A"
+  },
+  {
+   "step": 290
+  },
+  {
+   "frames": 10,
+   "press": "A"
+  },
+  {
+   "step": 290
+  },
+  {
+   "frames": 10,
+   "press": "A"
+  },
+  {
+   "step": 290
+  },
+  {
+   "step": 600
+  },
+  {
+   "start_battle": {
+    "spec": "../../../battle/specs/bdsp_infernape_vs_bibarel.json"
+   }
+  },
+  {
+   "timeout_frames": 7200,
+   "wait_until": {
+    "op": "eq",
+    "path": "battle.waiting",
+    "value": true
+   }
+  },
+  {
+   "step": 120
+  },
+  {
+   "reference": "../references/visual/visual_bdsp_action.bmp",
+   "screenshot": "visual_bdsp_action",
+   "tolerance": 0.0
+  },
+  {
+   "frames": 10,
+   "press": "DOWN"
+  },
+  {
+   "step": 30
+  },
+  {
+   "reference": "../references/visual/visual_bdsp_dpad1.bmp",
+   "screenshot": "visual_bdsp_dpad1",
+   "tolerance": 0.0
+  },
+  {
+   "frames": 10,
+   "press": "DOWN"
+  },
+  {
+   "step": 30
+  },
+  {
+   "reference": "../references/visual/visual_bdsp_dpad2.bmp",
+   "screenshot": "visual_bdsp_dpad2",
+   "tolerance": 0.0
+  },
+  {
+   "frames": 10,
+   "press": "DOWN"
+  },
+  {
+   "step": 30
+  },
+  {
+   "reference": "../references/visual/visual_bdsp_dpad3.bmp",
+   "screenshot": "visual_bdsp_dpad3",
+   "tolerance": 0.0
+  },
+  {
+   "frames": 10,
+   "press": "UP"
+  },
+  {
+   "step": 30
+  },
+  {
+   "frames": 10,
+   "press": "UP"
+  },
+  {
+   "step": 30
+  },
+  {
+   "frames": 10,
+   "press": "UP"
+  },
+  {
+   "step": 30
+  },
+  {
+   "reference": "../references/visual/visual_bdsp_back_fight.bmp",
+   "screenshot": "visual_bdsp_back_fight",
+   "tolerance": 0.0
+  },
+  {
+   "frames": 10,
+   "press": "A"
+  },
+  {
+   "step": 60
+  },
+  {
+   "reference": "../references/visual/visual_bdsp_moves.bmp",
+   "screenshot": "visual_bdsp_moves",
+   "tolerance": 0.0
+  },
+  {
+   "frames": 10,
+   "press": "DOWN"
+  },
+  {
+   "step": 30
+  },
+  {
+   "reference": "../references/visual/visual_bdsp_move1.bmp",
+   "screenshot": "visual_bdsp_move1",
+   "tolerance": 0.0
+  },
+  {
+   "frames": 10,
+   "press": "B"
+  },
+  {
+   "step": 30
+  },
+  {
+   "timeout_frames": 7200,
+   "wait_until": {
+    "op": "eq",
+    "path": "battle.waiting",
+    "value": true
+   }
+  },
+  {
+   "step": 60
+  },
+  {
+   "frames": 10,
+   "press": "DOWN"
+  },
+  {
+   "step": 30
+  },
+  {
+   "frames": 10,
+   "press": "DOWN"
+  },
+  {
+   "step": 30
+  },
+  {
+   "frames": 10,
+   "press": "A"
+  },
+  {
+   "step": 120
+  },
+  {
+   "reference": "../references/visual/visual_bdsp_bag_open.bmp",
+   "screenshot": "visual_bdsp_bag_open",
+   "tolerance": 0.0
+  },
+  {
+   "frames": 10,
+   "press": "B"
+  },
+  {
+   "step": 60
+  },
+  {
+   "timeout_frames": 7200,
+   "wait_until": {
+    "op": "eq",
+    "path": "battle.waiting",
+    "value": true
+   }
+  },
+  {
+   "step": 60
+  },
+  {
+   "reference": "../references/visual/visual_bdsp_bag_back.bmp",
+   "screenshot": "visual_bdsp_bag_back",
+   "tolerance": 0.0
+  },
+  {
+   "frames": 10,
+   "press": "UP"
+  },
+  {
+   "step": 30
+  },
+  {
+   "frames": 10,
+   "press": "A"
+  },
+  {
+   "step": 120
+  },
+  {
+   "reference": "../references/visual/visual_bdsp_party_open.bmp",
+   "screenshot": "visual_bdsp_party_open",
+   "tolerance": 0.0
+  },
+  {
+   "frames": 10,
+   "press": "B"
+  },
+  {
+   "step": 60
+  },
+  {
+   "timeout_frames": 7200,
+   "wait_until": {
+    "op": "eq",
+    "path": "battle.waiting",
+    "value": true
+   }
+  },
+  {
+   "step": 60
+  },
+  {
+   "reference": "../references/visual/visual_bdsp_party_back.bmp",
+   "screenshot": "visual_bdsp_party_back",
+   "tolerance": 0.0
+  }
+ ]
+}

@@ -1166,7 +1166,7 @@ void BattleStage_ScriptHealthbars(BOOL visible)
     for (i = 0; i < MaxBattlers(); i++) {
         healthbar = BattlerData_GetHealthBox(BattleSystem_GetBattlerData(sStageCamera.battleSys, i));
 
-        if (healthbar->mainSprite != NULL && ManagedSprite_GetDrawFlag(healthbar->mainSprite)) {
+        if (healthbar->mainSprite != NULL && HealthBox_IsVisible(healthbar)) {
             HealthBox_Enable(healthbar, FALSE);
             sStageCamera.scriptHidHealthbars |= 1 << i;
         }
@@ -1606,4 +1606,34 @@ void BattleStage_FaintKick(int battler)
     goal.pitch = FX32_CONST(-3);
     sStageCamera.fields->cinematicsSeen |= BATTLE_STAGE_CINEMATIC_FAINT;
     StartSequence(&goal, SCREEN_FRAMES(6), 2, SCREEN_FRAMES(10), 0, SCREEN_FRAMES(12));
+}
+
+void BattleStageCamera_GetBdspDeltas(float *yawDeg, float *pitchDeg, float *distScale, float *fovScale, float *shakeX, float *shakeY, int *isIdle)
+{
+    int dx = 0;
+    int dy = 0;
+
+    if (!sStageCamera.hasHome) {
+        *yawDeg = 0.0f;
+        *pitchDeg = 0.0f;
+        *distScale = 1.0f;
+        *fovScale = 1.0f;
+        *shakeX = 0.0f;
+        *shakeY = 0.0f;
+        *isIdle = 1;
+        return;
+    }
+
+    *yawDeg = (float)sStageCamera.cur.yaw / (float)FX32_ONE;
+    *pitchDeg = (float)sStageCamera.cur.pitch / (float)FX32_ONE;
+    *distScale = (float)sStageCamera.cur.distance / (float)FX32_ONE;
+    *fovScale = (float)sStageCamera.cur.fov / (float)FX32_ONE;
+
+    if (IsShaking() || IsBackdropShaking()) {
+        ShakePixels(&dx, &dy);
+    }
+
+    *shakeX = (float)dx;
+    *shakeY = (float)dy;
+    *isIdle = (sStageCamera.atHome || sStageCamera.sequence == SEQUENCE_IDLE) ? 1 : 0;
 }

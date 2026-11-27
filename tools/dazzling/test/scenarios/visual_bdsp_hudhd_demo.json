@@ -1,0 +1,35 @@
+{
+ "_note": "BDSP HD HUD render-lane demo (SIM_HUDHD_DEMO=1) over wide GPU output.",
+ "config": {
+  "InternalResolutionScale": "4",
+  "ScreenLayout": "wide"
+ },
+ "env": {
+  "SIM_FX_BATTLEHUD": "1",
+  "SIM_FX_BDSP_BATTLE": "1",
+  "SIM_FX_WIDE": "1",
+  "SIM_HUDHD_DEMO": "1",
+  "SIM_RENDERER": "gpu"
+ },
+ "name": "visual_bdsp_hudhd_demo",
+ "requires_exists": [
+  "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+ ],
+ "start": {
+  "save": "~/Downloads/dazzling_platinum_test_saves_v2/raw_sav/A1-03_route201_to_sandgem.sav"
+ },
+ "steps": [
+  {
+   "step": 60
+  },
+  {
+   "reference": "../references/visual/visual_bdsp_hudhd_demo.bmp",
+   "screenshot": "visual_bdsp_hudhd_demo",
+   "tolerance": 0.01
+  }
+ ],
+ "tags": [
+  "visual",
+  "battle"
+ ]
+}

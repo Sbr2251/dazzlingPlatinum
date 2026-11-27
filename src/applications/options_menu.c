@@ -113,6 +113,7 @@ enum OptionsWideRowID {
     WIDE_ROW_BATTLE_SPEED,
     WIDE_ROW_MEGA_CUTSCENE,
     WIDE_ROW_BATTLE_HUD,
+    WIDE_ROW_HUD_STYLE,
     WIDE_ROW_CINEMATICS,
 
     WIDE_ROW_VOLUME,
@@ -136,6 +137,7 @@ enum OptionsWideOptIdx {
     WIDE_OPT_BATTLE_SPEED,
     WIDE_OPT_MEGA_CUTSCENE,
     WIDE_OPT_BATTLE_HUD,
+    WIDE_OPT_HUD_STYLE,
     WIDE_OPT_CINEMATICS,
     WIDE_OPT_VOLUME,
     WIDE_OPT_3D_RES,
@@ -1341,6 +1343,7 @@ static const u8 sWideTab1Rows[] = {
     WIDE_ROW_BATTLE_SPEED,
     WIDE_ROW_MEGA_CUTSCENE,
     WIDE_ROW_BATTLE_HUD,
+    WIDE_ROW_HUD_STYLE,
     WIDE_ROW_CINEMATICS,
     WIDE_ROW_CLOSE,
 };
@@ -1405,6 +1408,12 @@ static const WideOptMeta sWideOptMeta[WIDE_OPT_COUNT] = {
         "Display the wide battle command HUD\ndirectly on the main screen.",
         2,
         { "ON", "OFF", NULL, NULL, NULL },
+    },
+    [WIDE_OPT_HUD_STYLE] = {
+        "HUD STYLE",
+        "Choose BDSP-style HD battle HUD\nor classic pixel-art battle HUD.",
+        2,
+        { "HD", "PIXEL", NULL, NULL, NULL },
     },
     [WIDE_OPT_CINEMATICS] = {
         "CINEMATICS",
@@ -1669,6 +1678,7 @@ static void WideSnapshotConfig(OptionsMenuData *menuData)
     }
     menuData->wideInitial[WIDE_OPT_MEGA_CUTSCENE] = prj->megaCinematicShort ? 1 : 0;
     menuData->wideInitial[WIDE_OPT_BATTLE_HUD] = prj->battleHud ? 0 : 1;
+    menuData->wideInitial[WIDE_OPT_HUD_STYLE] = prj->battleHudStyleHd ? 0 : 1;
     menuData->wideInitial[WIDE_OPT_CINEMATICS] = prj->overworldCinematics ? 0 : 1;
 
     menuData->wideInitial[WIDE_OPT_VOLUME] = WideVolumeToChoice(simCfg->masterVolume);
@@ -1804,6 +1814,10 @@ static void WideApplyAndSaveOrRevert(OptionsMenuData *menuData, BOOL *outLayoutC
         }
         if (menuData->wideSelected[WIDE_OPT_BATTLE_HUD] != menuData->wideInitial[WIDE_OPT_BATTLE_HUD]) {
             prj->battleHud = (menuData->wideSelected[WIDE_OPT_BATTLE_HUD] == 0) ? TRUE : FALSE;
+            prjDirty = TRUE;
+        }
+        if (menuData->wideSelected[WIDE_OPT_HUD_STYLE] != menuData->wideInitial[WIDE_OPT_HUD_STYLE]) {
+            prj->battleHudStyleHd = (menuData->wideSelected[WIDE_OPT_HUD_STYLE] == 0) ? TRUE : FALSE;
             prjDirty = TRUE;
         }
         if (menuData->wideSelected[WIDE_OPT_CINEMATICS] != menuData->wideInitial[WIDE_OPT_CINEMATICS]) {
