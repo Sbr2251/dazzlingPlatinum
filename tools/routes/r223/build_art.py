@@ -27,11 +27,14 @@ horns that frame the 3-tile Surf channel (x 846..848) running north to the plung
            Rift Resonance Seal is a half-submerged ring of 12 carved rim blocks (rune-inlaid tops just above the
            water, white foam lapping inside and out) in the channel between them. The channel stays open water.
   MAP_094  Kingdra Sea-Rift Rock: the 6-sided twisted Rift Crystal spire, base crystals and orbiting shards on
-           rock 850..855 x 692..697, now in clean flat facets; a fractured rune ring floating around the spire; a
-           carved stone landing x 851..852 z 698 (h 0.0) on the reading tiles south of the rock with a step up.
+           rock 850..855 x 692..697, in clean flat facets; three faceted crystal arcs orbiting the spire as a broken
+           halo; a carved stone landing x 851..852 z 698 (h 0.0) on the reading tiles south of the rock with a step up.
   MAP_093  a mid-route crystal cluster on the central island rock.
-  MAP_095  South Sea Approach: two crystal outcrops and a carved stone landing on the shallow apron east of the
-           rock at x 849..850 z 726..729 (was shallow water 0x17; h 0.0, holds the Heart Scale hidden item tile).
+  MAP_095  South Sea Approach: two crystal outcrops and a carved stone landing east of the rock at x 849..850
+           z 726..729 (was shallow water 0x17; h 0.0, holds the Heart Scale hidden item tile), foam round the landing
+           and the rock's waterline.
+  All four: the stock shallow-sea overlay (asasea, a hard-edged translucent box under the storm light) is redrawn
+           as plain sea (shallows_to_sea); no glyph-band rift cracks or rune-band halo cards.
 
 Stock shapes keep their display lists and materials byte for byte (new materials and shapes are appended); props
 are untouched; permissions and BDHC change only on the LANDINGS tiles (behaviour 0x0000 walkable, BDHC plate at
@@ -369,6 +372,38 @@ def cracks(B, x0, z0, x1, z1, h, group="cracks", flip=False):
           solid=False, decal="rock")
 
 
+def crystal_arcs(B, c, r, tilt, yaw, arcs=((0.35, 1.75), (2.45, 3.85), (4.55, 5.95)), thick=0.085, segs=6,
+                 group="arcs"):
+    """Clean stylized crystal arcs: each arc a diamond-section blade swept around a tilted circle of radius r about
+    c, tapering to a point at both ends, built from flat crystal facets (fill only at this width: crisp edges, no
+    1-px sparkle). The arcs together read as a broken halo around the spire."""
+    nrm = norm((math.sin(yaw) * math.sin(tilt), math.cos(tilt), math.cos(yaw) * math.sin(tilt)))
+    e1 = norm(cross(nrm, (0.0, 0.0, 1.0)))
+    e2 = norm(cross(e1, nrm))
+    hs = []
+    for a0, a1 in arcs:
+        secs, axis = [], []
+        for i in range(segs + 1):
+            a = a0 + (a1 - a0) * i / segs
+            rad = add(mul(e1, math.sin(a)), mul(e2, math.cos(a)))
+            ctr = add(c, mul(rad, r))
+            k = thick * math.sin(math.pi * i / segs) ** 0.6
+            secs.append([add(ctr, mul(rad, k)), add(ctr, mul(nrm, k)), sub(ctr, mul(rad, k)), sub(ctr, mul(nrm, k))])
+            axis.append(ctr)
+            hs.append(ctr[1])
+        h0, h1 = min(hs) - thick, max(hs) + thick
+        for i in range(segs):
+            inside = mul(add(axis[i], axis[i + 1]), 0.5)
+            for j in range(4):
+                k = (j + 1) % 4
+                if i == 0:
+                    crystal_face(B, [secs[1][k], secs[1][j], axis[0]], inside, h0, h1, group)
+                elif i == segs - 1:
+                    crystal_face(B, [secs[i][j], secs[i][k], axis[segs]], inside, h0, h1, group)
+                else:
+                    crystal_face(B, [secs[i][j], secs[i][k], secs[i + 1][k], secs[i + 1][j]], inside, h0, h1, group)
+
+
 def floating_ring(B, c, r0, r1, tilt, yaw, segs=28, repeats=7, gaps=(4, 5, 13, 21, 22), group="ring"):
     """The fractured rune ring floating around the Kingdra spire: a tilted double-sided band (rows 12..19 of
     r223_chain), broken at `gaps` segments."""
@@ -619,6 +654,26 @@ def drop_buried_boulders(edit, rects):
     return names, len([1 for m in blobs.values() if faces[m[0]][1] in doomed])
 
 
+def shallows_to_sea(edit):
+    """The stock shallow-sea overlay (texture asasea) reads as a hard-edged translucent lavender box under the rift
+    storm lighting. Its faces fill holes cut in the sea surface, so they move, unchanged (same h -0.5 positions, same
+    world-aligned 1-repeat-per-tile UVs as the sea), into the stock sea shape and are drawn with the stock sea
+    material (seamless, animated with the rest of the sea); the emptied asasea shape is removed. Permissions keep
+    the stock shallow behaviour. -> names of the two edited stock shapes."""
+    sea = [si for si, tex, pal in edit.iter_shapes() if tex == "sea"]
+    sha = [si for si, tex, pal in edit.iter_shapes() if tex == "asasea"]
+    if not sha:
+        return set()
+    assert len(sea) == 1, "expected one stock sea shape"
+    st, sq = edit._faces(sea[0])
+    for si in sha:
+        t, q = edit._faces(si)
+        st, sq = st + t, sq + q
+        edit.faces[si] = ([], [])
+    edit.faces[sea[0]] = (st, sq)
+    return {edit.model["shapes"][si]["name"] for si in sea + sha}
+
+
 def blocked(perm, cx, cz, x, z):
     lx, lz = x - cx * 32, z - cz * 32
     if not (0 <= lx < 32 and 0 <= lz < 32):
@@ -780,10 +835,6 @@ def build_092(B, edit, perm, tops):
     # loose chain lengths lying across the lower terraces' paving
     chain_flat(B, (844.25, 612.35), (845.45, 613.45), STEP_H + 0.006)
     chain_flat(B, (849.45, 613.25), (850.6, 614.35), STEP_H + 0.006)
-    # glowing rift cracks on the flat outer rock tops
-    cracks(B, 839.1, 608.1, 840.9, 609.9, 0.53)
-    cracks(B, 852.1, 608.1, 853.9, 608.9, 0.53, flip=True)
-    cracks(B, 850.1, 609.1, 853.9, 609.9, 0.53)
     # the Rift Resonance Seal: a half-submerged carved stone ring in the channel, foam lapping inside and out
     stone_ring(B, SEAL, SEAL_R[0], SEAL_R[1])
     foam_ring(B, SEAL, SEAL_R[1], SEAL_R[1] + 0.28)
@@ -817,14 +868,10 @@ def build_094(B, edit, perm, tops):
         hh = top + 1.1 + 0.3 * k
         bipyramid(B, (sx + rr * math.sin(a), hh, sz + rr * math.cos(a) * 0.75), 0.13 + 0.03 * (k % 3),
                   0.24 + 0.04 * (k % 2), a, tilt=0.35 + 0.1 * k, group="shards")
-    # the fractured rune ring floating around the spire (no longer a decal on the water)
-    floating_ring(B, (sx, top + 1.45, sz), 1.42, 1.68, tilt=0.22, yaw=2.6)
-    # rift cracks on the rock top
-    cracks(B, 852.2, 692.2, 855.8, 692.95, top + 0.03, flip=True)
-    cracks(B, 850.15, 695.2, 853.6, 696.0, top + 0.03)
+    # three clean faceted crystal arcs orbiting the spire (a broken halo: solid flat facets, no glyph band)
+    crystal_arcs(B, (sx, top + 1.45, sz), 1.55, tilt=0.22, yaw=2.6)
     # carved stone landing on the reading tiles south of the rock, with a step up onto the rock
     block(B, 851.03, 852.97, 698.0, 698.97, LAND_H, faces="sew", band="riser", group="landing")
-    block(B, 851.03, 852.97, 698.77, 698.97, LAND_H + 0.004, h0=LAND_H, top="rune", faces="", group="landing_inlay")
     block(B, 851.15, 852.85, 697.6, 698.0, 0.25, h0=LAND_H, faces="sew", band="riser", group="steps")
     post(B, 851.17, 698.15, LAND_H, 0.42, r=0.11, crystal=True, group="posts")
     post(B, 852.83, 698.15, LAND_H, 0.42, r=0.11, crystal=True, group="posts")
@@ -833,14 +880,22 @@ def build_094(B, edit, perm, tops):
     return info
 
 
+# the stock rock's waterline (criffp base ring at h SEA_H), from the south-east corner by the landing round to the
+# north-east corner, water on the left
+ROCK_095_SHORE = [(849.0, 729.97), (848.5, 729.875), (848.0, 730.0), (847.0, 730.0), (846.5, 729.875),
+                  (846.125, 729.5), (846.0, 729.0), (846.0, 727.0), (846.125, 726.5), (846.5, 726.125), (847.0, 726.0),
+                  (848.0, 726.0), (848.5, 726.125), (849.0, 726.03)]
+
+
 def build_095(B, edit, perm, tops):
-    """South Sea Approach landing on the shallow apron east of rock 846..848 x 726..729."""
-    block(B, 849.0, 850.97, 726.03, 729.97, LAND_H, faces="se", band="riser", group="landing")
-    block(B, 850.76, 850.97, 726.03, 729.97, LAND_H + 0.004, h0=LAND_H, top="rune", faces="", group="landing_inlay")
-    block(B, 848.62, 849.0, 726.4, 729.6, 0.25, h0=LAND_H, faces="se", band="riser", group="steps")
+    """South Sea Approach: a carved basalt landing east of rock 846..848 x 726..729 (on the stock shallow tiles), a
+    step up onto the rock, corner posts, and soft white foam lapping round the landing and the rock's waterline."""
+    block(B, 849.0, 850.97, 726.03, 729.97, LAND_H, faces="nse", band="riser", group="landing")
+    block(B, 848.62, 849.0, 726.4, 729.6, 0.25, h0=LAND_H, faces="nse", band="riser", group="steps")
     post(B, 850.83, 726.17, LAND_H, 0.42, r=0.11, crystal=True, group="posts")
     post(B, 849.17, 726.17, LAND_H, 0.42, r=0.11, group="posts")
     foam_outline(B, [(849.0, 726.03), (850.97, 726.03), (850.97, 729.97), (849.0, 729.97)], closed=False)
+    foam_outline(B, ROCK_095_SHORE, closed=False, width=0.3, phase=1, group="shore_foam")
     return {}
 
 
@@ -1056,6 +1111,7 @@ def build_all(tex):
         tops = stock_tops(edit)
         boulders = boulder_tiles(edit)
         edited, buried = drop_buried_boulders(edit, TERRACE_RECTS.get(n, []))
+        shallows = shallows_to_sea(edit)
         B = Builder(tex)
         info = {}
         if n == 92:
@@ -1071,8 +1127,8 @@ def build_all(tex):
         bdhc = landing_bdhc(edit.sec["bdhc"], n)
         data = mapdata.pack(mapdata.write_permissions(perm), edit.sec["props"], model, bdhc)
         out[n] = dict(edit=edit, B=B, perm=perm, stock_perm=stock_perm, model=model, data=data, info=info, tops=tops,
-                      rel=rel, boulders=boulders, stats=edit.stats(model), evt=evt, bdhc=bdhc, edited=edited,
-                      buried=buried)
+                      rel=rel, boulders=boulders, stats=edit.stats(model), evt=evt, bdhc=bdhc,
+                      edited=edited | shallows, buried=buried, shallows=shallows)
     return out, ev
 
 
@@ -1096,7 +1152,12 @@ def run_checks(out, tex, ev):
         res.append((f"{n:03d} BDHC read -> write byte-identical", bdhc_rt))
         bad = C.stock_shapes_identical(edit.model, edit.built, o["edited"])
         res.append((f"{n:03d} every stock shape and material byte-identical except the {o['buried']} sea boulders "
-                    f"buried under the terraces (shapes {sorted(o['edited'])}) {bad if bad else ''}", not bad))
+                    f"buried under the terraces and the shallow overlay moved into the sea (shapes "
+                    f"{sorted(o['edited'])}) {bad if bad else ''}", not bad))
+        sh = [s for s in edit.built["shapes"]
+              for mi, si in nsbmd.shape_material_pairs(edit.built)
+              if edit.built["shapes"][si] is s and edit.built["materials"][mi]["texture"] == "asasea"]
+        res.append((f"{n:03d} no shallow-sea (asasea) overlay left in the chunk", not sh))
         res.append((f"{n:03d} props identical to stock", sec["props"] == stock["props"]))
         sp, np_ = mapdata.read_permissions(stock["permissions"]), mapdata.read_permissions(sec["permissions"])
         diff = sorted((cx * 32 + lx, cz * 32 + lz) for lz in range(32) for lx in range(32) if sp[lz][lx] != np_[lz][lx])
