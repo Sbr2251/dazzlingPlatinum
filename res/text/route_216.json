@@ -21,6 +21,39 @@
         "Snowbound Lodge\n",
         "A Warm Bed and Little Else"
       ]
+    },
+    {
+      "id": "Route216_Text_TeoMemorialStone",
+      "en_US": [
+        "A carved stone marker stands on the\n",
+        "ledge, facing south to Mt. Coronet.\r",
+        "Someone has brushed the snow from\n",
+        "its dark plaque. It reads...\r"
+      ]
+    },
+    {
+      "id": "Route216_Text_TeoMemorialInscription",
+      "en_US": "TEO - Lost to the mountain wind."
+    },
+    {
+      "id": "Route216_Text_TeoMemorialOfferings",
+      "en_US": [
+        "A wreath of frozen winter flowers\n",
+        "rests at its foot, and a violet\r",
+        "scarf is knotted around the stone.\n",
+        "The little lantern still glows warm.\r"
+      ]
+    },
+    {
+      "id": "Route216_Text_TeoMemorialFootprints",
+      "en_US": [
+        "Fresh footprints lead up to the\n",
+        "marker... and away again.\r",
+        "Where someone stood, a faint trace\n",
+        "of violet dust glitters in the snow,\r",
+        "as if a shard had been held up,\n",
+        "pointing at Mt. Coronet."
+      ]
     }
   ]
 }

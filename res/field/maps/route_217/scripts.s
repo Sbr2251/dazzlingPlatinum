@@ -7,6 +7,7 @@
     ScriptEntry Route217_ArrowSignpostLakeAcuity
     ScriptEntry Route217_SnowpointNPCF
     ScriptEntry Route217_CoordEvent_Maylene
+    ScriptEntry Route217_IndraCamp
     ScriptEntryEnd
 
 Route217_IceRock:
@@ -67,6 +68,20 @@ Route217_MayleneLeaveX303:
     ApplyMovement LOCALID_MAYLENE, Route217_Movement_MayleneLeaveX303
     WaitMovement
     Return
+
+Route217_IndraCamp:
+    PlaySE SE_CONFIRM_sseq_3
+    LockAll
+    Message Route217_Text_IndraCampTent
+    WaitABPadPress
+    Message Route217_Text_IndraCampJournal
+    WaitABPadPress
+    PlaySE SEQ_SE_DP_KIRAKIRA_sseq
+    Message Route217_Text_IndraCampCompass
+    WaitABPadPress
+    CloseMessage
+    ReleaseAll
+    End
 
     .balign 4, 0
 Route217_Movement_PlayerWalkOnSpotSouth:
