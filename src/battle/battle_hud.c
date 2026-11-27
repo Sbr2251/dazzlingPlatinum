@@ -2785,6 +2785,10 @@ int BattleHud_Update(BattleSubscreen *btlSubscreen)
         if (sHud.windowAdded) {
             HudHideInternal(btlSubscreen);
         }
+        if (menu >= 1 && menu <= 12) {
+            BdspHudClearBg1Lower(btlSubscreen->battleSys);
+            Bg_ScheduleTilemapTransfer(BattleSystem_GetBgConfig(btlSubscreen->battleSys), BG_LAYER_MAIN_1);
+        }
         return -1;
     }
 
@@ -2882,6 +2886,12 @@ int BattleHud_Update(BattleSubscreen *btlSubscreen)
 
 BOOL BattleHud_IsWindowVisible(void)
 {
+    if (BattleHud_IsHdMode() && sHud.activeSubscreen != NULL) {
+        int menu = sHud.activeSubscreen->activeMenuConfigIndex;
+        if (menu >= 1 && menu <= 12) {
+            return TRUE;
+        }
+    }
     return sHud.windowAdded;
 }
 
