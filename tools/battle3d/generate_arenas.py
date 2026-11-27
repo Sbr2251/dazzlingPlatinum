@@ -707,6 +707,7 @@ def build_city() -> ArenaScene:
     bark_tex = scene.add_texture(128, 128, make_bark_texture(128, 604), B3D_TEX_FLAG_REPEAT)
 
     sky_sm = scene.add_submesh(sky_tex, SKY_FLAGS, 1.0, 0.0)
+    mtn_sm = scene.add_submesh(-1, B3D_SUBMESH_RECEIVE_SHADOW, 0.95, 0.65)
     floor_sm = scene.add_submesh(plaza_tex, B3D_SUBMESH_RECEIVE_SHADOW, 0.75, 0.72)
     wall_sm = scene.add_submesh(-1, SHADOW_BOTH, 0.82, 0.88)
     roof_sm = scene.add_submesh(-1, SHADOW_BOTH, 0.72, 0.90)
@@ -714,6 +715,7 @@ def build_city() -> ArenaScene:
     bark_sm = scene.add_submesh(bark_tex, SHADOW_BOTH, 0.90, 0.90)
 
     add_sky_dome(sky_sm, 74.0)
+    add_mountain_ring(mtn_sm, rng, r_inner=40.0, r_peak=50.0, r_outer=64.0, segs=72, base_height=9.5, c_base=(0.28, 0.36, 0.56, 1.0), c_peak=(0.48, 0.58, 0.80, 1.0))
     add_radial_ground(floor_sm, [0.0, 3.0, 6.5, 10.5, 16.0, 26.0, 36.0], 40, lambda x, z: 0.0,
                       lambda x, z, r, y: (0.94, 0.93, 0.90, 1.0) if r < 11.0 else (0.78, 0.80, 0.82, 1.0), 0.24)
 
