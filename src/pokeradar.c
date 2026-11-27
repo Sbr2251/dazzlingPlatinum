@@ -9,6 +9,7 @@
 #include "struct_defs/radar_chain_records.h"
 
 #include "field/field_system.h"
+#include "overlay005/field_phenomena.h"
 #include "overlay005/ov5_021F2D20.h"
 #include "overlay006/radar_chain_records.h"
 
@@ -91,6 +92,7 @@ void RadarChain_Clear(RadarChain *chain)
 
 BOOL RadarSpawnPatches(FieldSystem *fieldSystem, const int param1, const int param2, RadarChain *chain)
 {
+    FieldPhenomena_Clear();
     u8 v1, v2;
     u8 v3;
     u8 v4;

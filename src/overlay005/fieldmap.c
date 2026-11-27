@@ -19,6 +19,7 @@
 #include "overlay005/field_camera.h"
 #include "overlay005/field_effect_manager.h"
 #include "overlay005/field_effect_renderer.h"
+#include "overlay005/field_phenomena.h"
 #include "overlay005/fog_manager.h"
 #include "overlay005/hblank_system.h"
 #include "overlay005/honey_tree.h"
@@ -265,6 +266,7 @@ static BOOL FieldMap_Init(ApplicationManager *appMan, int *state)
     case FIELD_MAP_INIT_STATE_DONE:
         if (FieldSystem_IsBottomScreenRunningDummy(fieldSystem)) {
             fieldSystem->runningFieldMap = TRUE;
+            FieldPhenomena_OnFieldInit(fieldSystem);
             ret = TRUE;
         }
         // DONE either finished or is waiting on the bottom screen: do not advance
@@ -293,8 +295,10 @@ static BOOL FieldMap_Main(ApplicationManager *appMan, int *param1)
         FieldSystem_SendPoketchEvent(fieldSystem, POKETCH_EVENT_PLAYER_MOVED, 1);
 
         FieldMap_ChangeZone(fieldSystem);
+        FieldPhenomena_OnPlayerStep(fieldSystem);
     }
 
+    FieldPhenomena_Update(fieldSystem);
     ov5_021D134C(fieldSystem, fieldSystem->unk_C0);
 
     if (fieldSystem->runningFieldMap) {
@@ -317,6 +321,7 @@ static BOOL FieldMap_Exit(ApplicationManager *appMan, int *param1)
     int prevState = *param1;
     switch (*param1) {
     case 0:
+        FieldPhenomena_OnFieldExit(fieldSystem);
         DynamicMapFeatures_Free(fieldSystem);
         LandDataManager_ForgetTrackedTarget(fieldSystem->landDataMan);
 
@@ -477,6 +482,7 @@ static BOOL FieldMap_ChangeZone(FieldSystem *fieldSystem)
     sub_0206184C(fieldSystem->mapObjMan, oldMapHeaderID, newMapHeaderID, objEventCount, objEventList);
 
     RadarChain_Clear(fieldSystem->chain);
+    FieldPhenomena_OnZoneChange(fieldSystem);
     FieldBGM_TryFadeOut(fieldSystem, FieldBGM_GetEffective(fieldSystem, fieldSystem->location->mapHeaderID), 1);
     sub_0203A418(fieldSystem);
 
@@ -778,6 +784,7 @@ static void ov5_021D15F4(FieldSystem *fieldSystem)
         NNS_G3dGlbFlush();
     }
 
+    FieldPhenomena_Draw(fieldSystem);
     ov5_021D1B18(fieldSystem->unk_04->unk_04);
     G3_RequestSwapBuffers(GX_SORTMODE_AUTO, gBufferMode);
 }
