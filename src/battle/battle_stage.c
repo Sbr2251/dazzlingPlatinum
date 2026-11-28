@@ -205,9 +205,18 @@ typedef struct BdspBattlerAnim {
     int species;
     int form;
     int isShiny;
+    int partySlot;
+    BOOL wasActive;
+    BOOL wasHidden;
     BOOL wasVisible;
     BOOL hitFlickering;
     BOOL justTriggered;
+    BOOL has3dCached;
+    BOOL has3dModel;
+    BOOL renderReady;
+    BOOL hasBbox;
+    float bboxMin[3];
+    float bboxMax[3];
     int animState;
     float animTime;
     float animDuration; // 0.0f = looping (IDLE) or hold end frame (FAINT)
@@ -1762,7 +1771,11 @@ static int BdspWeather(BattleSystem *battleSys)
 
 static void ResetBdspAnimState(void)
 {
+    int i;
     memset(sBdspAnim, 0, sizeof(sBdspAnim));
+    for (i = 0; i < SIM_BATTLE3D_MAX_BATTLERS; i++) {
+        sBdspAnim[i].partySlot = -1;
+    }
     BattleBdspCam_Reset();
     BattleBdspTrainer_Reset();
 }
@@ -1854,9 +1867,49 @@ void BattleStage_NotifyBdspFaint(int battler)
     BattleBdspCam_NotifyFaint(battler);
 }
 
+static BOOL BdspIsSubstituteDoll(const PokemonSprite *spr)
+{
+    return spr != NULL && spr->active
+        && spr->template.narcID == NARC_INDEX_POKETOOL__POKEGRA__PL_OTHERPOKE
+        && (spr->template.character == SUBSTITUTE_BACK_NCGR || spr->template.character == SUBSTITUTE_FRONT_NCGR);
+}
+
+static float BdspNormalizeModelScaleFromBBox(const float bmin[3], const float bmax[3], BOOL isSolo, float baseScale)
+{
+    float h = bmax[1] - bmin[1];
+    float rx = (bmax[0] - bmin[0]) * 0.5f;
+    float rz = (bmax[2] - bmin[2]) * 0.5f;
+    float r = (rx > rz) ? rx : rz;
+    float minH = isSolo ? 0.65f : 0.55f;
+    float maxH = isSolo ? 2.45f : 1.95f;
+    float maxR = isSolo ? 2.05f : 1.55f;
+    float scale = baseScale;
+
+    if (h > 0.01f) {
+        float effH = h * scale;
+        if (effH < minH) {
+            scale = minH / h;
+        } else if (effH > maxH) {
+            scale = maxH / h;
+        }
+    }
+    if (r > 0.01f && (r * scale) > maxR) {
+        scale = maxR / r;
+    }
+    if (scale < 0.15f) {
+        scale = 0.15f;
+    } else if (scale > 3.5f) {
+        scale = 3.5f;
+    }
+    return scale;
+}
+
 BOOL BattleStage_IsBattler3DModel(BattleSystem *battleSys, int battler)
 {
     BattleContext *ctx;
+    PokemonSpriteManager *monSpriteMan;
+    BdspBattlerAnim *anim;
+    int species, form, isShiny;
 
     if (battleSys == NULL || battler < 0 || battler >= SIM_BATTLE3D_MAX_BATTLERS) {
         return FALSE;
@@ -1864,15 +1917,40 @@ BOOL BattleStage_IsBattler3DModel(BattleSystem *battleSys, int battler)
     if (!SIM_Battle3D_ModelsEnabled()) {
         return FALSE;
     }
+    monSpriteMan = BattleSystem_GetPokemonSpriteManager(battleSys);
+    if (monSpriteMan != NULL && battler < MAX_MON_SPRITES
+        && BdspIsSubstituteDoll(&monSpriteMan->sprites[battler])) {
+        return FALSE;
+    }
     ctx = BattleSystem_GetBattleContext(battleSys);
     if (ctx == NULL) {
         return FALSE;
     }
-    return SIM_Battle3D_HasModelLoaded(
-        ctx->battleMons[battler].species,
-        ctx->battleMons[battler].formNum,
-        ctx->battleMons[battler].isShiny
-    );
+    species = ctx->battleMons[battler].species;
+    form = ctx->battleMons[battler].formNum;
+    isShiny = ctx->battleMons[battler].isShiny;
+    if (species <= 0) {
+        return FALSE;
+    }
+
+    // Opus P10 / B3: Use cached per-slot probe while triggering async load via
+    // HasModelLoaded and gating 2D sprite hiding strictly on IsModelRenderReady.
+    anim = &sBdspAnim[battler];
+    if (anim->has3dCached && anim->species == species && anim->form == form && anim->isShiny == isShiny) {
+        if (!anim->has3dModel) {
+            return FALSE;
+        }
+        if (anim->renderReady) {
+            return TRUE;
+        }
+        anim->renderReady = SIM_Battle3D_IsModelRenderReady(species, form, isShiny);
+        return anim->renderReady;
+    }
+
+    if (!SIM_Battle3D_HasModelLoaded(species, form, isShiny)) {
+        return FALSE;
+    }
+    return SIM_Battle3D_IsModelRenderReady(species, form, isShiny);
 }
 
 static const char *BdspAnimStateName(int state)
@@ -2006,13 +2084,6 @@ static void BdspDumpFrame(u32 frameNum, const SIM_Battle3DFrame *frame, BattleSy
 #endif
 }
 
-static BOOL BdspIsSubstituteDoll(const PokemonSprite *spr)
-{
-    return spr != NULL && spr->active
-        && spr->template.narcID == NARC_INDEX_POKETOOL__POKEGRA__PL_OTHERPOKE
-        && (spr->template.character == SUBSTITUTE_BACK_NCGR || spr->template.character == SUBSTITUTE_FRONT_NCGR);
-}
-
 static void SubmitBdspFrame(void)
 {
     BattleSystem *battleSys = sBattleStage.battleSys;
@@ -2034,7 +2105,9 @@ static void SubmitBdspFrame(void)
     float baseTarget[3] = { 0.5f, 1.35f, -1.8f };
     float baseFov = 36.0f;
     BOOL heightSizing = BattleStageSprites_IsHeightSizingEnabled();
+    BOOL modelsEnabled = SIM_Battle3D_ModelsEnabled();
     BOOL slotHas3d[SIM_BATTLE3D_MAX_BATTLERS];
+    BOOL slotRenderReady[SIM_BATTLE3D_MAX_BATTLERS];
     int slotSpecies[SIM_BATTLE3D_MAX_BATTLERS];
     int slotForm[SIM_BATTLE3D_MAX_BATTLERS];
     int slotShiny[SIM_BATTLE3D_MAX_BATTLERS];
@@ -2070,6 +2143,7 @@ static void SubmitBdspFrame(void)
 
     for (i = 0; i < SIM_BATTLE3D_MAX_BATTLERS; i++) {
         slotHas3d[i] = FALSE;
+        slotRenderReady[i] = FALSE;
         slotSpecies[i] = 0;
         slotForm[i] = 0;
         slotShiny[i] = 0;
@@ -2077,15 +2151,58 @@ static void SubmitBdspFrame(void)
 
     for (i = 0; i < maxBattlers; i++) {
         const PokemonSprite *spr = (monSpriteMan != NULL && i < MAX_MON_SPRITES) ? &monSpriteMan->sprites[i] : NULL;
+        BdspBattlerAnim *anim = &sBdspAnim[i];
+        int curPartySlot = -1;
+        BOOL slotChanged;
+
         if (battleCtx != NULL) {
             slotSpecies[i] = battleCtx->battleMons[i].species;
             slotForm[i] = battleCtx->battleMons[i].formNum;
             slotShiny[i] = battleCtx->battleMons[i].isShiny;
+            curPartySlot = (int)battleCtx->selectedPartySlot[i];
         }
-        if (slotSpecies[i] > 0 && !BdspIsSubstituteDoll(spr)
-            && SIM_Battle3D_HasModelLoaded(slotSpecies[i], slotForm[i], slotShiny[i])) {
-            slotHas3d[i] = TRUE;
-            any3dModel = TRUE;
+
+        // Opus B7: Reset per-battler anim & probe state on species/form/shiny OR
+        // selectedPartySlot change (handles same-species replacement during FAINT).
+        slotChanged = (slotSpecies[i] != anim->species
+            || slotForm[i] != anim->form
+            || slotShiny[i] != anim->isShiny
+            || (battleCtx != NULL && anim->partySlot >= 0 && curPartySlot != anim->partySlot));
+        if (slotChanged) {
+            int prevNonce = anim->animNonce;
+            memset(anim, 0, sizeof(*anim));
+            anim->species = slotSpecies[i];
+            anim->form = slotForm[i];
+            anim->isShiny = slotShiny[i];
+            anim->partySlot = (slotSpecies[i] > 0 && battleCtx != NULL) ? curPartySlot : -1;
+            anim->animState = SIM_BATTLE3D_ANIM_IDLE;
+            anim->animNonce = prevNonce;
+        } else if (slotSpecies[i] > 0 && battleCtx != NULL && anim->partySlot < 0) {
+            anim->partySlot = curPartySlot;
+        }
+
+        if (!modelsEnabled) {
+            anim->has3dCached = FALSE;
+            anim->has3dModel = FALSE;
+            anim->renderReady = FALSE;
+            anim->hasBbox = FALSE;
+        } else if (slotSpecies[i] > 0 && !BdspIsSubstituteDoll(spr)) {
+            // Opus P10 / B3: Cache per-slot model existence and refresh renderReady
+            // only until GPU-ready; HasModelLoaded triggers async load.
+            if (!anim->has3dCached) {
+                anim->has3dModel = SIM_Battle3D_HasModelLoaded(slotSpecies[i], slotForm[i], slotShiny[i]);
+                anim->has3dCached = TRUE;
+                anim->renderReady = FALSE;
+                anim->hasBbox = FALSE;
+            }
+            if (anim->has3dModel && !anim->renderReady) {
+                anim->renderReady = SIM_Battle3D_IsModelRenderReady(slotSpecies[i], slotForm[i], slotShiny[i]);
+            }
+            slotHas3d[i] = anim->has3dModel;
+            slotRenderReady[i] = anim->renderReady;
+            if (slotHas3d[i]) {
+                any3dModel = TRUE;
+            }
         }
     }
 
@@ -2100,6 +2217,7 @@ static void SubmitBdspFrame(void)
     }
 
     frame.active = 1;
+    frame.modelsEnabled = modelsEnabled ? 1 : 0;
     frame.biome = SIM_Battle3D_BiomeFromBackground((int)BattleSystem_GetBackground(battleSys));
     frame.timeOfDay = BdspTimeOfDay(battleSys);
     frame.weather = BdspWeather(battleSys);
@@ -2227,6 +2345,10 @@ static void SubmitBdspFrame(void)
         SIM_Battle3DBattler *dst = &frame.battlers[i];
         BdspBattlerAnim *anim = &sBdspAnim[i];
         BOOL has3d = slotHas3d[i];
+        BOOL renderReady = slotRenderReady[i];
+        BOOL use3dCoords = any3dModel;
+        BOOL isSolo = (btype == BATTLER_TYPE_SOLO_PLAYER || btype == BATTLER_TYPE_SOLO_ENEMY);
+        float baseScale = isSolo ? 1.40f : 1.25f;
         int species = slotSpecies[i];
         int form = slotForm[i];
         int isShiny = slotShiny[i];
@@ -2240,25 +2362,15 @@ static void SubmitBdspFrame(void)
         int isPlayer = 0;
         int homeX = 128;
 
-        // Reset per-battler anim state on switch-in / species or form change
-        if (species != anim->species || form != anim->form || isShiny != anim->isShiny) {
-            int prevNonce = anim->animNonce;
-            memset(anim, 0, sizeof(*anim));
-            anim->species = species;
-            anim->form = form;
-            anim->isShiny = isShiny;
-            anim->animState = SIM_BATTLE3D_ANIM_IDLE;
-            anim->animNonce = prevNonce;
-        }
-
+        // Opus B10: Whenever any slot uses a 3D model under the close 3D camera,
+        // keep ALL slots (including Substitute dolls and 2D fallbacks) on 3D coords.
         switch (btype) {
         case BATTLER_TYPE_SOLO_PLAYER:
-            if (has3d) {
+            if (use3dCoords) {
                 wx = -2.15f;
                 wz = 2.25f;
                 oppX = 2.35f;
                 oppZ = -2.15f;
-                modelScale = 1.40f;
             } else {
                 wx = -2.95f;
                 wz = 1.35f;
@@ -2270,12 +2382,11 @@ static void SubmitBdspFrame(void)
             homeX = 64;
             break;
         case BATTLER_TYPE_SOLO_ENEMY:
-            if (has3d) {
+            if (use3dCoords) {
                 wx = 2.35f;
                 wz = -2.15f;
                 oppX = -2.15f;
                 oppZ = 2.25f;
-                modelScale = 1.40f;
             } else {
                 wx = 6.95f;
                 wz = -7.80f;
@@ -2287,12 +2398,11 @@ static void SubmitBdspFrame(void)
             homeX = 192;
             break;
         case BATTLER_TYPE_PLAYER_SIDE_SLOT_1:
-            if (has3d) {
+            if (use3dCoords) {
                 wx = -2.75f;
                 wz = 1.75f;
                 oppX = 2.275f;
                 oppZ = -2.85f;
-                modelScale = 1.25f;
             } else {
                 wx = -3.35f;
                 wz = 0.70f;
@@ -2304,12 +2414,11 @@ static void SubmitBdspFrame(void)
             homeX = 40;
             break;
         case BATTLER_TYPE_PLAYER_SIDE_SLOT_2:
-            if (has3d) {
+            if (use3dCoords) {
                 wx = -1.55f;
                 wz = 2.65f;
                 oppX = 2.275f;
                 oppZ = -2.85f;
-                modelScale = 1.25f;
             } else {
                 wx = -2.25f;
                 wz = 1.90f;
@@ -2321,12 +2430,11 @@ static void SubmitBdspFrame(void)
             homeX = 80;
             break;
         case BATTLER_TYPE_ENEMY_SIDE_SLOT_1:
-            if (has3d) {
+            if (use3dCoords) {
                 wx = 3.10f;
                 wz = -2.35f;
                 oppX = -2.15f;
                 oppZ = 2.20f;
-                modelScale = 1.25f;
             } else {
                 wx = 9.90f;
                 wz = -7.75f;
@@ -2338,12 +2446,11 @@ static void SubmitBdspFrame(void)
             homeX = 216;
             break;
         case BATTLER_TYPE_ENEMY_SIDE_SLOT_2:
-            if (has3d) {
+            if (use3dCoords) {
                 wx = 1.45f;
                 wz = -3.35f;
                 oppX = -2.15f;
                 oppZ = 2.20f;
-                modelScale = 1.25f;
             } else {
                 wx = 7.75f;
                 wz = -11.35f;
@@ -2358,6 +2465,16 @@ static void SubmitBdspFrame(void)
             continue;
         }
 
+        // Opus B3: Normalize 3D Pokemon modelScale from cached model bounding box.
+        if (has3d) {
+            if (!anim->hasBbox) {
+                anim->hasBbox = SIM_Battle3D_GetModelBBox(species, form, isShiny, anim->bboxMin, anim->bboxMax);
+            }
+            modelScale = anim->hasBbox
+                ? BdspNormalizeModelScaleFromBBox(anim->bboxMin, anim->bboxMax, isSolo, baseScale)
+                : baseScale;
+        }
+
         // Right-handed Y-up (+Z forward): yaw = atan2(dx, dz) turns +Z toward opponent
         battlerYawDeg = atan2f(oppX - wx, oppZ - wz) * (180.0f / 3.14159265f);
 
@@ -2369,7 +2486,7 @@ static void SubmitBdspFrame(void)
         dst->alpha = 0.0f;
         dst->visible = 0;
         dst->species = species;
-        dst->form = form;
+        dst->form = SIM_Battle3D_NormalizeForm(species, form);
         dst->isShiny = isShiny;
         dst->yawDeg = battlerYawDeg;
         dst->modelScale = modelScale;
@@ -2379,7 +2496,9 @@ static void SubmitBdspFrame(void)
             const PokemonSprite *spr = &monSpriteMan->sprites[i];
             const PokemonSpriteTransforms *tr = &spr->transforms;
             if (!spr->active) {
-                if (has3d && anim->animState == SIM_BATTLE3D_ANIM_FAINT && species > 0) {
+                anim->wasActive = FALSE;
+                anim->wasHidden = TRUE;
+                if (renderReady && anim->animState == SIM_BATTLE3D_ANIM_FAINT && species > 0) {
                     float clipDur = SIM_Battle3D_GetModelClipDuration(species, form, isShiny, SIM_BATTLE3D_ANIM_FAINT);
                     float faintTotal = (clipDur > 0.05f ? clipDur : (BDSP_ANIM_FAINT_HOLD - 0.35f)) + 0.35f;
                     if (anim->animTime < faintTotal) {
@@ -2412,29 +2531,50 @@ static void SubmitBdspFrame(void)
                     }
                 }
             } else {
-                BOOL hidden = (tr->hide && !(has3d && anim->hitFlickering)) || tr->hide2 || tr->alpha <= 0;
-                if (hidden && has3d && anim->animState == SIM_BATTLE3D_ANIM_FAINT && species > 0) {
-                    float clipDur = SIM_Battle3D_GetModelClipDuration(species, form, isShiny, SIM_BATTLE3D_ANIM_FAINT);
-                    float faintTotal = (clipDur > 0.05f ? clipDur : (BDSP_ANIM_FAINT_HOLD - 0.35f)) + 0.35f;
-                    if (anim->animTime < faintTotal) {
-                        float fadeStart = faintTotal - 0.35f;
-                        float fadeAlpha = (anim->animTime > fadeStart)
-                            ? (1.0f - (anim->animTime - fadeStart) / 0.35f)
-                            : 1.0f;
-                        if (fadeAlpha < 0.0f) {
-                            fadeAlpha = 0.0f;
+                BOOL hidden = (tr->hide && !(renderReady && anim->hitFlickering)) || tr->hide2 || tr->alpha <= 0;
+                if (hidden) {
+                    anim->wasActive = TRUE;
+                    anim->wasHidden = TRUE;
+                    if (renderReady && anim->animState == SIM_BATTLE3D_ANIM_FAINT && species > 0) {
+                        float clipDur = SIM_Battle3D_GetModelClipDuration(species, form, isShiny, SIM_BATTLE3D_ANIM_FAINT);
+                        float faintTotal = (clipDur > 0.05f ? clipDur : (BDSP_ANIM_FAINT_HOLD - 0.35f)) + 0.35f;
+                        if (anim->animTime < faintTotal) {
+                            float fadeStart = faintTotal - 0.35f;
+                            float fadeAlpha = (anim->animTime > fadeStart)
+                                ? (1.0f - (anim->animTime - fadeStart) / 0.35f)
+                                : 1.0f;
+                            if (fadeAlpha < 0.0f) {
+                                fadeAlpha = 0.0f;
+                            }
+                            dst->visible = 1;
+                            dst->worldX = wx;
+                            dst->worldY = 0.0f;
+                            dst->worldZ = wz;
+                            dst->alpha = fadeAlpha;
+                        } else {
+                            anim->wasVisible = FALSE;
+                            anim->hitFlickering = FALSE;
+                            anim->animState = SIM_BATTLE3D_ANIM_IDLE;
+                            anim->animTime = 0.0f;
+                            anim->animDuration = 0.0f;
                         }
-                        dst->visible = 1;
-                        dst->worldX = wx;
-                        dst->worldY = 0.0f;
-                        dst->worldZ = wz;
-                        dst->alpha = fadeAlpha;
                     }
-                }
-                if (!hidden) {
+                } else {
                     int dxPx = (tr->xCenter + tr->xOffset) - homeX;
                     int sc = tr->scaleX < 0 ? -tr->scaleX : tr->scaleX;
                     float elev = spr->shadow.height > 0 ? (float)spr->shadow.height * 0.04f : 0.0f;
+
+                    // Opus B7: Coming back from !active or hidden into visible while still
+                    // in FAINT means a same-species replacement arrived — reset FAINT cleanly.
+                    if (anim->animState == SIM_BATTLE3D_ANIM_FAINT && (!anim->wasActive || anim->wasHidden)) {
+                        anim->wasVisible = FALSE;
+                        anim->hitFlickering = FALSE;
+                        anim->animState = SIM_BATTLE3D_ANIM_IDLE;
+                        anim->animTime = 0.0f;
+                        anim->animDuration = 0.0f;
+                    }
+                    anim->wasActive = TRUE;
+                    anim->wasHidden = FALSE;
 
                     if (dxPx < -96) {
                         dxPx = -96;
@@ -2455,7 +2595,7 @@ static void SubmitBdspFrame(void)
                         }
                     }
 
-                    if (heightSizing && !has3d) {
+                    if (heightSizing && !renderReady) {
                         float spScale = BattleStageSprites_GetSpeciesScale(i);
                         float refBase = isPlayer ? 1.0f : 0.45f;
                         float ratio = spScale / refBase;

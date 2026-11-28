@@ -77,6 +77,45 @@ __attribute__((weak)) float SIM_Battle3D_GetClipDuration(int species, int form, 
 }
 #endif
 
+#ifdef SDK_PORT
+static BOOL sEnvCacheValid = FALSE;
+static BOOL sEnvHeadless = FALSE;
+static BOOL sEnvBattleAllowed = FALSE;
+static int sEnvModelsOverride = -1; // -1 = unset, 0 = forced off, 1 = forced on
+
+static void RefreshEnvCache(void)
+{
+    const char *bdsp = getenv("SIM_FX_BDSP_BATTLE");
+    const char *interactive = getenv("SIM_HEADLESS_INTERACTIVE_FX");
+    const char *models = getenv("SIM_FX_BDSP_MODELS");
+
+    sEnvHeadless = SIM_Headless_Enabled() ? TRUE : FALSE;
+    if (!sEnvHeadless) {
+        sEnvBattleAllowed = (bdsp != NULL && bdsp[0] == '0') ? FALSE : TRUE;
+    } else if (bdsp != NULL && bdsp[0] == '0') {
+        sEnvBattleAllowed = FALSE;
+    } else if ((bdsp != NULL && bdsp[0] == '1') || (interactive != NULL && interactive[0] == '1')) {
+        sEnvBattleAllowed = TRUE;
+    } else {
+        sEnvBattleAllowed = FALSE;
+    }
+
+    if (models != NULL) {
+        if (models[0] == '0') {
+            sEnvModelsOverride = 0;
+        } else if (models[0] == '1') {
+            sEnvModelsOverride = 1;
+        } else {
+            sEnvModelsOverride = -1;
+        }
+    } else {
+        sEnvModelsOverride = -1;
+    }
+
+    sEnvCacheValid = TRUE;
+}
+#endif
+
 BOOL SIM_Battle3D_IsEnabled(void)
 {
 #ifdef SDK_PORT
@@ -88,27 +127,10 @@ BOOL SIM_Battle3D_IsEnabled(void)
         return FALSE;
     }
 
-    if (!SIM_Headless_Enabled()) {
-        const char *env = getenv("SIM_FX_BDSP_BATTLE");
-        if (env != NULL && env[0] == '0') {
-            return FALSE;
-        }
-        return TRUE;
+    if (!sEnvCacheValid) {
+        RefreshEnvCache();
     }
-
-    {
-        const char *bdsp = getenv("SIM_FX_BDSP_BATTLE");
-        const char *interactive = getenv("SIM_HEADLESS_INTERACTIVE_FX");
-
-        if (bdsp != NULL && bdsp[0] == '0') {
-            return FALSE;
-        }
-        if ((bdsp != NULL && bdsp[0] == '1') || (interactive != NULL && interactive[0] == '1')) {
-            return TRUE;
-        }
-    }
-
-    return FALSE;
+    return sEnvBattleAllowed;
 #else
     return FALSE;
 #endif
@@ -131,6 +153,7 @@ void SIM_Battle3D_SubmitFrame(const SIM_Battle3DFrame *frame)
 void SIM_Battle3D_Reset(void)
 {
 #ifdef SDK_PORT
+    sEnvCacheValid = FALSE;
     if (SIM_Battle3D_Clear != NULL) {
         SIM_Battle3D_Clear();
     }
@@ -182,23 +205,21 @@ BOOL SIM_Battle3D_ModelsEnabled(void)
     if (!SIM_Battle3D_IsEnabled()) {
         return FALSE;
     }
+    if (!sEnvCacheValid) {
+        RefreshEnvCache();
+    }
+    if (sEnvModelsOverride == 0) {
+        return FALSE;
+    }
+    if (sEnvModelsOverride == 1) {
+        return TRUE;
+    }
+    if (sEnvHeadless) {
+        return FALSE;
+    }
     {
-        const char *env = getenv("SIM_FX_BDSP_MODELS");
-        if (env != NULL) {
-            if (env[0] == '0') {
-                return FALSE;
-            }
-            if (env[0] == '1') {
-                return TRUE;
-            }
-        }
-        if (SIM_Headless_Enabled()) {
-            return FALSE;
-        }
-        {
-            SIM_Config_prj_type *cfg = SIM_Config_prj_GetConfig();
-            return (cfg != NULL) ? cfg->battleModels3d : TRUE;
-        }
+        SIM_Config_prj_type *cfg = SIM_Config_prj_GetConfig();
+        return (cfg != NULL) ? cfg->battleModels3d : TRUE;
     }
 #else
     return FALSE;
@@ -211,7 +232,7 @@ BOOL SIM_Battle3D_HasModelLoaded(int species, int form, int isShiny)
     if (!SIM_Battle3D_ModelsEnabled() || species <= 0) {
         return FALSE;
     }
-    return SIM_Battle3D_HasModel(species, form, isShiny) ? TRUE : FALSE;
+    return SIM_Battle3D_HasModel(species, SIM_Battle3D_NormalizeForm(species, form), isShiny) ? TRUE : FALSE;
 #else
     (void)species;
     (void)form;
@@ -286,7 +307,7 @@ float SIM_Battle3D_GetModelClipDuration(int species, int form, int isShiny, int 
     if (!SIM_Battle3D_ModelsEnabled() || species <= 0) {
         return 0.0f;
     }
-    return SIM_Battle3D_GetClipDuration(species, form, isShiny, animState);
+    return SIM_Battle3D_GetClipDuration(species, SIM_Battle3D_NormalizeForm(species, form), isShiny, animState);
 #else
     (void)species;
     (void)form;

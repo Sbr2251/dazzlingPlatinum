@@ -36,8 +36,15 @@ typedef struct BdspDialogueState {
     BOOL suspended;
     BOOL fallbackToLegacy;
     BOOL printerActive;
+    BOOL rectSuppressed;
     u8 printerId;
+    const u16 *expectedRaw;
     const Window *activeMsgWindow;
+    const BgConfig *lastBgConfig;
+    u8 lastTilemapLeft;
+    u8 lastTilemapTop;
+    u8 lastWidth;
+    u8 lastHeight;
     int numPages;
     int pageIdx;
     int revealedChars;
@@ -84,10 +91,29 @@ static void SuppressBattleMsgWindowRect(BattleSystem *battleSys)
     msgWin = BattleSystem_GetWindow(battleSys, 0);
     if (msgWin == NULL || msgWin->bgConfig == NULL || msgWin->bgLayer != BG_LAYER_MAIN_1) {
         sDlg.activeMsgWindow = NULL;
+        sDlg.rectSuppressed = FALSE;
+        return;
+    }
+
+    // Opus P8: Only clear BG1 tilemap, schedule VRAM transfer, and clear HiResText
+    // when dirty (message print, window change, Resume/Reset) rather than every frame.
+    if (sDlg.rectSuppressed
+        && sDlg.activeMsgWindow == msgWin
+        && sDlg.lastBgConfig == msgWin->bgConfig
+        && sDlg.lastTilemapLeft == msgWin->tilemapLeft
+        && sDlg.lastTilemapTop == msgWin->tilemapTop
+        && sDlg.lastWidth == msgWin->width
+        && sDlg.lastHeight == msgWin->height) {
         return;
     }
 
     sDlg.activeMsgWindow = msgWin;
+    sDlg.lastBgConfig = msgWin->bgConfig;
+    sDlg.lastTilemapLeft = msgWin->tilemapLeft;
+    sDlg.lastTilemapTop = msgWin->tilemapTop;
+    sDlg.lastWidth = msgWin->width;
+    sDlg.lastHeight = msgWin->height;
+    sDlg.rectSuppressed = TRUE;
     bgConfig = msgWin->bgConfig;
 
     fx = (msgWin->tilemapLeft >= 2) ? ((int)msgWin->tilemapLeft - 2) : 0;
@@ -591,6 +617,8 @@ void BattleBdspDialogue_Suspend(void)
     sDlg.suspended = TRUE;
     sDlg.hasMessage = FALSE;
     sDlg.printerActive = FALSE;
+    sDlg.rectSuppressed = FALSE;
+    sDlg.expectedRaw = NULL;
     sDlg.fallbackToLegacy = FALSE;
     sDlg.activeMsgWindow = NULL;
     sDlg.alpha = 0.0f;
@@ -601,6 +629,8 @@ void BattleBdspDialogue_Resume(void)
     sDlg.suspended = FALSE;
     sDlg.hasMessage = FALSE;
     sDlg.printerActive = FALSE;
+    sDlg.rectSuppressed = FALSE;
+    sDlg.expectedRaw = NULL;
     sDlg.fallbackToLegacy = FALSE;
     sDlg.alpha = 0.0f;
 }
@@ -619,6 +649,7 @@ void BattleBdspDialogue_OnMessagePrint(BattleSystem *battleSys, const String *ms
     textWindow = (battleSys != NULL) ? BattleSystem_GetWindow(battleSys, 0) : NULL;
     if (textWindow == NULL || textWindow->bgConfig == NULL) {
         sDlg.activeMsgWindow = NULL;
+        sDlg.rectSuppressed = FALSE;
         return;
     }
 
@@ -630,9 +661,11 @@ void BattleBdspDialogue_OnMessagePrint(BattleSystem *battleSys, const String *ms
     if (numPages <= 0) {
         sDlg.hasMessage = FALSE;
         sDlg.printerActive = FALSE;
+        sDlg.expectedRaw = NULL;
         if (String_Length(msg) > 0) {
             // Unparseable non-empty message: fall back cleanly to the legacy window.
             sDlg.fallbackToLegacy = TRUE;
+            sDlg.rectSuppressed = FALSE;
             if (textSpeed == TEXT_SPEED_INSTANT) {
                 Window_CopyToVRAM(textWindow);
             }
@@ -642,6 +675,7 @@ void BattleBdspDialogue_OnMessagePrint(BattleSystem *battleSys, const String *ms
 
     sDlg.fallbackToLegacy = FALSE;
     sDlg.activeMsgWindow = textWindow;
+    sDlg.rectSuppressed = FALSE;
     SuppressBattleMsgWindowRect(battleSys);
 
     // "What will <POKEMON> do?" / "What will <PLAYER> do/throw?" is printed
@@ -651,6 +685,7 @@ void BattleBdspDialogue_OnMessagePrint(BattleSystem *battleSys, const String *ms
         && strncmp(parsed[0].text, "What will ", 10) == 0) {
         sDlg.hasMessage = FALSE;
         sDlg.printerActive = FALSE;
+        sDlg.expectedRaw = NULL;
         sDlg.alpha = 0.0f;
         return;
     }
@@ -665,10 +700,12 @@ void BattleBdspDialogue_OnMessagePrint(BattleSystem *battleSys, const String *ms
 
     if (textSpeed == TEXT_SPEED_INSTANT || textSpeed == TEXT_SPEED_NO_TRANSFER || printerId >= MAX_TEXT_PRINTERS) {
         sDlg.printerActive = FALSE;
+        sDlg.expectedRaw = NULL;
         sDlg.pageIdx = numPages - 1;
         sDlg.revealedChars = sDlg.pages[sDlg.pageIdx].numChars;
     } else {
         sDlg.printerActive = TRUE;
+        sDlg.expectedRaw = String_GetData(msg);
         sDlg.revealedChars = 0;
     }
 }
@@ -696,6 +733,7 @@ void BattleBdspDialogue_FillFrame(BattleSystem *battleSys, SIM_HudHD_Frame *fram
     msgWin = (battleSys != NULL) ? BattleSystem_GetWindow(battleSys, 0) : NULL;
     if (msgWin == NULL || msgWin->bgConfig == NULL) {
         sDlg.activeMsgWindow = NULL;
+        sDlg.rectSuppressed = FALSE;
         frame->dialogue.visible = 0;
         return;
     }
@@ -735,6 +773,7 @@ void BattleBdspDialogue_FillFrame(BattleSystem *battleSys, SIM_HudHD_Frame *fram
     if (menuOpen) {
         sDlg.hasMessage = FALSE;
         sDlg.printerActive = FALSE;
+        sDlg.expectedRaw = NULL;
         sDlg.alpha = 0.0f;
         frame->dialogue.visible = 0;
         return;
@@ -746,10 +785,12 @@ void BattleBdspDialogue_FillFrame(BattleSystem *battleSys, SIM_HudHD_Frame *fram
     }
 
     // Sync live page, character progress, and waitArrow directly from the real TextPrinter.
+    // Opus B12: Validate expectedRaw so a reused printer ID cannot drive an unrelated string.
     if (sDlg.printerActive) {
         TextPrinterProgress prog;
-        if (!Text_GetPrinterProgress(sDlg.printerId, &prog)) {
+        if (!Text_GetPrinterProgress(sDlg.printerId, sDlg.expectedRaw, &prog)) {
             sDlg.printerActive = FALSE;
+            sDlg.expectedRaw = NULL;
             sDlg.pageIdx = sDlg.numPages - 1;
             sDlg.revealedChars = sDlg.pages[sDlg.pageIdx].numChars;
             waitArrow = 0;

@@ -9,6 +9,7 @@
 #include "generated/genders.h"
 
 #include "battle/battle_bdsp_cam.h"
+#include "battle/battle_context.h"
 #include "battle/battle_system.h"
 #include "battle_anim/ov12_02235E94.h"
 #include "sprite_system.h"
@@ -220,6 +221,46 @@ static float ClampFloat(float v, float lo, float hi)
         return hi;
     }
     return v;
+}
+
+static float ComputeNormalizedPlayerScale(BattleSystem *battleSys, int slot, int btype)
+{
+    BOOL isSolo = (btype == BATTLER_TYPE_SOLO_PLAYER || btype == BATTLER_TYPE_SOLO_ENEMY);
+    float baseScale = isSolo ? 1.40f : 1.25f;
+    BattleContext *ctx = BattleSystem_GetBattleContext(battleSys);
+    float bmin[3], bmax[3];
+    float h, rx, rz, r;
+    float minH = isSolo ? 0.65f : 0.55f;
+    float maxH = isSolo ? 2.45f : 1.95f;
+    float maxR = isSolo ? 2.05f : 1.55f;
+    float scale = baseScale;
+
+    if (ctx == NULL || slot < 0 || slot >= SIM_BATTLE3D_MAX_BATTLERS) {
+        return baseScale;
+    }
+    if (!SIM_Battle3D_GetModelBBox(ctx->battleMons[slot].species,
+            ctx->battleMons[slot].formNum,
+            ctx->battleMons[slot].isShiny,
+            bmin, bmax)) {
+        return baseScale;
+    }
+
+    h = bmax[1] - bmin[1];
+    rx = (bmax[0] - bmin[0]) * 0.5f;
+    rz = (bmax[2] - bmin[2]) * 0.5f;
+    r = (rx > rz) ? rx : rz;
+    if (h > 0.01f) {
+        float effH = h * scale;
+        if (effH < minH) {
+            scale = minH / h;
+        } else if (effH > maxH) {
+            scale = maxH / h;
+        }
+    }
+    if (r > 0.01f && (r * scale) > maxR) {
+        scale = maxR / r;
+    }
+    return ClampFloat(scale, 0.15f, 3.5f);
 }
 
 static int FindPlayerSlot(BattleSystem *battleSys)
@@ -448,6 +489,7 @@ void BattleBdspTrainer_Update(BattleSystem *battleSys, SIM_Battle3DFrame *frame)
 {
     int playerSlot;
     int playerSlot2;
+    u32 battleType;
     BattlerData *battlerData;
     ManagedSprite *trainerSpr;
     u32 gender;
@@ -472,6 +514,13 @@ void BattleBdspTrainer_Update(BattleSystem *battleSys, SIM_Battle3DFrame *frame)
         return;
     }
 
+    // Opus B1: Safari Zone, Pal Park, and Catch Tutorial keep the player's 2D trainer
+    // for the whole battle (no Pokemon send-out); never hide it or run a 3D throw.
+    battleType = BattleSystem_GetBattleType(battleSys);
+    if (battleType & (BATTLE_TYPE_SAFARI | BATTLE_TYPE_PAL_PARK | BATTLE_TYPE_CATCH_TUTORIAL)) {
+        return;
+    }
+
     if (frame->alpha <= 0.01f) {
         return;
     }
@@ -481,6 +530,11 @@ void BattleBdspTrainer_Update(BattleSystem *battleSys, SIM_Battle3DFrame *frame)
         return;
     }
     playerSlot2 = FindPlayerSlot2(battleSys);
+    // Opus B9: In 2vs2 multi/AI-partner doubles, slot 2 belongs to the partner trainer
+    // (who has their own send-out); never let 3D Lucas/Dawn throw the partner's ball.
+    if (playerSlot2 >= 0 && (battleType & BATTLE_TYPE_2vs2)) {
+        playerSlot2 = -1;
+    }
 
     gender = BattleSystem_GetTrainerGender(battleSys, playerSlot);
     trainerKind = (gender == GENDER_FEMALE)
@@ -508,8 +562,6 @@ void BattleBdspTrainer_Update(BattleSystem *battleSys, SIM_Battle3DFrame *frame)
 
     if (trainerSpr != NULL) {
         ManagedSprite_GetPositionXY(trainerSpr, &sprX, &sprY);
-        // Hide the 2D player trainer back OBJ whenever validated 3D Lucas/Dawn is active.
-        ManagedSprite_SetDrawFlag(trainerSpr, FALSE);
     }
 
     // Suppress the 2D OAM send-out ball sprite(s) only while our intro 3D Poke Ball(s) own the send-out.
@@ -648,6 +700,16 @@ void BattleBdspTrainer_Update(BattleSystem *battleSys, SIM_Battle3DFrame *frame)
         break;
     }
 
+    // Opus B1: Only hide the 2D player trainer back OBJ while 3D Lucas/Dawn is actively
+    // rendered (ENTERING/STANDING/THROWING/FADING); restore it otherwise.
+    if (trainerSpr != NULL) {
+        BOOL hide2d = (sTrainer.phase == BDSP_TRAINER_PHASE_ENTERING
+            || sTrainer.phase == BDSP_TRAINER_PHASE_STANDING
+            || sTrainer.phase == BDSP_TRAINER_PHASE_THROWING
+            || sTrainer.phase == BDSP_TRAINER_PHASE_FADING);
+        ManagedSprite_SetDrawFlag(trainerSpr, hide2d ? FALSE : TRUE);
+    }
+
     // Advance 3D Poke Ball open light-burst VFX independently so it always completes cleanly.
     if (sTrainer.burstActive) {
         float p = ClampFloat(sTrainer.burstTime / BDSP_BURST_DUR, 0.0f, 1.0f);
@@ -696,7 +758,7 @@ void BattleBdspTrainer_Update(BattleSystem *battleSys, SIM_Battle3DFrame *frame)
             float matScale = (u >= 0.999f) ? 1.0f : (0.08f + 0.92f * easeOut + overshoot);
             float flash = (u >= 0.999f) ? 0.0f : powf(inv, 1.55f);
             int btype = BattleSystem_GetBattlerType(battleSys, sl);
-            float fullScale = (btype == BATTLER_TYPE_SOLO_PLAYER) ? 1.40f : 1.25f;
+            float fullScale = ComputeNormalizedPlayerScale(battleSys, sl, btype);
 
             frame->battlers[sl].modelScale = fullScale * matScale;
             frame->battlers[sl].flashAmount = ClampFloat(flash, 0.0f, 1.0f);

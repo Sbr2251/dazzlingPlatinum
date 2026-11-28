@@ -14,6 +14,7 @@ BOOL BattleBdspOverlay_ShouldUse(BattleSystem *battleSys);
 void BattleBdspOverlay_StartBag(BattleBagContext *ctx);
 void BattleBdspOverlay_StartParty(BattlePartyContext *ctx);
 BOOL BattleBdspOverlay_IsActive(void);
-void BattleBdspOverlay_TickAndFillFrame(BattleSystem *battleSys, SIM_HudHD_Frame *frame);
+void BattleBdspOverlay_Tick(BattleSystem *battleSys);
+void BattleBdspOverlay_FillFrame(BattleSystem *battleSys, SIM_HudHD_Frame *frame);
 
 #endif // POKEPLATINUM_BATTLE_BDSP_OVERLAY_H

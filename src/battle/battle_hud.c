@@ -190,19 +190,43 @@ typedef struct BattleHudState {
 
 static BattleHudState sHud;
 
-BOOL BattleHud_IsEnabled(void)
+static BOOL sHudEnvCacheValid = FALSE;
+static int sHudEnvEnabledOverride = -1; // -1=unset, 0=off, 1=on
+static int sHudEnvHeadless = 0;
+static int sHudEnvHdOverride = -1; // -1=unset, 0=off, 1=on
+
+static void RefreshHudEnvCache(void)
 {
-    static int sHeadless = -1;
     const char *env = getenv("SIM_FX_BATTLEHUD");
+    const char *headless = getenv("SIM_HEADLESS");
+    const char *hd = getenv("SIM_FX_HUDHD");
 
     if (env != NULL && env[0] != '\0') {
-        return env[0] != '0' ? TRUE : FALSE;
+        sHudEnvEnabledOverride = (env[0] != '0') ? 1 : 0;
+    } else {
+        sHudEnvEnabledOverride = -1;
     }
-    if (sHeadless < 0) {
-        const char *headless = getenv("SIM_HEADLESS");
-        sHeadless = (headless != NULL && headless[0] != '\0' && headless[0] != '0') ? 1 : 0;
+
+    sHudEnvHeadless = (headless != NULL && headless[0] != '\0' && headless[0] != '0') ? 1 : 0;
+
+    if (hd != NULL && hd[0] != '\0') {
+        sHudEnvHdOverride = (hd[0] != '0') ? 1 : 0;
+    } else {
+        sHudEnvHdOverride = -1;
     }
-    if (sHeadless) {
+
+    sHudEnvCacheValid = TRUE;
+}
+
+BOOL BattleHud_IsEnabled(void)
+{
+    if (!sHudEnvCacheValid) {
+        RefreshHudEnvCache();
+    }
+    if (sHudEnvEnabledOverride >= 0) {
+        return sHudEnvEnabledOverride ? TRUE : FALSE;
+    }
+    if (sHudEnvHeadless) {
         return FALSE;
     }
     return SIM_Config_prj_GetConfig()->battleHud;
@@ -236,20 +260,20 @@ BOOL BattleHud_IsWidePixelMode(void)
 BOOL BattleHud_IsHdMode(void)
 {
 #ifdef SDK_PORT
-    const char *env;
-
     if (!SIM_Wide_IsWideLayout() || !BattleHud_IsEnabled()) {
         return FALSE;
     }
-    env = getenv("SIM_FX_HUDHD");
+    if (!sHudEnvCacheValid) {
+        RefreshHudEnvCache();
+    }
     if (!GameHudHD_IsSupported()) {
-        if (env != NULL && env[0] == '1') {
+        if (sHudEnvHdOverride == 1) {
             return TRUE;
         }
         return FALSE;
     }
-    if (env != NULL && env[0] != '\0') {
-        return env[0] != '0' ? TRUE : FALSE;
+    if (sHudEnvHdOverride >= 0) {
+        return sHudEnvHdOverride ? TRUE : FALSE;
     }
     if (SIM_Headless_Enabled()) {
         return FALSE;
@@ -1867,6 +1891,7 @@ static void HudStringToUtf8(const String *str, char *out, int outSize)
 {
     int pos = 0;
     u32 i;
+    u32 len;
     const charcode_t *data;
 
     if (out == NULL || outSize <= 0) {
@@ -1882,16 +1907,28 @@ static void HudStringToUtf8(const String *str, char *out, int outSize)
         return;
     }
 
-    for (i = 0; i < 512 && pos < outSize - 1; i++) {
+    // Opus B11: Bound scan by min(String_Length(str), 512) and validate skip lengths.
+    len = String_Length(str);
+    if (len > 512u) {
+        len = 512u;
+    }
+
+    for (i = 0; i < len && pos < outSize - 1; i++) {
         charcode_t c = data[i];
         if (c == CHAR_EOS) {
             break;
         }
         if (c == CHAR_FORMAT_ARG) {
             // Skip format control sequence (tag, id, argc, args...)
-            if (i + 2 < 512) {
-                u16 argc = data[i + 2];
-                i += 2 + argc;
+            if (i + 2u < len) {
+                u16 argc = data[i + 2u];
+                if (i + 2u + (u32)argc < len) {
+                    i += 2u + (u32)argc;
+                } else {
+                    break;
+                }
+            } else {
+                break;
             }
             continue;
         }
@@ -1902,7 +1939,11 @@ static void HudStringToUtf8(const String *str, char *out, int outSize)
             continue;
         }
         if (c == CHAR_CONTROL_SET_COLOR || c == CHAR_CONTROL_SET_SIZE || c == CHAR_CONTROL_MOVE) {
-            i++;
+            if (i + 1u < len) {
+                i++;
+            } else {
+                break;
+            }
             continue;
         }
         if (c >= CHAR_0 && c <= CHAR_9) {
@@ -3354,13 +3395,14 @@ void BattleHud_SyncFrame(BattleSystem *battleSys)
 
     HdHudDumpFrame(&frame);
     BattleBdspDialogue_FillFrame(battleSys, &frame);
-    BattleBdspOverlay_TickAndFillFrame(battleSys, &frame);
+    BattleBdspOverlay_FillFrame(battleSys, &frame);
     GameHudHD_Submit(&frame);
 }
 
 void BattleHud_Reset(void)
 {
     SIM_HudHD_Frame frame;
+    sHudEnvCacheValid = FALSE;
     sHud.activeSubscreen = NULL;
     sHud.infoCardMode = 0;
     sHud.infoCardMenu = -1;
