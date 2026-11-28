@@ -52,6 +52,11 @@ __attribute__((weak)) int SIM_Battle3D_GetModelBounds(int species, int form, int
     (void)outMax;
     return 0;
 }
+__attribute__((weak)) int SIM_Battle3D_HasOpponentTrainer(int trainerModelId)
+{
+    (void)trainerModelId;
+    return 0;
+}
 __attribute__((weak)) int SIM_Battle3D_IsModelReady(int species, int form, int isShiny)
 {
     return SIM_Battle3D_HasModel(species, form, isShiny);
@@ -354,6 +359,19 @@ BOOL SIM_Battle3D_IsModelRenderReady(int species, int form, int isShiny)
     return SIM_Battle3D_IsModelReady(species, SIM_Battle3D_NormalizeForm(species, form), isShiny) ? TRUE : FALSE;
 #else
     (void)species; (void)form; (void)isShiny;
+    return FALSE;
+#endif
+}
+
+BOOL SIM_Battle3D_HasOpponentTrainerReady(int trainerModelId)
+{
+#ifdef SDK_PORT
+    if (!SIM_Battle3D_ModelsEnabled() || trainerModelId <= 0) {
+        return FALSE;
+    }
+    return SIM_Battle3D_HasOpponentTrainer(trainerModelId) ? TRUE : FALSE;
+#else
+    (void)trainerModelId;
     return FALSE;
 #endif
 }

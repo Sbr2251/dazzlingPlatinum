@@ -2348,10 +2348,10 @@ index 4c50209..fea3d68 100644
  
 diff --git a/include/simulator/sim_battle3d.h b/include/simulator/sim_battle3d.h
 new file mode 100644
-index 0000000..036789f
+index 0000000..0ca1ad6
 --- /dev/null
 +++ b/include/simulator/sim_battle3d.h
-@@ -0,0 +1,220 @@
+@@ -0,0 +1,254 @@
 +#ifndef SIM_BATTLE3D_H
 +#define SIM_BATTLE3D_H
 +
@@ -2423,6 +2423,10 @@ index 0000000..036789f
 +    int animNonce;     // Increments each time a one-shot animation triggers
 +    int use3dModel;    // 1 when the game wants the 3D .glb model drawn (and suppressed 2D sprite)
 +    float flashAmount; // 0..1 bright white/red send-out materialization glow
++    // --- Wave 2 in-battle parity fields (zero-initialized when unused) ---
++    int statusCondition; // 0=none, 1=PSN/TOX, 2=BRN, 3=PAR, 4=SLP, 5=FRZ
++    float hitFlash;      // 0..1 crisp white damage hit-flash
++    float lungeOffset[3];// world-space contact lunge / recoil offset (meters)
 +} SIM_Battle3DBattler;
 +
 +typedef struct SIM_Battle3DFrame {
@@ -2459,6 +2463,8 @@ index 0000000..036789f
 +        int attachActorIdx;
 +        int attachBoneKind;
 +        float attachOffset[3];
++        int trainerId;     // BDSP trXXXX id (when kind == SIM_BATTLE3D_ACTOR_OPPONENT_TRAINER)
++        int ballVariant;   // 0=Poke, 1=Great, 2=Ultra, 3=Master, 4=Safari, 5=Quick, 6=Dusk, 7=Premier
 +    } actors[4];
 +    // 3D Poke Ball open / materialization light burst VFX
 +    struct SIM_Battle3DBurst {
@@ -2471,7 +2477,32 @@ index 0000000..036789f
 +        float color[3];    // RGB tint (e.g. 1.0, 0.88, 0.72)
 +    } burst;
 +    int modelsEnabled;     // 1 when game-side BattleModels3D allows extracted GLB arena/models (Opus B2)
++    // --- Wave 2 3D Move/Shiny/Capture/Status VFX slots (zero-initialized when unused) ---
++    struct SIM_Battle3DVfx {
++        int active;
++        int kind;          // enum SIM_Battle3DVfxKind
++        int moveType;      // game TYPE_* (0..18)
++        float progress;    // 0..1 normalized timeline
++        float src[3];      // world origin
++        float dst[3];      // world target
++        float color[3];    // RGB tint
++        float scale;       // size multiplier (<=0 -> 1.0)
++    } vfx[4];
 +} SIM_Battle3DFrame;
++
++#define SIM_BATTLE3D_MAX_VFX 4
++typedef struct SIM_Battle3DVfx SIM_Battle3DVfx;
++
++enum SIM_Battle3DVfxKind {
++    SIM_BATTLE3D_VFX_NONE = 0,
++    SIM_BATTLE3D_VFX_PROJECTILE = 1,   // flying orb/bolt/beam from src -> dst
++    SIM_BATTLE3D_VFX_IMPACT = 2,       // shockwave + sparks burst at dst
++    SIM_BATTLE3D_VFX_STAT_UP = 3,      // rising aura rings around src
++    SIM_BATTLE3D_VFX_STAT_DOWN = 4,    // falling purple/blue rings around dst
++    SIM_BATTLE3D_VFX_SHINY_SPARKLE = 5,// golden 3D star burst on shiny entry
++    SIM_BATTLE3D_VFX_ABSORB_BEAM = 6,  // red beam pulling wild mon into capture ball
++    SIM_BATTLE3D_VFX_CATCH_STARS = 7   // celebratory gold stars on successful catch
++};
 +
 +#define SIM_BATTLE3D_MAX_ACTORS 4
 +typedef struct SIM_Battle3DActor SIM_Battle3DActor;
@@ -2480,7 +2511,8 @@ index 0000000..036789f
 +    SIM_BATTLE3D_ACTOR_NONE = 0,
 +    SIM_BATTLE3D_ACTOR_TRAINER_LUCAS = 1, // trainers/pc0001_00.glb
 +    SIM_BATTLE3D_ACTOR_TRAINER_DAWN = 2,  // trainers/pc0002_00.glb
-+    SIM_BATTLE3D_ACTOR_POKEBALL = 3       // trainers/pokeball.glb
++    SIM_BATTLE3D_ACTOR_POKEBALL = 3,      // trainers/pokeball.glb
++    SIM_BATTLE3D_ACTOR_OPPONENT_TRAINER = 4 // trainers/trXXXX_00.glb (indexed by actor.trainerId)
 +};
 +
 +enum SIM_Battle3DTrainerAnim {
@@ -2558,6 +2590,8 @@ index 0000000..036789f
 +int SIM_Battle3D_GetModelBounds(int species, int form, int isShiny, float outMin[3], float outMax[3]);
 +// Returns 1 if the model is already GPU-uploaded and render-ready (or 0 while async loading, Opus P1).
 +int SIM_Battle3D_IsModelReady(int species, int form, int isShiny);
++// Returns 1 if <bdsp_assets>/trainers/trXXXX_00.glb is render-ready (or triggers prefetch).
++int SIM_Battle3D_HasOpponentTrainer(int trainerModelId);
 +// Queries a versioned, bone-local-offset world socket position (e.g. palm center) for
 +// an actor matching `expectedNonce` and `animTime >= minAnimTime`. Returns 1 on match.
 +int SIM_Battle3D_GetActorSocketPos(int actorIdx, int boneKind, int expectedNonce,
@@ -16365,7 +16399,7 @@ index 0000000..f1c4cec
 +
 +#endif // #ifndef IMGUI_DISABLE
 diff --git a/libraries/sim/src/meson.build b/libraries/sim/src/meson.build
-index 2d852bf..05f8e0a 100644
+index 2d852bf..9863c90 100644
 --- a/libraries/sim/src/meson.build
 +++ b/libraries/sim/src/meson.build
 @@ -8,7 +8,8 @@ libsim_srcs = files(
@@ -16378,7 +16412,7 @@ index 2d852bf..05f8e0a 100644
      'imgui/imgui_tables.cpp',
      'imgui/imgui_widgets.cpp',
      'queue.c',
-@@ -18,12 +19,27 @@ libsim_srcs = files(
+@@ -18,12 +19,29 @@ libsim_srcs = files(
      'sim_debug.cpp',
      'sim_NitroMainThread.cpp',
      'sim_g2.cpp',
@@ -16400,6 +16434,8 @@ index 2d852bf..05f8e0a 100644
 +    'render_gpu/fx_particles.cpp',
 +    'render_gpu/fx_battle3d.cpp',
 +    'render_gpu/fx_battle3d_gltf.cpp',
++  'render_gpu/fx_battle3d_vfx.cpp',
++  'render_gpu/fx_battle3d_env.cpp',
 +    'render_gpu/fx_hudhd.cpp',
 +    'render_gpu/fx_hudhd_atlas.cpp',
 +  'render_gpu/fx_hudhd_dialogue.cpp',
@@ -16407,7 +16443,7 @@ index 2d852bf..05f8e0a 100644
      'sim_g3_Texture.cpp',
      'sim_g3_TextureCache.cpp',
      'sim_g3_Utilities.cpp',
-@@ -31,7 +47,17 @@ libsim_srcs = files(
+@@ -31,7 +49,17 @@ libsim_srcs = files(
      'sim_gui_config.cpp',
      'sim_gui_net.cpp',
      'sim_gui_pad.cpp',
@@ -16425,7 +16461,7 @@ index 2d852bf..05f8e0a 100644
      'sim_net.cpp',
      'sim_RenderContextManager.cpp',
      'sim_RomExtractor.cpp',
-@@ -48,6 +74,25 @@ if(build_target == 'prospero')
+@@ -48,6 +76,25 @@ if(build_target == 'prospero')
  libsim_srcs += files('ps5_heap.cpp')
  endif
  
@@ -17937,11 +17973,13 @@ index 0000000..5f952c6
 +} // namespace SIM::Render
 diff --git a/libraries/sim/src/render_gpu/fx_battle3d.cpp b/libraries/sim/src/render_gpu/fx_battle3d.cpp
 new file mode 100644
-index 0000000..4298a19
+index 0000000..f3e200c
 --- /dev/null
 +++ b/libraries/sim/src/render_gpu/fx_battle3d.cpp
-@@ -0,0 +1,3091 @@
+@@ -0,0 +1,3095 @@
 +#include "fx_battle3d.hpp"
++#include "fx_battle3d_vfx.hpp"
++#include "fx_battle3d_env.hpp"
 +
 +#include "generated/battle3d_shaders.h"
 +#include "generated/battle3d_skinned_shaders.h"
@@ -20844,6 +20882,8 @@ index 0000000..4298a19
 +
 +  // Pass 4: 3D additive Poke Ball open / materialization light-burst VFX.
 +  RenderBurstVfx(device, frame, worldVp, colorFormat, hasDepth, viewProj);
++  RenderBattle3DVfx(device, frame, worldVp, colorFormat, hasDepth, viewProj, mLatched);
++  RenderBattle3DEnvFx(device, frame, worldVp, colorFormat, hasDepth, viewProj, mLatched);
 +
 +  // Restore original Scene3D viewport (min_depth=0, max_depth=1) for DS sprites & SPL particles.
 +  frame->SetViewport(viewport);
@@ -21203,6 +21243,45 @@ index 0000000..4588dc5
 +  bool mHasShadowMap = false;
 +  bool mReadyForScene = false;
 +};
++
++} // namespace SIM::Render
+diff --git a/libraries/sim/src/render_gpu/fx_battle3d_env.cpp b/libraries/sim/src/render_gpu/fx_battle3d_env.cpp
+new file mode 100644
+index 0000000..509153c
+--- /dev/null
++++ b/libraries/sim/src/render_gpu/fx_battle3d_env.cpp
+@@ -0,0 +1,13 @@
++#include "fx_battle3d_env.hpp"
++
++namespace SIM::Render {
++
++void RenderBattle3DEnvFx(SIM::Gpu::Device &device, SIM::Gpu::Frame *frame,
++                         const SDL_GPUViewport &worldViewport,
++                         SDL_GPUTextureFormat colorFormat, bool hasDepth,
++                         const float viewProj[16], const SIM_Battle3DFrame &latched) {
++  (void)device; (void)frame; (void)worldViewport;
++  (void)colorFormat; (void)hasDepth; (void)viewProj; (void)latched;
++}
++
++} // namespace SIM::Render
+diff --git a/libraries/sim/src/render_gpu/fx_battle3d_env.hpp b/libraries/sim/src/render_gpu/fx_battle3d_env.hpp
+new file mode 100644
+index 0000000..1d88491
+--- /dev/null
++++ b/libraries/sim/src/render_gpu/fx_battle3d_env.hpp
+@@ -0,0 +1,14 @@
++#pragma once
++
++#include <simulator/gpu/gpu.hpp>
++#include <simulator/sim_battle3d.h>
++#include <SDL3/SDL.h>
++
++namespace SIM::Render {
++
++void RenderBattle3DEnvFx(SIM::Gpu::Device &device, SIM::Gpu::Frame *frame,
++                         const SDL_GPUViewport &worldViewport,
++                         SDL_GPUTextureFormat colorFormat, bool hasDepth,
++                         const float viewProj[16], const SIM_Battle3DFrame &latched);
 +
 +} // namespace SIM::Render
 diff --git a/libraries/sim/src/render_gpu/fx_battle3d_gltf.cpp b/libraries/sim/src/render_gpu/fx_battle3d_gltf.cpp
@@ -22966,6 +23045,45 @@ index 0000000..4252b6f
 +bool GetGltfBoneWorldMatrix(const GltfModel &model, const float actorModelMat[16],
 +                            const std::vector<float> &nodeWorldMats,
 +                            int boneKind, float outWorldMat[16]);
++
++} // namespace SIM::Render
+diff --git a/libraries/sim/src/render_gpu/fx_battle3d_vfx.cpp b/libraries/sim/src/render_gpu/fx_battle3d_vfx.cpp
+new file mode 100644
+index 0000000..e0429a5
+--- /dev/null
++++ b/libraries/sim/src/render_gpu/fx_battle3d_vfx.cpp
+@@ -0,0 +1,13 @@
++#include "fx_battle3d_vfx.hpp"
++
++namespace SIM::Render {
++
++void RenderBattle3DVfx(SIM::Gpu::Device &device, SIM::Gpu::Frame *frame,
++                       const SDL_GPUViewport &worldViewport,
++                       SDL_GPUTextureFormat colorFormat, bool hasDepth,
++                       const float viewProj[16], const SIM_Battle3DFrame &latched) {
++  (void)device; (void)frame; (void)worldViewport;
++  (void)colorFormat; (void)hasDepth; (void)viewProj; (void)latched;
++}
++
++} // namespace SIM::Render
+diff --git a/libraries/sim/src/render_gpu/fx_battle3d_vfx.hpp b/libraries/sim/src/render_gpu/fx_battle3d_vfx.hpp
+new file mode 100644
+index 0000000..317ffdd
+--- /dev/null
++++ b/libraries/sim/src/render_gpu/fx_battle3d_vfx.hpp
+@@ -0,0 +1,14 @@
++#pragma once
++
++#include <simulator/gpu/gpu.hpp>
++#include <simulator/sim_battle3d.h>
++#include <SDL3/SDL.h>
++
++namespace SIM::Render {
++
++void RenderBattle3DVfx(SIM::Gpu::Device &device, SIM::Gpu::Frame *frame,
++                       const SDL_GPUViewport &worldViewport,
++                       SDL_GPUTextureFormat colorFormat, bool hasDepth,
++                       const float viewProj[16], const SIM_Battle3DFrame &latched);
 +
 +} // namespace SIM::Render
 diff --git a/libraries/sim/src/render_gpu/fx_hudhd.cpp b/libraries/sim/src/render_gpu/fx_hudhd.cpp

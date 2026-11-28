@@ -59,6 +59,9 @@ typedef struct SIM_Battle3DBattler {
     int animNonce;
     int use3dModel;
     float flashAmount;
+    int statusCondition;
+    float hitFlash;
+    float lungeOffset[3];
 } SIM_Battle3DBattler;
 typedef struct SIM_Battle3DFrame {
     int active;
@@ -90,6 +93,8 @@ typedef struct SIM_Battle3DFrame {
         int attachActorIdx;
         int attachBoneKind;
         float attachOffset[3];
+        int trainerId;
+        int ballVariant;
     } actors[4];
     struct SIM_Battle3DBurst {
         int active;
@@ -101,14 +106,37 @@ typedef struct SIM_Battle3DFrame {
         float color[3];
     } burst;
     int modelsEnabled;
+    struct SIM_Battle3DVfx {
+        int active;
+        int kind;
+        int moveType;
+        float progress;
+        float src[3];
+        float dst[3];
+        float color[3];
+        float scale;
+    } vfx[4];
 } SIM_Battle3DFrame;
+#define SIM_BATTLE3D_MAX_VFX 4
+typedef struct SIM_Battle3DVfx SIM_Battle3DVfx;
+enum SIM_Battle3DVfxKind {
+    SIM_BATTLE3D_VFX_NONE = 0,
+    SIM_BATTLE3D_VFX_PROJECTILE = 1,
+    SIM_BATTLE3D_VFX_IMPACT = 2,
+    SIM_BATTLE3D_VFX_STAT_UP = 3,
+    SIM_BATTLE3D_VFX_STAT_DOWN = 4,
+    SIM_BATTLE3D_VFX_SHINY_SPARKLE = 5,
+    SIM_BATTLE3D_VFX_ABSORB_BEAM = 6,
+    SIM_BATTLE3D_VFX_CATCH_STARS = 7
+};
 #define SIM_BATTLE3D_MAX_ACTORS 4
 typedef struct SIM_Battle3DActor SIM_Battle3DActor;
 enum SIM_Battle3DActorKind {
     SIM_BATTLE3D_ACTOR_NONE = 0,
     SIM_BATTLE3D_ACTOR_TRAINER_LUCAS = 1,
     SIM_BATTLE3D_ACTOR_TRAINER_DAWN = 2,
-    SIM_BATTLE3D_ACTOR_POKEBALL = 3
+    SIM_BATTLE3D_ACTOR_POKEBALL = 3,
+    SIM_BATTLE3D_ACTOR_OPPONENT_TRAINER = 4
 };
 enum SIM_Battle3DTrainerAnim {
     SIM_BATTLE3D_TRANIM_WAIT = 0,
@@ -152,6 +180,7 @@ BOOL SIM_Battle3D_GetActorHandPos(int actorIdx, int boneKind, float outPos[3]);
 BOOL SIM_Battle3D_GetModelBBox(int species, int form, int isShiny, float outMin[3], float outMax[3]);
 BOOL SIM_Battle3D_IsModelRenderReady(int species, int form, int isShiny);
 int SIM_Battle3D_NormalizeForm(int species, int form);
+BOOL SIM_Battle3D_HasOpponentTrainerReady(int trainerModelId);
 BOOL SIM_Battle3D_GetActorSocketWorldPos(int actorIdx, int boneKind, int expectedNonce,
                                          float minAnimTime, const float localOffset[3],
                                          float outPos[3]);

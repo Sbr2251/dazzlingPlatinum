@@ -1,6 +1,8 @@
 #include "battle/battle_stage.h"
 #include "battle/battle_bdsp_cam.h"
 #include "battle/battle_bdsp_trainer.h"
+#include "battle/battle_bdsp_vfx.h"
+#include "battle/battle_bdsp_capture.h"
 
 #include <math.h>
 #include <nitro.h>
@@ -1778,6 +1780,8 @@ static void ResetBdspAnimState(void)
     }
     BattleBdspCam_Reset();
     BattleBdspTrainer_Reset();
+    BattleBdspVfx_Reset();
+    BattleBdspCapture_Reset();
 }
 
 static void SetBdspAnim(int battler, int animState, float duration)
@@ -1831,6 +1835,7 @@ void BattleStage_NotifyBdspAttack(int battler, u16 move)
     state = (moveClass == CLASS_PHYSICAL) ? SIM_BATTLE3D_ANIM_ATTACK_PHYS : SIM_BATTLE3D_ANIM_ATTACK_SPEC;
     SetBdspAnim(battler, state, BDSP_ANIM_ATTACK_DUR);
     BattleBdspCam_NotifyAttack(battler, move);
+    BattleBdspVfx_NotifyAttack(battler, battler ^ 1, move);
 }
 
 void BattleStage_NotifyBdspHit(int battler)
@@ -1845,6 +1850,7 @@ void BattleStage_NotifyBdspHit(int battler)
     sBdspAnim[battler].hitFlickering = TRUE;
     SetBdspAnim(battler, SIM_BATTLE3D_ANIM_HIT, BDSP_ANIM_HIT_DUR);
     BattleBdspCam_NotifyHit(battler);
+    BattleBdspVfx_NotifyHit(battler);
 }
 
 void BattleStage_NotifyBdspHitEnd(int battler)
@@ -2658,6 +2664,8 @@ static void SubmitBdspFrame(void)
     }
 
     BattleBdspTrainer_Update(battleSys, &frame);
+    BattleBdspCapture_Update(battleSys, &frame);
+    BattleBdspVfx_Update(battleSys, &frame);
     BattleBdspCam_Update(battleSys, &frame);
     BdspDumpFrame(frameNum, &frame, battleSys, maxBattlers);
     SIM_Battle3D_SubmitFrame(&frame);
