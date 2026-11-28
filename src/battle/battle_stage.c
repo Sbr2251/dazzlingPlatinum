@@ -137,6 +137,7 @@ typedef struct BattleStage {
     u32 suppressed;
     int debugView;
     BOOL wasVisible;
+    BOOL any3dModelReady;
     BOOL platformsHidden;
     int brightness; // BattleStage_SetBrightness; the Mega critic reads it from RAM at +28
     BattleStageSpriteFields sprites; // +32..+48, read and written by the critic (sprites.md)
@@ -1911,6 +1912,11 @@ static float BdspNormalizeModelScaleFromBBox(const float bmin[3], const float bm
     return scale;
 }
 
+BOOL BattleStage_Any3DModelReady(void)
+{
+    return (SIM_Battle3D_ModelsEnabled() && BattleStage_IsVisible() && sBattleStage.any3dModelReady) ? TRUE : FALSE;
+}
+
 BOOL BattleStage_IsBattler3DModel(BattleSystem *battleSys, int battler)
 {
     BattleContext *ctx;
@@ -2126,6 +2132,7 @@ static void SubmitBdspFrame(void)
     int i;
 
     if (battleSys == NULL || arena == NULL) {
+        sBattleStage.any3dModelReady = FALSE;
         SIM_Battle3D_Reset();
         return;
     }
@@ -2134,6 +2141,7 @@ static void SubmitBdspFrame(void)
     if (alpha <= 0.0f) {
         BattleBdspTrainer_Prefetch(battleSys);
         BattleBdspVfx_DiscardPending();
+        sBattleStage.any3dModelReady = FALSE;
         SIM_Battle3D_Reset();
         return;
     }
@@ -2217,6 +2225,7 @@ static void SubmitBdspFrame(void)
         }
     }
 
+    sBattleStage.any3dModelReady = any3dModel;
     memset(&frame, 0, sizeof(frame));
     frameNum = arena->frame;
     timeSec = (float)frameNum / 60.0f;

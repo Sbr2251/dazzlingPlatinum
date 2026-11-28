@@ -6138,6 +6138,11 @@ static const s8 sAffinePulseRevealFlash[] = {
 // particles however long they took to load
 static u8 sMegaEvolutionCue = MEGA_EVOLUTION_CUE_NONE;
 
+BOOL BattleDisplay_IsMegaEvolutionActive(void)
+{
+    return (sMegaEvolutionCue != MEGA_EVOLUTION_CUE_NONE) ? TRUE : FALSE;
+}
+
 void BattleDisplay_SetMegaEvolutionCue(int cue)
 {
     sMegaEvolutionCue = cue;

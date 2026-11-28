@@ -32,7 +32,7 @@ E_OUR = np.array([2.35, 0.0, -2.15], dtype=np.float64)
 T_OUR = np.array([-2.30, 0.0, 2.60], dtype=np.float64)
 MID_OUR = 0.5 * (P_OUR + E_OUR)  # (+0.10, 0.0, +0.05)
 
-HOME_EYE = np.array([-3.60, 2.55, 8.80], dtype=np.float64)
+HOME_EYE = np.array([-3.45, 2.52, 8.45], dtype=np.float64)
 HOME_TARGET = np.array([0.60, 1.45, -2.00], dtype=np.float64)
 HOME_FOV = 38.0
 
@@ -405,59 +405,59 @@ def build_camera_bank(aa_root: str) -> dict[str, Any]:
         out_duration=5.0,
     )
 
-    # --- INTRO_WILD (calm establishing glide showing wild mon -> smoothly behind trainer) ---
+    # --- INTRO_WILD (all eyes <= 9.15m; frames both wild mon and entering trainer on the left) ---
     intro_wild_keys = _clamp_clip_keys(
         [
-            _make_key(0.00, [-2.60, 2.35, 6.20], [1.40, 1.15, -1.65], 34.0),
-            _make_key(1.50, [-3.40, 2.30, 7.20], [0.80, 1.25, -1.40], 35.5),
-            _make_key(2.45, [-4.60, 2.25, 7.90], [-0.35, 1.20, 0.10], 36.0),
-            _make_key(3.20, [-5.60, 2.15, 7.60], [-1.20, 1.15, 1.20], 35.5),
+            _make_key(0.00, [-4.25, 2.32, 7.65], [0.40, 1.18, -1.10], 36.5),
+            _make_key(1.40, [-4.75, 2.24, 7.60], [-0.15, 1.18, -0.45], 36.2),
+            _make_key(2.40, [-5.20, 2.16, 7.40], [-0.80, 1.15, 0.55], 35.8),
+            _make_key(3.20, [-5.45, 2.12, 7.25], [-1.15, 1.12, 1.20], 35.5),
         ]
     )
 
-    # --- THROW_CUT (steady behind-trainer framing: trainer stands behind (-4.05,4.10) and throws forward to (-2.15,2.25)) ---
+    # --- THROW_CUT (all eyes <= 9.13m: steady behind-trainer framing -> smoothly to HOME) ---
     throw_cut_keys = _clamp_clip_keys(
         [
-            _make_key(0.00, [-5.75, 2.12, 7.55], [-1.20, 1.12, 1.25], 35.5),
-            _make_key(0.55, [-5.45, 2.18, 7.80], [-0.75, 1.18, 0.55], 36.2),
-            _make_key(1.25, [-4.40, 2.38, 8.35], [0.10, 1.32, -1.05], 37.2),
+            _make_key(0.00, [-5.45, 2.12, 7.25], [-1.15, 1.12, 1.20], 35.5),
+            _make_key(0.55, [-5.20, 2.18, 7.50], [-0.70, 1.18, 0.50], 36.2),
+            _make_key(1.25, [-4.25, 2.38, 8.05], [0.10, 1.32, -1.05], 37.2),
             _make_key(1.90, HOME_EYE, HOME_TARGET, HOME_FOV),
         ]
     )
 
-    # --- ATTACK_PLAYER (calm gentle push-in keeping both battlers composed — zero jarring teleport cuts) ---
+    # --- ATTACK_PLAYER (all eyes <= 9.13m: gentle push-in keeping both battlers composed) ---
     attack_player_keys = _clamp_clip_keys(
         [
-            _make_key(0.00, [-3.85, 2.42, 8.15], [0.25, 1.38, -1.35], 36.5),
-            _make_key(0.65, [-3.55, 2.32, 7.65], [0.55, 1.32, -1.55], 35.2),
-            _make_key(1.40, [-3.25, 2.35, 7.75], [0.85, 1.32, -1.80], 35.5),
+            _make_key(0.00, [-3.70, 2.42, 8.00], [0.25, 1.38, -1.35], 36.5),
+            _make_key(0.65, [-3.45, 2.32, 7.55], [0.55, 1.32, -1.55], 35.2),
+            _make_key(1.40, [-3.15, 2.35, 7.65], [0.85, 1.32, -1.80], 35.5),
             _make_key(1.95, HOME_EYE, HOME_TARGET, HOME_FOV),
         ]
     )
 
-    # --- ATTACK_ENEMY (calm counter-angle keeping enemy attack & player clearly framed) ---
+    # --- ATTACK_ENEMY (all eyes <= 9.13m: calm counter-angle keeping enemy attack & player visible) ---
     attack_enemy_keys = _clamp_clip_keys(
         [
-            _make_key(0.00, [-3.10, 2.38, 7.95], [0.85, 1.30, -1.75], 35.8),
-            _make_key(0.60, [-3.35, 2.32, 7.85], [0.40, 1.30, -1.15], 35.5),
-            _make_key(1.15, [-3.95, 2.40, 8.35], [-0.15, 1.34, -0.55], 36.2),
+            _make_key(0.00, [-3.05, 2.38, 7.85], [0.85, 1.30, -1.75], 35.8),
+            _make_key(0.60, [-3.30, 2.32, 7.75], [0.40, 1.30, -1.15], 35.5),
+            _make_key(1.15, [-3.85, 2.40, 8.20], [-0.15, 1.34, -0.55], 36.2),
             _make_key(1.65, HOME_EYE, HOME_TARGET, HOME_FOV),
         ]
     )
 
-    # --- HIT_PLAYER / HIT_ENEMY (subtle composed emphasis, no 7m teleport jumps) ---
+    # --- HIT_PLAYER / HIT_ENEMY (all eyes <= 9.13m: subtle composed emphasis) ---
     hit_player_keys = _clamp_clip_keys(
         [
-            _make_key(0.00, [-4.05, 2.38, 8.20], [-0.25, 1.32, -0.45], 35.8),
-            _make_key(0.40, [-3.95, 2.42, 8.35], [0.05, 1.36, -0.95], 36.5),
+            _make_key(0.00, [-3.90, 2.38, 8.05], [-0.25, 1.32, -0.45], 35.8),
+            _make_key(0.40, [-3.80, 2.42, 8.20], [0.05, 1.36, -0.95], 36.5),
             _make_key(0.85, HOME_EYE, HOME_TARGET, HOME_FOV),
         ]
     )
 
     hit_enemy_keys = _clamp_clip_keys(
         [
-            _make_key(0.00, [-3.15, 2.35, 7.65], [0.95, 1.30, -1.85], 35.0),
-            _make_key(0.40, [-3.35, 2.44, 8.15], [0.80, 1.38, -1.92], 36.5),
+            _make_key(0.00, [-3.10, 2.35, 7.55], [0.95, 1.30, -1.85], 35.0),
+            _make_key(0.40, [-3.30, 2.44, 8.05], [0.80, 1.38, -1.92], 36.5),
             _make_key(0.85, HOME_EYE, HOME_TARGET, HOME_FOV),
         ]
     )

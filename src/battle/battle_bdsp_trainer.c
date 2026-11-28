@@ -38,7 +38,7 @@
 
 // BDSP pc0001_00 (Lucas) & pc0002_00 (Dawn) throw clip (advent03_b) metrics:
 // Both trainers throw with LHand (boneKind=2, ee400 _locators[75]=LItem1);
-// exact peak forward hand velocity & palm detachment occur on integer frame 19 (19/60s = 0.3167s).
+// exact forward whip release occurs on integer frame 21 (21/60s = 0.350s).
 #define BDSP_THROW_HAND_BONE            2
 #define BDSP_BALL_RELEASE_TICK          21
 #define BDSP_BALL_FLIGHT_TICKS          24
@@ -1150,7 +1150,7 @@ void BattleBdspTrainer_Update(BattleSystem *battleSys, SIM_Battle3DFrame *frame)
         sTrainer.throwTime = (float)sTrainer.throwTicks * BDSP_TRAINER_DT;
         sTrainer.animTime = sTrainer.throwTime;
 
-        // Wind-up -> exact tick 19 hand release -> parabolic flight to landing spot -> burst VFX
+        // Wind-up -> exact tick 21 hand release -> parabolic flight to landing spot -> burst VFX
         if (!sTrainer.ballDone) {
             if (!sTrainer.ballReleased) {
                 if (sTrainer.throwTicks >= BDSP_BALL_RELEASE_TICK) {
@@ -1312,7 +1312,7 @@ void BattleBdspTrainer_Update(BattleSystem *battleSys, SIM_Battle3DFrame *frame)
 
     // Populate frame->actors[1] (and actors[2] in doubles) for 3D Poke Ball(s):
     // Locked directly to trainer's LHand via per-rig LItem1 palm offset during wind-up,
-    // then detaches at exact tick 19 with u=0.0 from the exact transformed palm point.
+    // then detaches at exact tick 21 with u=0.0 from the exact transformed palm point.
     ballAttachedToHand = (sTrainer.phase == BDSP_TRAINER_PHASE_ENTERING
         || sTrainer.phase == BDSP_TRAINER_PHASE_STANDING
         || (sTrainer.phase == BDSP_TRAINER_PHASE_THROWING && !sTrainer.ballReleased && !sTrainer.ballDone));

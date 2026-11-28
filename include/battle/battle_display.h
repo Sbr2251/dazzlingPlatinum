@@ -149,4 +149,6 @@ SavedCursorPosition *BattlerData_GetSavedCursorPosition(BattlerData *battlerData
 void BattlerData_ClearSavedCursorPosition(BattlerData *battlerData);
 void BattlerData_SetTrainerVisibility(BattlerData *battlerData, BOOL drawFlag);
 
+BOOL BattleDisplay_IsMegaEvolutionActive(void);
+
 #endif // POKEPLATINUM_BATTLE_BATTLE_DISPLAY_H

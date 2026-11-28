@@ -193,6 +193,7 @@ void BattleStage_NotifyBdspHit(int battler);
 void BattleStage_NotifyBdspHitEnd(int battler);
 void BattleStage_NotifyBdspFaint(int battler);
 BOOL BattleStage_IsBattler3DModel(BattleSystem *battleSys, int battler);
+BOOL BattleStage_Any3DModelReady(void);
 
 // Move compatibility (chunk 5; docs/living_battle_stage/compat.md). The critic reads these
 // from RAM at sBattleStage+96; they are zeroed per battle with the rest of sBattleStage.

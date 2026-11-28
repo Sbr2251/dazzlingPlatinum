@@ -203,96 +203,95 @@ static void PopulateFallbackBank(void)
     BdspCamClip *c;
 
     memset(&sBank.clips, 0, sizeof(sBank.clips));
-    sBank.home.eye[0] = -3.60f;
-    sBank.home.eye[1] = 2.55f;
-    sBank.home.eye[2] = 8.80f;
+    sBank.home.eye[0] = -3.45f;
+    sBank.home.eye[1] = 2.52f;
+    sBank.home.eye[2] = 8.45f;
     sBank.home.target[0] = 0.60f;
     sBank.home.target[1] = 1.45f;
     sBank.home.target[2] = -2.00f;
     sBank.home.fov = 38.0f;
 
-    // intro_wild (calm continuous establishing glide showing wild mon -> smoothly framing behind trainer)
+    // intro_wild (all eyes strictly within r <= 9.15m; frames both wild mon and entering trainer on the left)
     c = &sBank.clips[CAM_CLIP_INTRO_WILD];
     c->loaded = TRUE;
     c->loop = FALSE;
     c->duration = 3.2f;
-    SetKey(c, 0, 0.00f, -2.60f, 2.35f, 6.20f,  1.40f, 1.15f, -1.65f, 34.0f);
-    SetKey(c, 1, 1.50f, -3.40f, 2.30f, 7.20f,  0.80f, 1.25f, -1.40f, 35.5f);
-    SetKey(c, 2, 2.45f, -4.60f, 2.25f, 7.90f, -0.35f, 1.20f,  0.10f, 36.0f);
-    SetKey(c, 3, 3.20f, -5.60f, 2.15f, 7.60f, -1.20f, 1.15f,  1.20f, 35.5f);
+    SetKey(c, 0, 0.00f, -4.25f, 2.32f, 7.65f,  0.40f, 1.18f, -1.10f, 36.5f);
+    SetKey(c, 1, 1.40f, -4.75f, 2.24f, 7.60f, -0.15f, 1.18f, -0.45f, 36.2f);
+    SetKey(c, 2, 2.40f, -5.20f, 2.16f, 7.40f, -0.80f, 1.15f,  0.55f, 35.8f);
+    SetKey(c, 3, 3.20f, -5.45f, 2.12f, 7.25f, -1.15f, 1.12f,  1.20f, 35.5f);
 
-    // throw_cut (single steady over-the-shoulder shot behind Lucas at (-4.05, 0, +4.10) looking straight
-    // past him toward Infernape's landing spot (-2.15, 0, +2.25) and Bibarel, then smoothly gliding to HOME)
+    // throw_cut (r <= 9.13m: steady over-the-shoulder behind Lucas (-4.05, 0, +4.10) -> smoothly to HOME)
     c = &sBank.clips[CAM_CLIP_THROW_CUT];
     c->loaded = TRUE;
     c->loop = FALSE;
     c->duration = 1.9f;
-    SetKey(c, 0, 0.00f, -5.75f, 2.12f, 7.55f, -1.20f, 1.12f,  1.25f, 35.5f);
-    SetKey(c, 1, 0.55f, -5.45f, 2.18f, 7.80f, -0.75f, 1.18f,  0.55f, 36.2f);
-    SetKey(c, 2, 1.25f, -4.40f, 2.38f, 8.35f,  0.10f, 1.32f, -1.05f, 37.2f);
-    SetKey(c, 3, 1.90f, -3.60f, 2.55f, 8.80f,  0.60f, 1.45f, -2.00f, 38.0f);
+    SetKey(c, 0, 0.00f, -5.45f, 2.12f, 7.25f, -1.15f, 1.12f,  1.20f, 35.5f);
+    SetKey(c, 1, 0.55f, -5.20f, 2.18f, 7.50f, -0.70f, 1.18f,  0.50f, 36.2f);
+    SetKey(c, 2, 1.25f, -4.25f, 2.38f, 8.05f,  0.10f, 1.32f, -1.05f, 37.2f);
+    SetKey(c, 3, 1.90f, -3.45f, 2.52f, 8.45f,  0.60f, 1.45f, -2.00f, 38.0f);
 
-    // wait_idle_0/1/2 (calm steady HOME camera with ultra-gentle breathing drift — no jarring cuts)
+    // wait_idle_0/1/2 (r <= 9.15m: calm steady HOME camera with ultra-gentle 10s ping-pong breathing)
     c = &sBank.clips[CAM_CLIP_WAIT_IDLE_0];
     c->loaded = TRUE;
     c->loop = TRUE;
     c->duration = 10.0f;
-    SetKey(c, 0,  0.00f, -3.80f, 2.54f, 8.70f, 0.65f, 1.44f, -2.02f, 37.8f);
-    SetKey(c, 1,  5.00f, -3.40f, 2.58f, 8.88f, 0.55f, 1.46f, -1.98f, 38.2f);
-    SetKey(c, 2, 10.00f, -3.80f, 2.54f, 8.70f, 0.65f, 1.44f, -2.02f, 37.8f);
+    SetKey(c, 0,  0.00f, -3.65f, 2.50f, 8.38f, 0.64f, 1.44f, -2.02f, 37.8f);
+    SetKey(c, 1,  5.00f, -3.25f, 2.55f, 8.52f, 0.56f, 1.46f, -1.98f, 38.2f);
+    SetKey(c, 2, 10.00f, -3.65f, 2.50f, 8.38f, 0.64f, 1.44f, -2.02f, 37.8f);
 
     c = &sBank.clips[CAM_CLIP_WAIT_IDLE_1];
     c->loaded = TRUE;
     c->loop = TRUE;
     c->duration = 10.0f;
-    SetKey(c, 0,  0.00f, -3.80f, 2.54f, 8.70f, 0.65f, 1.44f, -2.02f, 37.8f);
-    SetKey(c, 1,  5.00f, -3.40f, 2.58f, 8.88f, 0.55f, 1.46f, -1.98f, 38.2f);
-    SetKey(c, 2, 10.00f, -3.80f, 2.54f, 8.70f, 0.65f, 1.44f, -2.02f, 37.8f);
+    SetKey(c, 0,  0.00f, -3.65f, 2.50f, 8.38f, 0.64f, 1.44f, -2.02f, 37.8f);
+    SetKey(c, 1,  5.00f, -3.25f, 2.55f, 8.52f, 0.56f, 1.46f, -1.98f, 38.2f);
+    SetKey(c, 2, 10.00f, -3.65f, 2.50f, 8.38f, 0.64f, 1.44f, -2.02f, 37.8f);
 
     c = &sBank.clips[CAM_CLIP_WAIT_IDLE_2];
     c->loaded = TRUE;
     c->loop = TRUE;
     c->duration = 10.0f;
-    SetKey(c, 0,  0.00f, -3.80f, 2.54f, 8.70f, 0.65f, 1.44f, -2.02f, 37.8f);
-    SetKey(c, 1,  5.00f, -3.40f, 2.58f, 8.88f, 0.55f, 1.46f, -1.98f, 38.2f);
-    SetKey(c, 2, 10.00f, -3.80f, 2.54f, 8.70f, 0.65f, 1.44f, -2.02f, 37.8f);
+    SetKey(c, 0,  0.00f, -3.65f, 2.50f, 8.38f, 0.64f, 1.44f, -2.02f, 37.8f);
+    SetKey(c, 1,  5.00f, -3.25f, 2.55f, 8.52f, 0.56f, 1.46f, -1.98f, 38.2f);
+    SetKey(c, 2, 10.00f, -3.65f, 2.50f, 8.38f, 0.64f, 1.44f, -2.02f, 37.8f);
 
-    // attack_player (smooth gentle push-in keeping BOTH battlers cleanly composed — zero teleport cuts)
+    // attack_player (r <= 9.13m: gentle push-in keeping BOTH battlers cleanly composed)
     c = &sBank.clips[CAM_CLIP_ATTACK_PLAYER];
     c->loaded = TRUE;
     c->loop = FALSE;
     c->duration = 1.95f;
-    SetKey(c, 0, 0.00f, -3.85f, 2.42f, 8.15f, 0.25f, 1.38f, -1.35f, 36.5f);
-    SetKey(c, 1, 0.65f, -3.55f, 2.32f, 7.65f, 0.55f, 1.32f, -1.55f, 35.2f);
-    SetKey(c, 2, 1.40f, -3.25f, 2.35f, 7.75f, 0.85f, 1.32f, -1.80f, 35.5f);
-    SetKey(c, 3, 1.95f, -3.60f, 2.55f, 8.80f, 0.60f, 1.45f, -2.00f, 38.0f);
+    SetKey(c, 0, 0.00f, -3.70f, 2.42f, 8.00f, 0.25f, 1.38f, -1.35f, 36.5f);
+    SetKey(c, 1, 0.65f, -3.45f, 2.32f, 7.55f, 0.55f, 1.32f, -1.55f, 35.2f);
+    SetKey(c, 2, 1.40f, -3.15f, 2.35f, 7.65f, 0.85f, 1.32f, -1.80f, 35.5f);
+    SetKey(c, 3, 1.95f, -3.45f, 2.52f, 8.45f, 0.60f, 1.45f, -2.00f, 38.0f);
 
-    // attack_enemy (smooth gentle counter-angle keeping enemy attack + player clearly visible)
+    // attack_enemy (r <= 9.13m: gentle counter-angle keeping enemy attack & player clearly visible)
     c = &sBank.clips[CAM_CLIP_ATTACK_ENEMY];
     c->loaded = TRUE;
     c->loop = FALSE;
     c->duration = 1.65f;
-    SetKey(c, 0, 0.00f, -3.10f, 2.38f, 7.95f, 0.85f, 1.30f, -1.75f, 35.8f);
-    SetKey(c, 1, 0.60f, -3.35f, 2.32f, 7.85f, 0.40f, 1.30f, -1.15f, 35.5f);
-    SetKey(c, 2, 1.15f, -3.95f, 2.40f, 8.35f, -0.15f, 1.34f, -0.55f, 36.2f);
-    SetKey(c, 3, 1.65f, -3.60f, 2.55f, 8.80f, 0.60f, 1.45f, -2.00f, 38.0f);
+    SetKey(c, 0, 0.00f, -3.05f, 2.38f, 7.85f, 0.85f, 1.30f, -1.75f, 35.8f);
+    SetKey(c, 1, 0.60f, -3.30f, 2.32f, 7.75f, 0.40f, 1.30f, -1.15f, 35.5f);
+    SetKey(c, 2, 1.15f, -3.85f, 2.40f, 8.20f, -0.15f, 1.34f, -0.55f, 36.2f);
+    SetKey(c, 3, 1.65f, -3.45f, 2.52f, 8.45f, 0.60f, 1.45f, -2.00f, 38.0f);
 
-    // hit_player & hit_enemy (subtle composed emphasis without jarring 7m teleport jumps)
+    // hit_player & hit_enemy (r <= 9.13m: subtle composed emphasis without teleport jumps)
     c = &sBank.clips[CAM_CLIP_HIT_PLAYER];
     c->loaded = TRUE;
     c->loop = FALSE;
     c->duration = 0.85f;
-    SetKey(c, 0, 0.00f, -4.05f, 2.38f, 8.20f, -0.25f, 1.32f, -0.45f, 35.8f);
-    SetKey(c, 1, 0.40f, -3.95f, 2.42f, 8.35f,  0.05f, 1.36f, -0.95f, 36.5f);
-    SetKey(c, 2, 0.85f, -3.60f, 2.55f, 8.80f,  0.60f, 1.45f, -2.00f, 38.0f);
+    SetKey(c, 0, 0.00f, -3.90f, 2.38f, 8.05f, -0.25f, 1.32f, -0.45f, 35.8f);
+    SetKey(c, 1, 0.40f, -3.80f, 2.42f, 8.20f,  0.05f, 1.36f, -0.95f, 36.5f);
+    SetKey(c, 2, 0.85f, -3.45f, 2.52f, 8.45f,  0.60f, 1.45f, -2.00f, 38.0f);
 
     c = &sBank.clips[CAM_CLIP_HIT_ENEMY];
     c->loaded = TRUE;
     c->loop = FALSE;
     c->duration = 0.85f;
-    SetKey(c, 0, 0.00f, -3.15f, 2.35f, 7.65f,  0.95f, 1.30f, -1.85f, 35.0f);
-    SetKey(c, 1, 0.40f, -3.35f, 2.44f, 8.15f,  0.80f, 1.38f, -1.92f, 36.5f);
-    SetKey(c, 2, 0.85f, -3.60f, 2.55f, 8.80f,  0.60f, 1.45f, -2.00f, 38.0f);
+    SetKey(c, 0, 0.00f, -3.10f, 2.35f, 7.55f,  0.95f, 1.30f, -1.85f, 35.0f);
+    SetKey(c, 1, 0.40f, -3.30f, 2.44f, 8.05f,  0.80f, 1.38f, -1.92f, 36.5f);
+    SetKey(c, 2, 0.85f, -3.45f, 2.52f, 8.45f,  0.60f, 1.45f, -2.00f, 38.0f);
 
     // faint_cut
     c = &sBank.clips[CAM_CLIP_FAINT_CUT];

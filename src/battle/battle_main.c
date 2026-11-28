@@ -47,6 +47,7 @@
 #include "battle_anim/battle_anim_system.h"
 #include "overlay010/ov10_0221F800.h"
 #include "overlay011/particle_helper.h"
+#include "fx_particles.h"
 
 #include "bag.h"
 #include "bg_window.h"
@@ -1741,9 +1742,11 @@ static void SysTask_DrawSprites(SysTask *task, void *inBattleSys)
         BattleStage_Draw();
 
         // The party/bag menus (state 3) skip particles, but the Totem's aura should keep burning behind them.
-        // In BDSP 3D battle mode, tick legacy DS emitters without drawing misaligned 2D .spa overlays over the 3D arena.
+        // When 3D BDSP models are actually active (not during Mega Evolution or Totem Aura), tick legacy DS
+        // emitters & FxParticles timers without drawing misaligned 2D .spa overlays over the 3D arena.
         if (battleSys->renderMode == 0 || TotemAura_IsActive()) {
-            if (SIM_Battle3D_ModelsEnabled() && BattleStage_IsVisible() && !TotemAura_IsActive()) {
+            if (BattleStage_Any3DModelReady() && !TotemAura_IsActive() && !BattleDisplay_IsMegaEvolutionActive()) {
+                FxParticles_Tick();
                 if (ParticleSystem_GetActiveAmount() > 0) {
                     ParticleSystem_UpdateAll();
                 }

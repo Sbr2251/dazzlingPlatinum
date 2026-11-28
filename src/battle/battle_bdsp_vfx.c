@@ -103,7 +103,6 @@ typedef struct BdspBattlerVfxState {
 
     int lastAttacker;
     int lastMoveType;
-    float sinceImpactSec;
 } BdspBattlerVfxState;
 
 typedef struct BdspVfxSystem {
@@ -195,9 +194,6 @@ static void SpawnVfx(int kind, int moveType, int targetBattler, int trackBattler
     int idx = AllocVfxSlot();
     BdspVfxItem *it = &sVfx.pool[idx];
 
-    if (kind == SIM_BATTLE3D_VFX_IMPACT && targetBattler >= 0 && targetBattler < SIM_BATTLE3D_MAX_BATTLERS) {
-        sVfx.battlers[targetBattler].sinceImpactSec = 0.0f;
-    }
     memset(it, 0, sizeof(*it));
     it->active = TRUE;
     it->kind = kind;
@@ -229,7 +225,7 @@ static BOOL HasRecentImpactForBattler(int battler)
             continue;
         }
         if (it->targetBattler == battler) {
-            if (it->delay <= 0.12f && it->elapsed < it->duration * 0.65f) {
+            if (it->delay > 0.0f || it->elapsed < it->duration * 0.90f) {
                 return TRUE;
             }
         }
@@ -371,9 +367,16 @@ static void ProcessAttack(const SIM_Battle3DFrame *frame, const BattleContext *c
             SpawnVfx(SIM_BATTLE3D_VFX_IMPACT, pa->moveType, defender, -1, 0.0f,
                      0.18f, 0.48f, dst, dst, color, 1.25f);
         }
-    } else if (pa->moveClass == CLASS_PHYSICAL || pa->moveClass == CLASS_SPECIAL) {
-        // Non-contact targeted physical moves (Stone Edge, Bullet Seed, etc.) and special moves:
-        // elemental projectile orb/bolt flying src -> dst + explosion on arrival (no lunge).
+    } else if (pa->moveClass == CLASS_PHYSICAL) {
+        // Non-contact targeted physical moves (Bullet Seed, Rock Blast, Stone Edge):
+        // crisp discrete 0.42s projectile (negative scale signals discrete orb mode) + arrival impact.
+        SpawnVfx(SIM_BATTLE3D_VFX_PROJECTILE, pa->moveType, defender, -1, 0.0f,
+                 0.02f, 0.42f, src, dst, color, -1.05f);
+        SpawnVfx(SIM_BATTLE3D_VFX_IMPACT, pa->moveType, defender, -1, 0.0f,
+                 0.40f, 0.42f, src, dst, color, 1.18f);
+    } else if (pa->moveClass == CLASS_SPECIAL) {
+        // Special moves (Flamethrower, Ice Beam, Hydro Pump, Thunderbolt):
+        // sustained 1.45s elemental stream + arrival impact shockwave.
         SpawnVfx(SIM_BATTLE3D_VFX_PROJECTILE, pa->moveType, defender, -1, 0.0f,
                  0.10f, 1.45f, src, dst, color, 1.22f);
         SpawnVfx(SIM_BATTLE3D_VFX_IMPACT, pa->moveType, defender, -1, 0.0f,
@@ -444,7 +447,7 @@ static void ProcessHit(const SIM_Battle3DFrame *frame, int maxBattlers, int defe
     }
 
     // Ensure multi-hit or delayed hits also get a crisp impact flash if no recent impact played.
-    if (defB->visible && !HasRecentImpactForBattler(defender) && bs->sinceImpactSec > 2.8f) {
+    if (defB->visible && !HasRecentImpactForBattler(defender)) {
         float color[3];
         float pos[3] = { defB->worldX, defB->worldY + 0.80f, defB->worldZ };
         GetTypeColor(bs->lastMoveType, color);
@@ -461,7 +464,6 @@ void BattleBdspVfx_Reset(void)
         sVfx.battlers[i].sparkledPartySlot = -1;
         sVfx.battlers[i].lastAttacker = -1;
         sVfx.battlers[i].lastMoveType = TYPE_NORMAL;
-        sVfx.battlers[i].sinceImpactSec = 10.0f;
     }
 }
 
@@ -479,9 +481,6 @@ void BattleBdspVfx_DiscardPending(void)
             if (bs->lungeTime >= totalDur) {
                 bs->lungeActive = FALSE;
             }
-        }
-        if (bs->sinceImpactSec < 10.0f) {
-            bs->sinceImpactSec += BDSP_VFX_DT;
         }
         if (bs->hitFlashActive) {
             bs->hitFlashTime += BDSP_VFX_DT;

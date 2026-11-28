@@ -24281,10 +24281,10 @@ index 0000000..de2700a
 +} // namespace SIM::Render
 diff --git a/libraries/sim/src/render_gpu/fx_battle3d_vfx.cpp b/libraries/sim/src/render_gpu/fx_battle3d_vfx.cpp
 new file mode 100644
-index 0000000..4464749
+index 0000000..88fe65f
 --- /dev/null
 +++ b/libraries/sim/src/render_gpu/fx_battle3d_vfx.cpp
-@@ -0,0 +1,816 @@
+@@ -0,0 +1,817 @@
 +#include "fx_battle3d_vfx.hpp"
 +
 +#include "generated/battle3d_vfx_shaders.h"
@@ -24510,8 +24510,9 @@ index 0000000..4464749
 +  const float env = SmoothStep(0.0f, 0.07f, p) * (1.0f - SmoothStep(0.88f, 1.0f, p));
 +  // Sustained beam/stream envelope: extends src->dst over [0..0.48], streams continuously onto dst [0.48..0.82],
 +  // then tail catches up to dst over [0.56..1.0].
-+  const float headU = std::clamp(p / 0.48f, 0.0f, 1.0f);
-+  const float tailU = std::clamp((p - 0.56f) / 0.44f, 0.0f, 1.0f);
++  const bool discrete = (v.scale < 0.0f);
++  const float headU = discrete ? p : std::clamp(p / 0.48f, 0.0f, 1.0f);
++  const float tailU = discrete ? std::max(0.0f, p - 0.30f) : std::clamp((p - 0.56f) / 0.44f, 0.0f, 1.0f);
 +  float head[3], tail[3];
 +  EvalProjectilePoint(v, headU, head);
 +  EvalProjectilePoint(v, tailU, tail);
