@@ -172,6 +172,18 @@ def _pack_smoke_core_texture(mat: Any) -> Image.Image | None:
     return Image.fromarray(rgba, mode="RGBA")
 
 
+def _detect_material_pbr(mat: Any | None) -> tuple[float, float]:
+    """Return (metallic, roughness) cues from BDSP material properties (e.g. _SphereMapTex)."""
+    if mat is None:
+        return 0.0, 0.9
+    tex_envs = _get_dict(mat.m_SavedProperties.m_TexEnvs)
+    sp = tex_envs.get("_SphereMapTex")
+    has_sphere = bool(sp and sp.m_Texture.path_id)
+    if has_sphere:
+        return 0.25, 0.22
+    return 0.0, 0.9
+
+
 def _extract_material_diffuse(
     mat: Any,
 ) -> tuple[Image.Image | None, tuple[float, float], tuple[float, float], bool, list[float] | None, bool]:
@@ -709,12 +721,15 @@ def extract_pokemon_glb(
                         alpha_mode = "BLEND"
                         double_sided = True
                         is_unlit = True
+                    metallic_f, roughness_f = _detect_material_pbr(mat_obj)
                     gltf_mat_idx = builder.add_material(
                         name=mat_name,
                         base_color_tex=tex_idx,
                         base_color_factor=base_factor,
                         alpha_mode=alpha_mode,
                         double_sided=double_sided,
+                        metallic=metallic_f,
+                        roughness=roughness_f,
                         emissive_factor=emissive,
                         unlit=is_unlit,
                     )
