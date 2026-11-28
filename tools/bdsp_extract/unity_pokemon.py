@@ -27,6 +27,7 @@ from unity_anim import (
     lh_to_rh_quat,
     lh_to_rh_vec3,
     mat4_from_trs_rh,
+    prune_and_emit_clip_channels,
 )
 
 # Priority order of BDSP animation clip suffixes for each canonical battle clip name
@@ -121,34 +122,203 @@ def _pack_fire_core_channels(mat: Any) -> tuple[Image.Image, list[float], list[f
     return Image.fromarray(rgba, mode="RGBA"), outer_rgb, inner_rgb
 
 
-def _extract_material_diffuse(mat: Any) -> tuple[Image.Image | None, tuple[float, float], tuple[float, float], bool, list[float] | None]:
-    """Return (diffuse_rgba_img, uv_scale, uv_offset, mirror_baked, emissive_factor)."""
+def _pack_smoke_core_texture(mat: Any) -> Image.Image | None:
+    """Synthesize a soft wispy RGBA smoke texture from BDSP SmokeCore (_Blend0Tex/_LerpTex + _BaseColor/_LayerColor)."""
+    tex_envs = _get_dict(mat.m_SavedProperties.m_TexEnvs)
+    b0_te = tex_envs.get("_Blend0Tex")
+    lt_te = tex_envs.get("_LerpTex")
+    has_b0 = bool(b0_te and b0_te.m_Texture.path_id)
+    has_lt = bool(lt_te and lt_te.m_Texture.path_id)
+    if not (has_b0 or has_lt):
+        return None
+
+    cols = _get_dict(mat.m_SavedProperties.m_Colors)
+    base_c = cols.get("_BaseColor")
+    layer_c = cols.get("_LayerColor")
+    outer_rgb = np.array(
+        [float(base_c.r), float(base_c.g), float(base_c.b)] if base_c else [0.65, 0.58, 0.45],
+        dtype=np.float32,
+    )
+    inner_rgb = np.array(
+        [float(layer_c.r), float(layer_c.g), float(layer_c.b)] if layer_c else [0.96, 0.92, 0.86],
+        dtype=np.float32,
+    )
+
+    sz = 128
+    if has_b0:
+        b0_im = b0_te.m_Texture.read().image.convert("L").resize((sz, sz), Image.Resampling.BILINEAR)
+        blend0 = np.array(b0_im, dtype=np.float32) / 255.0
+    else:
+        blend0 = np.full((sz, sz), 0.65, dtype=np.float32)
+
+    if has_lt:
+        lt_im = lt_te.m_Texture.read().image.convert("RGBA").resize((sz, sz), Image.Resampling.BILINEAR)
+        lt_arr = np.array(lt_im, dtype=np.float32) / 255.0
+        lerp_r = lt_arr[:, :, 0]
+        lerp_a = lt_arr[:, :, 3]
+    else:
+        yy = np.linspace(0.0, 1.0, sz, dtype=np.float32)[:, None]
+        lerp_r = np.broadcast_to(yy, (sz, sz)).copy()
+        lerp_a = np.broadcast_to(yy, (sz, sz)).copy()
+
+    cloud = np.clip(blend0 * 0.65 + lerp_r * 0.35, 0.0, 1.0)
+    rgb = outer_rgb[None, None, :] * (1.0 - cloud[:, :, None]) + inner_rgb[None, None, :] * cloud[:, :, None]
+    # Soft wispy alpha ramp: fades cleanly to 0 at plume tips via _LerpTex.A and feathers edges via _Blend0Tex
+    alpha = np.clip(lerp_a * (0.28 + 0.72 * blend0) * 0.78, 0.0, 1.0)
+
+    rgba = np.empty((sz, sz, 4), dtype=np.uint8)
+    rgba[:, :, :3] = np.clip(rgb * 255.0 + 0.5, 0, 255).astype(np.uint8)
+    rgba[:, :, 3] = np.clip(alpha * 255.0 + 0.5, 0, 255).astype(np.uint8)
+    return Image.fromarray(rgba, mode="RGBA")
+
+
+def _extract_material_diffuse(
+    mat: Any,
+) -> tuple[Image.Image | None, tuple[float, float], tuple[float, float], bool, list[float] | None, bool]:
+    """Return (diffuse_rgba_img, uv_scale, uv_offset, mirror_baked, emissive_factor, is_unlit)."""
     mname = mat.m_Name
+    lmname = mname.lower()
     tex_envs = _get_dict(mat.m_SavedProperties.m_TexEnvs)
 
-    if "firecore" in mname.lower():
+    if "firecore" in lmname:
         img, _outer, inner = _pack_fire_core_channels(mat)
-        return img, (1.0, 1.0), (0.0, 0.0), False, inner
+        return img, (1.0, 1.0), (0.0, 0.0), False, inner, True
+
+    if "smokecore" in lmname:
+        img = _pack_smoke_core_texture(mat)
+        if img is None:
+            return None, (1.0, 1.0), (0.0, 0.0), False, None, False
+        return img, (1.0, 1.0), (0.0, 0.0), False, None, True
 
     c0 = tex_envs.get("_Col0Tex") or tex_envs.get("_MainTex")
     if not c0 or not c0.m_Texture.path_id:
-        return None, (1.0, 1.0), (0.0, 0.0), False, None
+        return None, (1.0, 1.0), (0.0, 0.0), False, None, False
 
     tex_obj = c0.m_Texture.read()
     img = tex_obj.image.convert("RGBA")
     sx, sy = float(c0.m_Scale.x), float(c0.m_Scale.y)
     ox, oy = float(c0.m_Offset.x), float(c0.m_Offset.y)
     wrap_u = int(tex_obj.m_TextureSettings.m_WrapU)
+    is_eye = "eye" in lmname
 
     # Composite iris layer behind eye cutout if present
     l1 = tex_envs.get("_L1Col0Tex")
-    if l1 and l1.m_Texture.path_id and "eye" in mname.lower():
+    if l1 and l1.m_Texture.path_id and is_eye:
         iris_tex = l1.m_Texture.read()
         img = _bake_eye_with_iris(img, iris_tex.image)
 
+    fl = _get_dict(mat.m_SavedProperties.m_Floats)
+    cols = _get_dict(mat.m_SavedProperties.m_Colors)
+
+    arr = np.array(img, dtype=np.float32) / 255.0
+    rgb = arr[:, :, :3]
+    alpha_ch = arr[:, :, 3:4]
+    modified = False
+    emissive_factor: list[float] | None = None
+    is_unlit = False
+
+    # 1. Inspect _EmissionMaskTex / _EmissionColor / _L1Col0Tex (for glowing rings, stripes, orbs)
+    em_use = float(fl.get("_EmissionMaskUse", 0.0)) >= 0.5
+    em_col_obj = cols.get("_EmissionColor")
+    em_col = (
+        np.array([float(em_col_obj.r), float(em_col_obj.g), float(em_col_obj.b)], dtype=np.float32)
+        if em_col_obj is not None
+        else np.zeros(3, dtype=np.float32)
+    )
+    has_em_col = float(em_col.max()) > 0.01
+    em_mask: np.ndarray | None = None
+    em_te = tex_envs.get("_EmissionMaskTex")
+    if (em_use or has_em_col) and em_te and em_te.m_Texture.path_id:
+        try:
+            em_im = em_te.m_Texture.read().image.convert("RGBA")
+            if em_im.size != img.size:
+                em_im = em_im.resize(img.size, Image.Resampling.BILINEAR)
+            em_r = np.array(em_im, dtype=np.float32)[:, :, 0] / 255.0
+            if float(em_r.max()) > 0.05:
+                em_mask = em_r
+        except Exception:
+            em_mask = None
+
+    if em_mask is not None:
+        # Composite BDSP incandescent Layer 1 color (_L1Col0Tex) onto non-eye materials
+        # (restores Ampharos's glowing red orb, Umbreon's rings, Dialga's cyan stripes, Torkoal's shell magma)
+        if not is_eye and l1 and l1.m_Texture.path_id:
+            try:
+                l1_im = l1.m_Texture.read().image.convert("RGBA")
+                if l1_im.size != img.size:
+                    l1_im = l1_im.resize(img.size, Image.Resampling.BILINEAR)
+                l1_arr = np.array(l1_im, dtype=np.float32) / 255.0
+                l1_a = l1_arr[:, :, 3:4]
+                if float(l1_a.max()) > 0.01:
+                    rgb = rgb * (1.0 - l1_a) + l1_arr[:, :, :3] * l1_a
+                    modified = True
+            except Exception:
+                pass
+
+        # Handle additive-only incandescent materials (e.g. Lanturn bulb with black _Col0Tex + _L1AddColor0)
+        l1_add_val = float(fl.get("_L1AddColor0Val", 0.0))
+        l1_add_obj = cols.get("_L1AddColor0")
+        if l1_add_val > 0.01 and l1_add_obj is not None and float(rgb.mean()) < 0.05:
+            add_rgb = np.array(
+                [float(l1_add_obj.r), float(l1_add_obj.g), float(l1_add_obj.b)], dtype=np.float32
+            ) * l1_add_val
+            rgb = np.clip(rgb + add_rgb[None, None, :] * em_mask[:, :, None], 0.0, 1.0)
+            modified = True
+
+    # 2. Bake _AmbientTex AO softly into diffuse RGB: rgb * (0.50 + 0.50 * ao)
+    # In BDSP Pokemon shaders, _AmbientTex stores occlusion in the G channel (0=open, 255=creased shadow), so ao = 1 - G/255.
+    amb_te = tex_envs.get("_AmbientTex")
+    if amb_te and amb_te.m_Texture.path_id:
+        try:
+            amb_im = amb_te.m_Texture.read().image.convert("RGBA")
+            if amb_im.size != img.size:
+                amb_im = amb_im.resize(img.size, Image.Resampling.BILINEAR)
+            occ = np.array(amb_im, dtype=np.float32)[:, :, 1] / 255.0
+            if float(occ.max()) > 0.01:
+                ao = 1.0 - occ
+                ao_mult = 0.50 + 0.50 * ao
+                # Exempt self-illuminated regions from AO darkening
+                if em_mask is not None:
+                    ao_mult = ao_mult * (1.0 - em_mask) + em_mask
+                rgb = np.clip(rgb * ao_mult[:, :, None], 0.0, 1.0)
+                modified = True
+        except Exception:
+            pass
+
+    # 3. Boost glowing regions cleanly in diffuse + set emissive/unlit so glowing accents pop at night
+    if em_mask is not None:
+        em_cov = float(em_mask.mean())
+        w_sum = float(em_mask.sum())
+        avg_glow = (rgb * em_mask[:, :, None]).sum(axis=(0, 1)) / max(w_sum, 1e-6)
+        if has_em_col:
+            boosted = np.clip(rgb + em_col[None, None, :] * 0.50, 0.0, 1.0)
+        else:
+            boosted = np.clip(rgb * 1.25 + 0.06 * np.maximum(rgb, 0.10), 0.0, 1.0)
+        rgb = rgb * (1.0 - em_mask[:, :, None]) + boosted * em_mask[:, :, None]
+        modified = True
+
+        if em_cov >= 0.85:
+            # Dedicated pure-glow mesh (Ampharos orb, Palkia pearls, Lanturn bulb): full unlit glow at night
+            is_unlit = True
+            emissive_factor = [round(float(c) * 0.15, 4) for c in avg_glow]
+        elif em_cov >= 0.35:
+            # High-coverage glowing material (Torkoal magma, Rotom core)
+            emissive_factor = [round(float(c) * 0.42 * em_cov, 4) for c in avg_glow]
+        elif has_em_col:
+            emissive_factor = [round(float(c) * min(0.35, em_cov * 1.5), 4) for c in em_col]
+        elif em_cov >= 0.005:
+            # Subtle night-preserving lift for accent rings/stripes without washing out dark fur
+            lift = min(0.035, em_cov * 0.45)
+            emissive_factor = [round(float(c) * lift, 4) for c in avg_glow]
+
+    if modified:
+        out_u8 = np.empty((img.height, img.width, 4), dtype=np.uint8)
+        out_u8[:, :, :3] = np.clip(rgb * 255.0 + 0.5, 0, 255).astype(np.uint8)
+        out_u8[:, :, 3] = np.clip(alpha_ch[:, :, 0] * 255.0 + 0.5, 0, 255).astype(np.uint8)
+        img = Image.fromarray(out_u8, mode="RGBA")
+
     # BDSP Eye sheets use a 2-column expression atlas with _ColorBaseU = -0.5 so both eyes
     # mirror across column 0 (neutral expression) rather than sampling column 1 (angry/alt).
-    fl = _get_dict(mat.m_SavedProperties.m_Floats)
     color_base_u = float(fl.get("_ColorBaseU", 0.0))
     if abs(color_base_u + 0.5) < 1e-3 and wrap_u == 2 and abs(abs(sx) - 2.0) < 1e-3:
         w, h = img.size
@@ -166,7 +336,7 @@ def _extract_material_diffuse(mat: Any) -> tuple[Image.Image | None, tuple[float
         sx = 1.0 if sx > 0 else -1.0
         mirror_baked = True
 
-    return img, (sx, sy), (ox, oy), mirror_baked, None
+    return img, (sx, sy), (ox, oy), mirror_baked, emissive_factor, is_unlit
 
 
 def _compute_world_mats_rh(
@@ -516,8 +686,8 @@ def extract_pokemon_glb(
                 continue
 
             if mat_name not in mat_cache:
-                img, uv_sc, uv_off, _, emissive = (
-                    _extract_material_diffuse(mat_obj) if mat_obj else (None, (1.0, 1.0), (0.0, 0.0), False, None)
+                img, uv_sc, uv_off, _, emissive, is_unlit = (
+                    _extract_material_diffuse(mat_obj) if mat_obj else (None, (1.0, 1.0), (0.0, 0.0), False, None, False)
                 )
                 if "smokecore" in lmat and img is None:
                     mat_cache[mat_name] = (-1, uv_sc, uv_off)
@@ -528,18 +698,25 @@ def extract_pokemon_glb(
                         decoded_textures.append((mat_name, img))
                     alpha_mode = "OPAQUE"
                     base_factor = [1.0, 1.0, 1.0, 1.0]
+                    double_sided = False
                     if "firecore" in lmat and mat_obj is not None:
                         _, outer_rgb, _ = _pack_fire_core_channels(mat_obj)
                         alpha_mode = "BLEND"
                         alpha_v = 0.45 if species == 479 else 1.0
                         base_factor = [outer_rgb[0], outer_rgb[1], outer_rgb[2], alpha_v]
+                        double_sided = True
+                    elif "smokecore" in lmat:
+                        alpha_mode = "BLEND"
+                        double_sided = True
+                        is_unlit = True
                     gltf_mat_idx = builder.add_material(
                         name=mat_name,
                         base_color_tex=tex_idx,
                         base_color_factor=base_factor,
                         alpha_mode=alpha_mode,
-                        double_sided=("firecore" in lmat),
+                        double_sided=double_sided,
                         emissive_factor=emissive,
+                        unlit=is_unlit,
                     )
                     mat_cache[mat_name] = (gltf_mat_idx, uv_sc, uv_off)
 
@@ -630,21 +807,9 @@ def extract_pokemon_glb(
             for (nidx, prop), vals in channels.items():
                 idle_frame0_overrides.setdefault(nidx, {})[prop] = vals[0].astype(np.float64)
 
-        time_acc = builder.add_accessor(times, COMP_FLOAT, "SCALAR", target=None, include_minmax=True)
-        gltf_channels = []
-        gltf_samplers = []
-        animated_nodes = set()
-
-        for (nidx, prop), vals in sorted(channels.items()):
-            acc_type = "VEC4" if prop == "rotation" else "VEC3"
-            # Check motion range for diagnostics
-            val_range = float(np.max(np.ptp(vals, axis=0)))
-            if val_range > 1e-4:
-                animated_nodes.add(nidx)
-            val_acc = builder.add_accessor(vals.astype(np.float32), COMP_FLOAT, acc_type, target=None)
-            s_idx = len(gltf_samplers)
-            gltf_samplers.append({"input": time_acc, "interpolation": "LINEAR", "output": val_acc})
-            gltf_channels.append({"sampler": s_idx, "target": {"node": nidx, "path": prop}})
+        gltf_channels, gltf_samplers, animated_nodes, prune_stats = prune_and_emit_clip_channels(
+            builder, times, channels, float(decoded["duration"]), comp_float=COMP_FLOAT
+        )
 
         builder.animations.append(
             {
@@ -659,6 +824,7 @@ def extract_pokemon_glb(
             "frames": int(len(times)),
             "channel_count": len(gltf_channels),
             "moving_bones": len(animated_nodes),
+            **prune_stats,
         }
 
     # Evaluate idle frame-0 skinned pose to ground feet cleanly at Y = 0 and measure bbox

@@ -254,3 +254,112 @@ def decode_animation_clip(
         curve_cursor += width
 
     return {"duration": duration, "times": times, "channels": channels}
+
+
+def prune_and_emit_clip_channels(
+    builder: Any,
+    times: np.ndarray,
+    channels: dict[tuple[int, str], np.ndarray],
+    duration: float,
+    comp_float: int = 5126,
+    eps: float = 1e-4,
+    quat_dot_min: float = 0.999999,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], set[int], dict[str, int]]:
+    """Prune constant glTF animation channels (P6) and emit samplers/channels into builder.
+
+    - Constant channels matching the node's rest pose within `eps` (or quat dot >= `quat_dot_min`)
+      are dropped completely.
+    - Constant channels differing from the rest pose are collapsed to a 1-keyframe sampler (t = [0.0]).
+    - Guarantees at least one full-duration channel if the input had channels so clip duration is preserved.
+    """
+    sorted_items = sorted(channels.items())
+    time_acc: int | None = None
+    const_time_acc: int | None = None
+
+    gltf_channels: list[dict[str, Any]] = []
+    gltf_samplers: list[dict[str, Any]] = []
+    animated_nodes: set[int] = set()
+    dropped = 0
+    collapsed = 0
+    animated = 0
+
+    for (nidx, prop), vals in sorted_items:
+        acc_type = "VEC4" if prop == "rotation" else "VEC3"
+        nd = builder.nodes[nidx]
+
+        if prop == "rotation":
+            q0 = vals[0].astype(np.float64)
+            q0_n = float(np.linalg.norm(q0))
+            if q0_n > 1e-12:
+                q0 = q0 / q0_n
+            else:
+                q0 = np.array([0.0, 0.0, 0.0, 1.0], dtype=np.float64)
+            vals64 = vals.astype(np.float64)
+            norms = np.linalg.norm(vals64, axis=1, keepdims=True)
+            vals_unit = np.where(norms > 1e-12, vals64 / np.maximum(norms, 1e-12), q0[None, :])
+            dots = np.abs(vals_unit @ q0)
+            is_const = bool(float(np.min(dots)) >= quat_dot_min)
+            rest = np.array(nd.get("rotation", [0.0, 0.0, 0.0, 1.0]), dtype=np.float64)
+            rn = float(np.linalg.norm(rest))
+            if rn > 1e-12:
+                rest = rest / rn
+            matches_rest = is_const and (abs(float(np.dot(q0, rest))) >= quat_dot_min)
+        else:
+            is_const = bool(float(np.max(np.ptp(vals, axis=0))) <= eps)
+            default_rest = [1.0, 1.0, 1.0] if prop == "scale" else [0.0, 0.0, 0.0]
+            rest = np.array(nd.get(prop, default_rest), dtype=np.float64)
+            matches_rest = is_const and (float(np.max(np.abs(vals[0].astype(np.float64) - rest))) <= eps)
+
+        if matches_rest:
+            dropped += 1
+            continue
+
+        if is_const:
+            if const_time_acc is None:
+                const_time_acc = builder.add_accessor(
+                    np.array([0.0], dtype=np.float32), comp_float, "SCALAR", target=None, include_minmax=True
+                )
+            val_acc = builder.add_accessor(vals[:1].astype(np.float32), comp_float, acc_type, target=None)
+            s_idx = len(gltf_samplers)
+            gltf_samplers.append({"input": const_time_acc, "interpolation": "LINEAR", "output": val_acc})
+            gltf_channels.append({"sampler": s_idx, "target": {"node": nidx, "path": prop}})
+            collapsed += 1
+        else:
+            if time_acc is None:
+                time_acc = builder.add_accessor(times, comp_float, "SCALAR", target=None, include_minmax=True)
+            animated_nodes.add(nidx)
+            val_acc = builder.add_accessor(vals.astype(np.float32), comp_float, acc_type, target=None)
+            s_idx = len(gltf_samplers)
+            gltf_samplers.append({"input": time_acc, "interpolation": "LINEAR", "output": val_acc})
+            gltf_channels.append({"sampler": s_idx, "target": {"node": nidx, "path": prop}})
+            animated += 1
+
+    # Preserve clip duration if every channel was constant/dropped (so runtime ParseClip sees exact duration)
+    if time_acc is None and sorted_items:
+        (nidx0, prop0), vals0 = sorted_items[0]
+        acc_type0 = "VEC4" if prop0 == "rotation" else "VEC3"
+        dur_times = np.array([0.0, max(float(duration), 1.0 / 30.0)], dtype=np.float32)
+        dur_time_acc = builder.add_accessor(dur_times, comp_float, "SCALAR", target=None, include_minmax=True)
+        pair_vals = np.stack([vals0[0], vals0[0]], axis=0).astype(np.float32)
+        val_acc = builder.add_accessor(pair_vals, comp_float, acc_type0, target=None)
+        # Replace existing constant channel for (nidx0, prop0) if present, else append
+        replaced = False
+        for ch in gltf_channels:
+            if ch["target"]["node"] == nidx0 and ch["target"]["path"] == prop0:
+                gltf_samplers[ch["sampler"]] = {"input": dur_time_acc, "interpolation": "LINEAR", "output": val_acc}
+                replaced = True
+                break
+        if not replaced:
+            s_idx = len(gltf_samplers)
+            gltf_samplers.append({"input": dur_time_acc, "interpolation": "LINEAR", "output": val_acc})
+            gltf_channels.append({"sampler": s_idx, "target": {"node": nidx0, "path": prop0}})
+            dropped = max(0, dropped - 1)
+
+    stats = {
+        "channels_raw": len(sorted_items),
+        "channels_kept": len(gltf_channels),
+        "channels_dropped": dropped,
+        "channels_const1": collapsed,
+        "channels_animated": animated,
+    }
+    return gltf_channels, gltf_samplers, animated_nodes, stats

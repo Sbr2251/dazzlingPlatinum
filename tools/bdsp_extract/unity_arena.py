@@ -35,6 +35,7 @@ ARENA_BIOME_MAP: dict[str, str] = {
 }
 
 STRIP_ARENA_TOKENS = ("collider", "collision", "trigger", "shadow", "dummy", "debug", "sphere")
+ARENA_SPATIAL_CELL_SIZE = 16.0  # 16m x 16m spatial cells for per-submesh AABB frustum & shadow culling (P3)
 
 
 def _get_dict(prop: Any) -> dict[str, Any]:
@@ -328,19 +329,23 @@ def extract_arena_glb(
 
         all_min = np.minimum(all_min, pos.min(axis=0))
         all_max = np.maximum(all_max, pos.max(axis=0))
-        total_verts += len(pos)
         total_tris += len(indices) // 3
 
-        # Resolve material texture, UV transform, alpha mode, doubleSided
+        # Resolve material texture, UV transform, alpha mode, doubleSided, unlit, emissive
         img = None
         use_uv1 = False
         usx, usy, uox, uoy = 1.0, 1.0, 0.0, 0.0
         alpha_mode = "OPAQUE"
         alpha_cutoff = None
         double_sided = False
+        base_color_factor = [1.0, 1.0, 1.0, 1.0]
+        emissive_factor = None
+        unlit = False
+        lmname = mname.lower()
 
         if mat_obj is not None:
             fl = _get_dict(mat_obj.m_SavedProperties.m_Floats)
+            cols = _get_dict(mat_obj.m_SavedProperties.m_Colors)
             if float(fl.get("_AlphaClip", 0.0)) >= 0.5:
                 alpha_mode = "MASK"
                 alpha_cutoff = float(fl.get("_Cutoff", 0.5))
@@ -361,6 +366,25 @@ def extract_arena_glb(
                     usx, usy = float(te.m_Scale.x), float(te.m_Scale.y)
                     uox, uoy = float(te.m_Offset.x), float(te.m_Offset.y)
 
+            # Handle translucent/emissive light materials (e.g. mountain_cave M_B_006_Light_03 cave lanterns)
+            if img is None:
+                col_c = cols.get("_Color")
+                if col_c is not None:
+                    base_color_factor = [float(col_c.r), float(col_c.g), float(col_c.b), float(col_c.a)]
+                em_c = cols.get("_EmissionColor")
+                if em_c is not None and (float(em_c.r) > 0.01 or float(em_c.g) > 0.01 or float(em_c.b) > 0.01):
+                    emissive_factor = [float(em_c.r), float(em_c.g), float(em_c.b)]
+                if "light" in lmname or emissive_factor is not None:
+                    alpha_mode = "BLEND"
+                    base_color_factor[3] = min(base_color_factor[3], 0.85)
+                    unlit = True
+                    double_sided = True
+            elif float(fl.get("_DstBlend", 0.0)) > 0.5 and alpha_mode == "OPAQUE":
+                alpha_mode = "BLEND"
+                double_sided = True
+                if "light" in lmname:
+                    unlit = True
+
         if use_uv1 and uv1 is not None:
             uv_out = uv1.copy()
             uv_out[:, 1] = 1.0 - uv_out[:, 1]
@@ -377,31 +401,60 @@ def extract_arena_glb(
         gltf_mat_idx = builder.add_material(
             name=mname,
             base_color_tex=tex_idx,
-            base_color_factor=[1.0, 1.0, 1.0, 1.0],
+            base_color_factor=base_color_factor,
             alpha_mode=alpha_mode,
             alpha_cutoff=alpha_cutoff,
             double_sided=double_sided,
+            emissive_factor=emissive_factor,
+            unlit=unlit,
         )
 
-        pos_acc = builder.add_accessor(pos.astype(np.float32), COMP_FLOAT, "VEC3", TARGET_ARRAY_BUFFER, include_minmax=True)
-        norm_acc = builder.add_accessor(norm.astype(np.float32), COMP_FLOAT, "VEC3", TARGET_ARRAY_BUFFER)
-        uv_acc = builder.add_accessor(uv_out.astype(np.float32), COMP_FLOAT, "VEC2", TARGET_ARRAY_BUFFER)
-        if len(pos) < 65535:
-            idx_acc = builder.add_accessor(indices.astype(np.uint16), COMP_UNSIGNED_SHORT, "SCALAR", TARGET_ELEMENT_ARRAY_BUFFER)
+        # P3: Split non-sky arena geometry per material into 16m x 16m spatial cells by triangle centroid X/Z
+        # so the renderer's per-submesh AABB frustum & shadow-box culling can reject distant chunks cleanly.
+        tris = indices.reshape((-1, 3))
+        if "sky" in lmname or len(tris) == 0:
+            cell_groups = [tris]
         else:
-            idx_acc = builder.add_accessor(indices.astype(np.uint32), COMP_UNSIGNED_INT, "SCALAR", TARGET_ELEMENT_ARRAY_BUFFER)
+            cx = (pos[tris[:, 0], 0] + pos[tris[:, 1], 0] + pos[tris[:, 2], 0]) / 3.0
+            cz = (pos[tris[:, 0], 2] + pos[tris[:, 1], 2] + pos[tris[:, 2], 2]) / 3.0
+            cell_x = np.floor(cx / ARENA_SPATIAL_CELL_SIZE).astype(np.int64)
+            cell_z = np.floor(cz / ARENA_SPATIAL_CELL_SIZE).astype(np.int64)
+            cell_keys = (cell_x << 32) ^ (cell_z & 0xFFFFFFFF)
+            order = np.argsort(cell_keys, kind="stable")
+            sorted_keys = cell_keys[order]
+            sorted_tris = tris[order]
+            _, splits = np.unique(sorted_keys, return_index=True)
+            cell_groups = np.split(sorted_tris, splits[1:])
 
-        primitives.append(
-            {
-                "attributes": {
-                    "POSITION": pos_acc,
-                    "NORMAL": norm_acc,
-                    "TEXCOORD_0": uv_acc,
-                },
-                "indices": idx_acc,
-                "material": gltf_mat_idx,
-            }
-        )
+        for cell_tris in cell_groups:
+            if len(cell_tris) == 0:
+                continue
+            uniq, inv = np.unique(cell_tris.ravel(), return_inverse=True)
+            c_pos = pos[uniq].astype(np.float32)
+            c_norm = norm[uniq].astype(np.float32)
+            c_uv = uv_out[uniq].astype(np.float32)
+            c_idx = inv.astype(np.uint32)
+            total_verts += len(c_pos)
+
+            pos_acc = builder.add_accessor(c_pos, COMP_FLOAT, "VEC3", TARGET_ARRAY_BUFFER, include_minmax=True)
+            norm_acc = builder.add_accessor(c_norm, COMP_FLOAT, "VEC3", TARGET_ARRAY_BUFFER)
+            uv_acc = builder.add_accessor(c_uv, COMP_FLOAT, "VEC2", TARGET_ARRAY_BUFFER)
+            if len(c_pos) < 65535:
+                idx_acc = builder.add_accessor(c_idx.astype(np.uint16), COMP_UNSIGNED_SHORT, "SCALAR", TARGET_ELEMENT_ARRAY_BUFFER)
+            else:
+                idx_acc = builder.add_accessor(c_idx, COMP_UNSIGNED_INT, "SCALAR", TARGET_ELEMENT_ARRAY_BUFFER)
+
+            primitives.append(
+                {
+                    "attributes": {
+                        "POSITION": pos_acc,
+                        "NORMAL": norm_acc,
+                        "TEXCOORD_0": uv_acc,
+                    },
+                    "indices": idx_acc,
+                    "material": gltf_mat_idx,
+                }
+            )
 
     mesh_idx = len(builder.meshes)
     builder.meshes.append({"name": f"arena_{biome}_{ground_id}", "primitives": primitives})
@@ -410,7 +463,9 @@ def extract_arena_glb(
     builder.scene_roots.append(node_idx)
 
     os.makedirs(os.path.dirname(os.path.abspath(out_glb_path)), exist_ok=True)
-    file_bytes = builder.write(out_glb_path)
+    tmp_path = f"{out_glb_path}.tmp.{os.getpid()}"
+    file_bytes = builder.write(tmp_path)
+    os.replace(tmp_path, out_glb_path)
 
     return {
         "biome": biome,
