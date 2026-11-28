@@ -35,6 +35,7 @@ from unity_anim import (
     lh_to_rh_quat,
     lh_to_rh_vec3,
     mat4_from_trs_rh,
+    prune_and_emit_clip_channels,
 )
 from unity_pokemon import _compute_world_mats_rh, _get_dict, _skin_positions
 
@@ -454,20 +455,9 @@ def extract_trainer_glb(
             for (nidx, prop), vals in channels.items():
                 wait_frame0_overrides.setdefault(nidx, {})[prop] = vals[0].astype(np.float64)
 
-        time_acc = builder.add_accessor(times, COMP_FLOAT, "SCALAR", target=None, include_minmax=True)
-        gltf_channels = []
-        gltf_samplers = []
-        animated_nodes = set()
-
-        for (nidx, prop), vals in sorted(channels.items()):
-            acc_type = "VEC4" if prop == "rotation" else "VEC3"
-            val_range = float(np.max(np.ptp(vals, axis=0)))
-            if val_range > 1e-4:
-                animated_nodes.add(nidx)
-            val_acc = builder.add_accessor(vals.astype(np.float32), COMP_FLOAT, acc_type, target=None)
-            s_idx = len(gltf_samplers)
-            gltf_samplers.append({"input": time_acc, "interpolation": "LINEAR", "output": val_acc})
-            gltf_channels.append({"sampler": s_idx, "target": {"node": nidx, "path": prop}})
+        gltf_channels, gltf_samplers, animated_nodes, prune_stats = prune_and_emit_clip_channels(
+            builder, times, channels, float(decoded["duration"]), comp_float=COMP_FLOAT
+        )
 
         builder.animations.append(
             {
@@ -482,6 +472,7 @@ def extract_trainer_glb(
             "frames": int(len(times)),
             "channel_count": len(gltf_channels),
             "moving_bones": len(animated_nodes),
+            **prune_stats,
         }
 
     # Ground feet cleanly at Y = 0 in wait frame 0
@@ -502,7 +493,9 @@ def extract_trainer_glb(
     height_m = round(bbox_max[1] - bbox_min[1], 4)
 
     os.makedirs(os.path.dirname(os.path.abspath(out_glb_path)), exist_ok=True)
-    file_bytes = builder.write(out_glb_path)
+    tmp_path = f"{out_glb_path}.tmp.{os.getpid()}"
+    file_bytes = builder.write(tmp_path)
+    os.replace(tmp_path, out_glb_path)
 
     return {
         "id": trainer_id,
@@ -694,7 +687,9 @@ def extract_pokeball_glb(
     builder.scene_roots.append(node_idx)
 
     os.makedirs(os.path.dirname(os.path.abspath(out_glb_path)), exist_ok=True)
-    file_bytes = builder.write(out_glb_path)
+    tmp_path = f"{out_glb_path}.tmp.{os.getpid()}"
+    file_bytes = builder.write(tmp_path)
+    os.replace(tmp_path, out_glb_path)
 
     cat = np.concatenate(final_pts, axis=0)
     bbox_min = [round(float(x), 4) for x in cat.min(axis=0)]

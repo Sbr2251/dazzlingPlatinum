@@ -164,13 +164,21 @@ def eval_glb_pose(
             mat = gltf["materials"][prim["material"]]
             alpha_mode = mat.get("alphaMode", "OPAQUE")
             cutoff = float(mat.get("alphaCutoff", 0.5))
+            pbr = mat.get("pbrMetallicRoughness", {})
+            bcf = pbr.get("baseColorFactor", [1.0, 1.0, 1.0, 1.0])
             tex_arr = None
-            bct = mat.get("pbrMetallicRoughness", {}).get("baseColorTexture")
+            bct = pbr.get("baseColorTexture")
             if bct is not None:
                 tidx = bct["index"]
                 if tidx not in tex_cache:
                     tex_cache[tidx] = np.array(read_texture_image(gltf, bin_data, tidx), dtype=np.uint8)
                 tex_arr = tex_cache[tidx]
+                if bcf != [1.0, 1.0, 1.0, 1.0]:
+                    bcf_arr = np.array(bcf, dtype=np.float32)
+                    tex_arr = np.clip(tex_arr.astype(np.float32) * bcf_arr[None, None, :], 0, 255).astype(np.uint8)
+            elif bcf != [1.0, 1.0, 1.0, 1.0]:
+                px = np.clip(np.array(bcf, dtype=np.float32) * 255.0, 0, 255).astype(np.uint8)
+                tex_arr = px.reshape((1, 1, 4))
 
             out.append((pos, norm, uv, tris, tex_arr, alpha_mode, cutoff))
     return out
@@ -200,8 +208,8 @@ def render_preview(
     light_dir = np.array([0.45, 0.75, 0.48], dtype=np.float64)
     light_dir /= np.linalg.norm(light_dir)
 
-    # Collect drawable triangles (screen xy, depth, rgb color) for fast PIL painter render
-    draw_list: list[tuple[float, list[tuple[float, float]], tuple[int, int, int]]] = []
+    # Collect drawable triangles (screen xy, depth, rgba color) for fast PIL painter render
+    draw_list: list[tuple[float, list[tuple[float, float]], tuple[int, int, int, int]]] = []
     for pos, norm, uv, tris, tex_arr, alpha_mode, cutoff in prims:
         # Transform to camera space
         rel = pos - eye_v[None, :]
@@ -265,27 +273,42 @@ def render_preview(
                 sx2, sy2 = sx2[keep], sy2[keep]
                 z_avg = z_avg[keep]
                 rgba = rgba[keep]
+            elif alpha_mode == "BLEND":
+                keep = rgba[:, 3] >= 8
+                if not np.any(keep):
+                    continue
+                t0, t1, t2 = t0[keep], t1[keep], t2[keep]
+                sx0, sy0 = sx0[keep], sy0[keep]
+                sx1, sy1 = sx1[keep], sy1[keep]
+                sx2, sy2 = sx2[keep], sy2[keep]
+                z_avg = z_avg[keep]
+                rgba = rgba[keep]
             rgb = rgba[:, :3].astype(np.float64)
+            alpha_u8 = rgba[:, 3] if alpha_mode == "BLEND" else np.full(len(t0), 255, dtype=np.uint8)
         else:
             rgb = np.full((len(t0), 3), 200.0, dtype=np.float64)
+            alpha_u8 = np.full(len(t0), 255, dtype=np.uint8)
 
-        fn = (norm[t0] + norm[t1] + norm[t2]) / 3.0
-        ndotl = np.clip(fn @ light_dir, -1.0, 1.0)
-        shade = 0.45 + 0.55 * np.clip(ndotl * 0.5 + 0.5, 0.0, 1.0)
-        col = np.clip(rgb * shade[:, None], 0, 255).astype(np.uint8)
+        if alpha_mode == "BLEND":
+            col = np.clip(rgb, 0, 255).astype(np.uint8)
+        else:
+            fn = (norm[t0] + norm[t1] + norm[t2]) / 3.0
+            ndotl = np.clip(fn @ light_dir, -1.0, 1.0)
+            shade = 0.45 + 0.55 * np.clip(ndotl * 0.5 + 0.5, 0.0, 1.0)
+            col = np.clip(rgb * shade[:, None], 0, 255).astype(np.uint8)
 
         for i in range(len(t0)):
             draw_list.append(
                 (
                     float(z_avg[i]),
                     [(float(sx0[i]), float(sy0[i])), (float(sx1[i]), float(sy1[i])), (float(sx2[i]), float(sy2[i]))],
-                    (int(col[i, 0]), int(col[i, 1]), int(col[i, 2])),
+                    (int(col[i, 0]), int(col[i, 1]), int(col[i, 2]), int(alpha_u8[i])),
                 )
             )
 
     draw_list.sort(key=lambda item: -item[0])
     img = Image.new("RGB", (width, height), bg_rgb)
-    draw = ImageDraw.Draw(img)
+    draw = ImageDraw.Draw(img, "RGBA")
     for _, poly, color in draw_list:
         draw.polygon(poly, fill=color)
     return img

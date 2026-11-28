@@ -45,6 +45,7 @@ class GlbBuilder:
         self.skins: list[dict[str, Any]] = []
         self.animations: list[dict[str, Any]] = []
         self.scene_roots: list[int] = []
+        self.extensions_used: set[str] = set()
 
     def _pad4(self) -> None:
         rem = len(self._bin) & 3
@@ -143,6 +144,7 @@ class GlbBuilder:
         metallic: float = 0.0,
         roughness: float = 0.9,
         emissive_factor: list[float] | None = None,
+        unlit: bool = False,
     ) -> int:
         pbr: dict[str, Any] = {
             "metallicFactor": metallic,
@@ -163,6 +165,9 @@ class GlbBuilder:
             mat["doubleSided"] = True
         if emissive_factor is not None:
             mat["emissiveFactor"] = [float(x) for x in emissive_factor]
+        if unlit:
+            mat["extensions"] = {"KHR_materials_unlit": {}}
+            self.extensions_used.add("KHR_materials_unlit")
         idx = len(self.materials)
         self.materials.append(mat)
         return idx
@@ -178,6 +183,8 @@ class GlbBuilder:
             "bufferViews": self.buffer_views,
             "accessors": self.accessors,
         }
+        if self.extensions_used:
+            gltf["extensionsUsed"] = sorted(self.extensions_used)
         if self.meshes:
             gltf["meshes"] = self.meshes
         if self.materials:
