@@ -282,6 +282,7 @@ void BattleStage_Init(BattleSystem *battleSys)
     sStageFog.tableValid = FALSE;
     FogOff();
     ResetBdspAnimState();
+    BattleBdspTrainer_Prefetch(battleSys);
     BdspDumpInit();
 
     if (BATTLE_STAGE_3D) {
@@ -1819,23 +1820,23 @@ void BattleStage_NotifyBdspCry(int battler)
     SetBdspAnim(battler, SIM_BATTLE3D_ANIM_CRY, BDSP_ANIM_CRY_DUR);
 }
 
-void BattleStage_NotifyBdspAttack(int battler, u16 move)
+void BattleStage_NotifyBdspAttack(int attacker, int defender, u16 move)
 {
     u32 moveClass;
     int state;
 
-    if (battler < 0 || battler >= SIM_BATTLE3D_MAX_BATTLERS || move == MOVE_NONE) {
+    if (attacker < 0 || attacker >= SIM_BATTLE3D_MAX_BATTLERS || move == MOVE_NONE) {
         return;
     }
-    if (sBdspAnim[battler].animState == SIM_BATTLE3D_ANIM_FAINT) {
+    if (sBdspAnim[attacker].animState == SIM_BATTLE3D_ANIM_FAINT) {
         return;
     }
 
     moveClass = MoveTable_LoadParam(move, MOVEATTRIBUTE_CLASS);
     state = (moveClass == CLASS_PHYSICAL) ? SIM_BATTLE3D_ANIM_ATTACK_PHYS : SIM_BATTLE3D_ANIM_ATTACK_SPEC;
-    SetBdspAnim(battler, state, BDSP_ANIM_ATTACK_DUR);
-    BattleBdspCam_NotifyAttack(battler, move);
-    BattleBdspVfx_NotifyAttack(battler, battler ^ 1, move);
+    SetBdspAnim(attacker, state, BDSP_ANIM_ATTACK_DUR);
+    BattleBdspCam_NotifyAttack(attacker, move);
+    BattleBdspVfx_NotifyAttack(attacker, defender, move);
 }
 
 void BattleStage_NotifyBdspHit(int battler)
@@ -2131,6 +2132,8 @@ static void SubmitBdspFrame(void)
 
     alpha = (float)sBattleStage.fadePos / (float)STAGE_FADE_STEPS;
     if (alpha <= 0.0f) {
+        BattleBdspTrainer_Prefetch(battleSys);
+        BattleBdspVfx_DiscardPending();
         SIM_Battle3D_Reset();
         return;
     }

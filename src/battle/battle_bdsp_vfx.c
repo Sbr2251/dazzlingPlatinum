@@ -12,6 +12,7 @@
 #include "generated/move_ranges.h"
 #include "generated/pokemon_types.h"
 
+#include "battle/battle_bdsp_capture.h"
 #include "battle/battle_context.h"
 #include "battle/battle_system.h"
 #include "move_table.h"
@@ -21,6 +22,7 @@
 #define BDSP_VFX_POOL_SIZE   8
 #define BDSP_VFX_PENDING_MAX 4
 
+#define BDSP_LUNGE_FRAC      0.22f
 #define BDSP_LUNGE_FWD_DUR   0.28f
 #define BDSP_LUNGE_HOLD_DUR  0.10f
 #define BDSP_LUNGE_BACK_DUR  0.30f
@@ -64,6 +66,7 @@ typedef struct BdspPendingAttack {
     u32 moveClass;
     int moveType;
     u32 moveRange;
+    u32 moveFlags;
 } BdspPendingAttack;
 
 typedef struct BdspVfxItem {
@@ -94,9 +97,9 @@ typedef struct BdspBattlerVfxState {
     BOOL pendingHit;
     BOOL pendingShiny;
 
-    BOOL prevVisible;
-    int prevSpecies;
-    BOOL prevIsShiny;
+    BOOL sparkled;
+    int sparkledSpecies;
+    int sparkledPartySlot;
 
     int lastAttacker;
     int lastMoveType;
@@ -235,15 +238,21 @@ static int ResolveDefender(const SIM_Battle3DFrame *frame, const BattleContext *
 {
     int i;
 
+    // Respect explicit self-targets (e.g. Focus Punch tightening focus, Swords Dance, Recover).
+    if (hintDefender == attacker) {
+        return attacker;
+    }
+
+    // Prefer the explicit command defender (MoveAnimation.defender) when valid and visible.
+    if (hintDefender >= 0 && hintDefender < maxBattlers
+        && frame->battlers[hintDefender].visible) {
+        return hintDefender;
+    }
+
     if (ctx != NULL && ctx->attacker == attacker
         && ctx->defender >= 0 && ctx->defender < maxBattlers
         && ctx->defender != attacker && frame->battlers[ctx->defender].visible) {
         return ctx->defender;
-    }
-
-    if (hintDefender >= 0 && hintDefender < maxBattlers
-        && hintDefender != attacker && frame->battlers[hintDefender].visible) {
-        return hintDefender;
     }
 
     for (i = 0; i < maxBattlers; i++) {
@@ -283,6 +292,15 @@ static void ProcessAttack(const SIM_Battle3DFrame *frame, const BattleContext *c
     defB = &frame->battlers[defender];
     GetTypeColor(pa->moveType, color);
 
+    // Explicit self-targeted cue (e.g. Focus Punch tightening focus or self-buff):
+    // play a rising self-aura on the attacker and never invent an enemy lunge.
+    if (defender == attacker) {
+        float pos[3] = { atkB->worldX, atkB->worldY, atkB->worldZ };
+        SpawnVfx(SIM_BATTLE3D_VFX_STAT_UP, pa->moveType, attacker, attacker, 0.0f,
+                 0.0f, 0.80f, pos, pos, color, 1.10f);
+        return;
+    }
+
     src[0] = atkB->worldX;
     src[1] = atkB->worldY + 0.90f;
     src[2] = atkB->worldZ;
@@ -291,33 +309,79 @@ static void ProcessAttack(const SIM_Battle3DFrame *frame, const BattleContext *c
     dst[1] = defB->worldY + 0.80f;
     dst[2] = defB->worldZ;
 
-    sVfx.battlers[defender].lastAttacker = attacker;
-    sVfx.battlers[defender].lastMoveType = pa->moveType;
+    if (pa->moveClass != CLASS_STATUS) {
+        sVfx.battlers[defender].lastAttacker = attacker;
+        sVfx.battlers[defender].lastMoveType = pa->moveType;
+        if (pa->moveRange == RANGE_ADJACENT_OPPONENTS || pa->moveRange == RANGE_ALL_ADJACENT) {
+            int j;
+            for (j = 0; j < maxBattlers; j++) {
+                if (j == attacker || !frame->battlers[j].visible) {
+                    continue;
+                }
+                if (pa->moveRange == RANGE_ADJACENT_OPPONENTS
+                    && frame->battlers[j].isPlayer == atkB->isPlayer) {
+                    continue;
+                }
+                sVfx.battlers[j].lastAttacker = attacker;
+                sVfx.battlers[j].lastMoveType = pa->moveType;
+            }
+        }
+    }
 
-    if (pa->moveClass == CLASS_PHYSICAL) {
-        // Smooth contact lunge 40% toward defender + brief hit-stop + spring back.
+    if (pa->moveClass == CLASS_PHYSICAL && (pa->moveFlags & MOVE_FLAG_MAKES_CONTACT)) {
+        // Contact physical move: toned lunge (~22% of gap so it blends cleanly with 2D dxPx) + impact.
         BdspBattlerVfxState *abs = &sVfx.battlers[attacker];
         abs->lungeActive = TRUE;
         abs->isKnockback = FALSE;
         abs->lungeTime = 0.0f;
-        abs->lungeVec[0] = (defB->worldX - atkB->worldX) * 0.40f;
+        abs->lungeVec[0] = (defB->worldX - atkB->worldX) * BDSP_LUNGE_FRAC;
         abs->lungeVec[1] = 0.0f;
-        abs->lungeVec[2] = (defB->worldZ - atkB->worldZ) * 0.40f;
+        abs->lungeVec[2] = (defB->worldZ - atkB->worldZ) * BDSP_LUNGE_FRAC;
 
         // Impact burst timed to lunge arrival at the defender.
         SpawnVfx(SIM_BATTLE3D_VFX_IMPACT, pa->moveType, defender, -1, 0.0f,
                  0.24f, 0.48f, src, dst, color, 1.15f);
-    } else if (pa->moveClass == CLASS_SPECIAL) {
-        // Elemental projectile orb/bolt flying src -> dst + explosion on arrival.
+    } else if (pa->moveClass == CLASS_PHYSICAL
+               && (pa->moveRange == RANGE_ALL_ADJACENT || pa->moveRange == RANGE_ADJACENT_OPPONENTS)) {
+        // Non-contact spread physical moves (Earthquake, Rock Slide): impact bursts on targets, no lunge.
+        int j;
+        BOOL spawnedAny = FALSE;
+        for (j = 0; j < maxBattlers; j++) {
+            if (j == attacker || !frame->battlers[j].visible) {
+                continue;
+            }
+            if (pa->moveRange == RANGE_ADJACENT_OPPONENTS
+                && frame->battlers[j].isPlayer == atkB->isPlayer) {
+                continue;
+            }
+            float tpos[3] = {
+                frame->battlers[j].worldX,
+                frame->battlers[j].worldY + 0.80f,
+                frame->battlers[j].worldZ
+            };
+            SpawnVfx(SIM_BATTLE3D_VFX_IMPACT, pa->moveType, j, -1, 0.0f,
+                     0.18f, 0.48f, tpos, tpos, color, 1.25f);
+            spawnedAny = TRUE;
+        }
+        if (!spawnedAny) {
+            SpawnVfx(SIM_BATTLE3D_VFX_IMPACT, pa->moveType, defender, -1, 0.0f,
+                     0.18f, 0.48f, dst, dst, color, 1.25f);
+        }
+    } else if (pa->moveClass == CLASS_PHYSICAL || pa->moveClass == CLASS_SPECIAL) {
+        // Non-contact targeted physical moves (Stone Edge, Bullet Seed, etc.) and special moves:
+        // elemental projectile orb/bolt flying src -> dst + explosion on arrival (no lunge).
         SpawnVfx(SIM_BATTLE3D_VFX_PROJECTILE, pa->moveType, defender, -1, 0.0f,
                  0.0f, 0.42f, src, dst, color, 1.05f);
         SpawnVfx(SIM_BATTLE3D_VFX_IMPACT, pa->moveType, defender, -1, 0.0f,
                  0.40f, 0.42f, src, dst, color, 1.25f);
     } else {
-        // CLASS_STATUS: rising aura rings on self/ally or falling rings on opponent.
-        if (IsSelfOrAllyRange(pa->moveRange)) {
-            float pos[3] = { atkB->worldX, atkB->worldY, atkB->worldZ };
-            SpawnVfx(SIM_BATTLE3D_VFX_STAT_UP, pa->moveType, attacker, attacker, 0.0f,
+        // CLASS_STATUS: rising aura rings on self/ally recipient or falling rings on opponent.
+        BOOL sameSide = (defB->isPlayer == atkB->isPlayer);
+        if (IsSelfOrAllyRange(pa->moveRange) || sameSide) {
+            int recipient = (sameSide && defender != attacker) ? defender : attacker;
+            const SIM_Battle3DBattler *recB = &frame->battlers[recipient];
+            float pos[3] = { recB->worldX, recB->worldY, recB->worldZ };
+            SpawnVfx(SIM_BATTLE3D_VFX_STAT_UP, pa->moveType, recipient, recipient, 0.0f,
                      0.0f, 0.80f, pos, pos, color, 1.10f);
         } else {
             float pos[3] = { defB->worldX, defB->worldY, defB->worldZ };
@@ -390,8 +454,47 @@ void BattleBdspVfx_Reset(void)
     int i;
     memset(&sVfx, 0, sizeof(sVfx));
     for (i = 0; i < SIM_BATTLE3D_MAX_BATTLERS; i++) {
+        sVfx.battlers[i].sparkledPartySlot = -1;
         sVfx.battlers[i].lastAttacker = -1;
         sVfx.battlers[i].lastMoveType = TYPE_NORMAL;
+    }
+}
+
+void BattleBdspVfx_DiscardPending(void)
+{
+    int i;
+
+    sVfx.pendingAttackCount = 0;
+    for (i = 0; i < SIM_BATTLE3D_MAX_BATTLERS; i++) {
+        BdspBattlerVfxState *bs = &sVfx.battlers[i];
+        bs->pendingHit = FALSE;
+        if (bs->lungeActive) {
+            float totalDur = bs->isKnockback ? BDSP_KNOCK_TOTAL_DUR : BDSP_LUNGE_TOTAL_DUR;
+            bs->lungeTime += BDSP_VFX_DT;
+            if (bs->lungeTime >= totalDur) {
+                bs->lungeActive = FALSE;
+            }
+        }
+        if (bs->hitFlashActive) {
+            bs->hitFlashTime += BDSP_VFX_DT;
+            if (bs->hitFlashTime >= BDSP_HIT_FLASH_DUR) {
+                bs->hitFlashActive = FALSE;
+            }
+        }
+    }
+    for (i = 0; i < BDSP_VFX_POOL_SIZE; i++) {
+        BdspVfxItem *it = &sVfx.pool[i];
+        if (!it->active) {
+            continue;
+        }
+        if (it->delay > 0.0f) {
+            it->delay -= BDSP_VFX_DT;
+        } else {
+            it->elapsed += BDSP_VFX_DT;
+            if (it->elapsed >= it->duration) {
+                it->active = FALSE;
+            }
+        }
     }
 }
 
@@ -418,6 +521,7 @@ void BattleBdspVfx_NotifyAttack(int attacker, int defender, u16 move)
     pa->moveClass = MoveTable_LoadParam(move, MOVEATTRIBUTE_CLASS);
     pa->moveType = (int)MoveTable_LoadParam(move, MOVEATTRIBUTE_TYPE);
     pa->moveRange = MoveTable_LoadParam(move, MOVEATTRIBUTE_RANGE);
+    pa->moveFlags = MoveTable_LoadParam(move, MOVEATTRIBUTE_FLAGS);
 }
 
 void BattleBdspVfx_NotifyHit(int defender)
@@ -469,29 +573,40 @@ void BattleBdspVfx_Update(BattleSystem *battleSys, SIM_Battle3DFrame *frame)
     }
     sVfx.pendingAttackCount = 0;
 
-    // 2. Drain pending hits and detect newly visible shiny battlers.
+    // 2. Drain pending hits and trigger shiny sparkles once per (slot, species, selectedPartySlot).
     for (i = 0; i < maxBattlers; i++) {
         BdspBattlerVfxState *bs = &sVfx.battlers[i];
         const SIM_Battle3DBattler *b = &frame->battlers[i];
         BOOL nowVisible = (b->visible != 0 && b->species > 0);
         BOOL nowShiny = (b->isShiny != 0);
+        int curPartySlot = (ctx != NULL) ? (int)ctx->selectedPartySlot[i] : -1;
+        BOOL suppressShinyEdge;
 
         if (bs->pendingHit) {
             bs->pendingHit = FALSE;
             ProcessHit(frame, maxBattlers, i);
         }
 
-        if (nowVisible && (bs->pendingShiny || (nowShiny && (!bs->prevVisible || bs->prevSpecies != b->species || !bs->prevIsShiny)))) {
+        if (b->species > 0
+            && (b->species != bs->sparkledSpecies
+                || (curPartySlot >= 0 && bs->sparkledPartySlot >= 0 && curPartySlot != bs->sparkledPartySlot))) {
+            bs->sparkled = FALSE;
+            bs->sparkledSpecies = b->species;
+            bs->sparkledPartySlot = curPartySlot;
+        }
+
+        // Ignore visibility edges during capture (breakout) or hit-flicker so shiny sparkles never replay.
+        suppressShinyEdge = BattleBdspCapture_IsActive() || bs->hitFlashActive;
+        if (nowVisible && (bs->pendingShiny || (nowShiny && !bs->sparkled && !suppressShinyEdge))) {
             static const float kShinyGold[3] = { 1.00f, 0.88f, 0.30f };
             float pos[3] = { b->worldX, b->worldY + 0.85f, b->worldZ };
             SpawnVfx(SIM_BATTLE3D_VFX_SHINY_SPARKLE, TYPE_ELECTRIC, i, i, 0.85f,
                      0.0f, 1.15f, pos, pos, kShinyGold, 1.20f);
             bs->pendingShiny = FALSE;
+            bs->sparkled = TRUE;
+            bs->sparkledSpecies = b->species;
+            bs->sparkledPartySlot = curPartySlot;
         }
-
-        bs->prevVisible = nowVisible;
-        bs->prevSpecies = nowVisible ? b->species : 0;
-        bs->prevIsShiny = nowVisible ? nowShiny : FALSE;
     }
 
     // 3. Advance per-battler contact lunge, knockback jolt, hit-flash, and live status.

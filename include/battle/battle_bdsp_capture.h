@@ -9,6 +9,7 @@ void BattleBdspCapture_Start(BattleSystem *battleSys, int targetBattler, int bal
 void BattleBdspCapture_NotifyOpen(BattleSystem *battleSys, int targetBattler, int ballItemId);
 void BattleBdspCapture_End(void);
 BOOL BattleBdspCapture_IsActive(void);
+BOOL BattleBdspCapture_OwnsBreakout(int battler);
 void BattleBdspCapture_Update(BattleSystem *battleSys, SIM_Battle3DFrame *frame);
 
 #endif // POKEPLATINUM_BATTLE_BDSP_CAPTURE_H

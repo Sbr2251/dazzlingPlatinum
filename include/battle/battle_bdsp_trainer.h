@@ -9,6 +9,7 @@
 // .glb is loaded, drives the throw animation + Poke Ball arc in frame->actors[],
 // and notifies BattleBdspCam_NotifyTrainerThrow() on send-out. Owned by trainer lane.
 void BattleBdspTrainer_Reset(void);
+void BattleBdspTrainer_Prefetch(BattleSystem *battleSys);
 void BattleBdspTrainer_Update(BattleSystem *battleSys, SIM_Battle3DFrame *frame);
 BOOL BattleBdspTrainer_IsIntroActive(void);
 
