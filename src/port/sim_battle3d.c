@@ -43,6 +43,19 @@ __attribute__((weak)) int SIM_Battle3D_GetActorBonePos(int actorIdx, int boneKin
     (void)outPos;
     return 0;
 }
+__attribute__((weak)) int SIM_Battle3D_GetModelBounds(int species, int form, int isShiny, float outMin[3], float outMax[3])
+{
+    (void)species;
+    (void)form;
+    (void)isShiny;
+    (void)outMin;
+    (void)outMax;
+    return 0;
+}
+__attribute__((weak)) int SIM_Battle3D_IsModelReady(int species, int form, int isShiny)
+{
+    return SIM_Battle3D_HasModel(species, form, isShiny);
+}
 __attribute__((weak)) int SIM_Battle3D_GetActorSocketPos(int actorIdx, int boneKind, int expectedNonce,
     float minAnimTime, const float localOffset[3], float outPos[3])
 {
@@ -280,5 +293,46 @@ float SIM_Battle3D_GetModelClipDuration(int species, int form, int isShiny, int 
     (void)isShiny;
     (void)animState;
     return 0.0f;
+#endif
+}
+
+int SIM_Battle3D_NormalizeForm(int species, int form)
+{
+    // Opus B4: Platinum uses TYPE_* for Arceus (493) where TYPE_MYSTERY = 9 shifts
+    // Fire..Dark to 10..17, whereas BDSP stores national order (0=Normal, 9=Fire..17=Fairy).
+    if (species == 493) {
+        if (form == 9) {
+            return 0;
+        }
+        if (form > 9) {
+            return form - 1;
+        }
+    }
+    return form;
+}
+
+BOOL SIM_Battle3D_GetModelBBox(int species, int form, int isShiny, float outMin[3], float outMax[3])
+{
+#ifdef SDK_PORT
+    if (!SIM_Battle3D_ModelsEnabled() || species <= 0 || outMin == NULL || outMax == NULL) {
+        return FALSE;
+    }
+    return SIM_Battle3D_GetModelBounds(species, SIM_Battle3D_NormalizeForm(species, form), isShiny, outMin, outMax) ? TRUE : FALSE;
+#else
+    (void)species; (void)form; (void)isShiny; (void)outMin; (void)outMax;
+    return FALSE;
+#endif
+}
+
+BOOL SIM_Battle3D_IsModelRenderReady(int species, int form, int isShiny)
+{
+#ifdef SDK_PORT
+    if (!SIM_Battle3D_ModelsEnabled() || species <= 0) {
+        return FALSE;
+    }
+    return SIM_Battle3D_IsModelReady(species, SIM_Battle3D_NormalizeForm(species, form), isShiny) ? TRUE : FALSE;
+#else
+    (void)species; (void)form; (void)isShiny;
+    return FALSE;
 #endif
 }

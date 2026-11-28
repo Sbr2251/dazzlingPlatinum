@@ -2334,10 +2334,10 @@ index 4c50209..fea3d68 100644
  
 diff --git a/include/simulator/sim_battle3d.h b/include/simulator/sim_battle3d.h
 new file mode 100644
-index 0000000..1073d5f
+index 0000000..036789f
 --- /dev/null
 +++ b/include/simulator/sim_battle3d.h
-@@ -0,0 +1,214 @@
+@@ -0,0 +1,220 @@
 +#ifndef SIM_BATTLE3D_H
 +#define SIM_BATTLE3D_H
 +
@@ -2456,6 +2456,7 @@ index 0000000..1073d5f
 +        float radius;      // peak burst radius in meters (e.g. 1.6)
 +        float color[3];    // RGB tint (e.g. 1.0, 0.88, 0.72)
 +    } burst;
++    int modelsEnabled;     // 1 when game-side BattleModels3D allows extracted GLB arena/models (Opus B2)
 +} SIM_Battle3DFrame;
 +
 +#define SIM_BATTLE3D_MAX_ACTORS 4
@@ -2538,6 +2539,11 @@ index 0000000..1073d5f
 +// Queries the live world-space position of an actor's named hand bone (1=RHand, 2=LHand).
 +// Returns 1 and writes outPos[3] if the actor is loaded and the bone was evaluated.
 +int SIM_Battle3D_GetActorBonePos(int actorIdx, int boneKind, float outPos[3]);
++// Queries cached local-space bounding box (meters) of a Pokemon GLB for size normalization (Opus B3).
++// Returns 1 if available and writes outMin[3]/outMax[3].
++int SIM_Battle3D_GetModelBounds(int species, int form, int isShiny, float outMin[3], float outMax[3]);
++// Returns 1 if the model is already GPU-uploaded and render-ready (or 0 while async loading, Opus P1).
++int SIM_Battle3D_IsModelReady(int species, int form, int isShiny);
 +// Queries a versioned, bone-local-offset world socket position (e.g. palm center) for
 +// an actor matching `expectedNonce` and `animTime >= minAnimTime`. Returns 1 on match.
 +int SIM_Battle3D_GetActorSocketPos(int actorIdx, int boneKind, int expectedNonce,
