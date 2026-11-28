@@ -933,12 +933,33 @@ void BattleBdspCam_NotifyHit(int defender)
 {
     sCam.pendingHit = TRUE;
     sCam.pendingDefender = defender;
+    sCam.pendingAttack = FALSE;
 }
 
 void BattleBdspCam_NotifyFaint(int battler)
 {
     sCam.pendingFaint = TRUE;
     sCam.pendingFaintBattler = battler;
+    sCam.pendingHit = FALSE;
+    sCam.pendingAttack = FALSE;
+}
+
+// Trainer-safe establishing intro sweep into home framing (avoids zooming onto an empty
+// wild-mon spot before the opposing trainer sends out their Pokemon).
+static void SampleTrainerIntroPose(float t, BdspCamPose *out)
+{
+    BdspCamPose pStart;
+    float u = Clampf(t / 2.40f, 0.0f, 1.0f);
+
+    pStart.eye[0] = -4.45f;
+    pStart.eye[1] = 2.75f;
+    pStart.eye[2] = 7.20f;
+    pStart.target[0] = 0.40f;
+    pStart.target[1] = 1.45f;
+    pStart.target[2] = -1.60f;
+    pStart.fov = 35.0f;
+
+    LerpPose(&pStart, &sBank.home, u, out);
 }
 
 // Mirror enemy-anchored faint pose onto the player battler (-2.15, 0, 2.25) when player faints.
@@ -1051,14 +1072,18 @@ void BattleBdspCam_Update(BattleSystem *battleSys, SIM_Battle3DFrame *frame)
     }
     menuVisible = BattleHud_IsWindowVisible();
 
-    // Consume queued event notifications with priority: Faint > Hit > Attack.
+    // Consume queued event notifications with priority: Faint > Hit > Attack,
+    // clearing superseded lower-priority flags so stale events never overwrite a higher cut.
     if (sCam.pendingFaint) {
         sCam.pendingFaint = FALSE;
+        sCam.pendingHit = FALSE;
+        sCam.pendingAttack = FALSE;
         sCam.faintIsPlayer = IsPlayerBattler(battleSys, sCam.pendingFaintBattler);
         TransitionToMode(CAM_MODE_FAINT, CAM_CLIP_FAINT_CUT, 0.18f);
     } else if (sCam.pendingHit) {
         BOOL defIsPlayer = IsPlayerBattler(battleSys, sCam.pendingDefender);
         sCam.pendingHit = FALSE;
+        sCam.pendingAttack = FALSE;
         TransitionToMode(CAM_MODE_HIT, defIsPlayer ? CAM_CLIP_HIT_PLAYER : CAM_CLIP_HIT_ENEMY, 0.12f);
     } else if (sCam.pendingAttack) {
         BOOL atkIsPlayer = IsPlayerBattler(battleSys, sCam.pendingAttacker);
@@ -1087,14 +1112,21 @@ void BattleBdspCam_Update(BattleSystem *battleSys, SIM_Battle3DFrame *frame)
     // Evaluate active mode pose and step deterministic 1/60s clock.
     switch (sCam.mode) {
     case CAM_MODE_INTRO: {
-        const BdspCamClip *c = &sBank.clips[CAM_CLIP_INTRO_WILD];
-        SampleClip(CAM_CLIP_INTRO_WILD, sCam.clipTime, &rawPose);
+        float introDur;
+        if (sCam.isTrainerBattle) {
+            SampleTrainerIntroPose(sCam.clipTime, &rawPose);
+            introDur = 2.40f;
+        } else {
+            const BdspCamClip *c = &sBank.clips[CAM_CLIP_INTRO_WILD];
+            SampleClip(CAM_CLIP_INTRO_WILD, sCam.clipTime, &rawPose);
+            introDur = c->duration;
+        }
         // Hold opening frame until the battle scene actually reveals a battler/trainer
         // so the intro sweep plays on-screen rather than behind the black battle wipe.
         if (anyVisible) {
             sCam.clipTime += BDSP_CAM_DT;
         }
-        if (sCam.clipTime >= c->duration) {
+        if (sCam.clipTime >= introDur) {
             TransitionToMode(CAM_MODE_IDLE, CAM_CLIP_WAIT_IDLE_0, 0.60f);
             sCam.idleCycleIdx = 0;
             sCam.idlePassDir = 1;
@@ -1178,6 +1210,14 @@ void BattleBdspCam_Update(BattleSystem *battleSys, SIM_Battle3DFrame *frame)
         }
         break;
     }
+    }
+
+    // In doubles, keep attack/hit closeups slightly wider toward home so both slots remain framed.
+    if ((BattleSystem_GetBattleType(battleSys) & BATTLE_TYPE_DOUBLES) != 0
+        && (sCam.mode == CAM_MODE_ATTACK || sCam.mode == CAM_MODE_HIT)) {
+        BdspCamPose widened;
+        LerpPose(&rawPose, &sBank.home, 0.35f, &widened);
+        rawPose = widened;
     }
 
     // Apply smooth cross-fade blend from previous pose when transitioning between modes/clips.

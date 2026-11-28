@@ -148,6 +148,10 @@ BOOL SIM_Battle3D_HasArenaLoaded(int biome);
 // TRUE when an extracted 3D trainer/ball actor .glb is available and models are enabled.
 BOOL SIM_Battle3D_HasActorLoaded(int kind);
 BOOL SIM_Battle3D_GetActorHandPos(int actorIdx, int boneKind, float outPos[3]);
+BOOL SIM_Battle3D_GetActorSocketWorldPos(int actorIdx, int boneKind, int expectedNonce,
+                                         float minAnimTime, const float localOffset[3],
+                                         float outPos[3]);
+float SIM_Battle3D_GetModelClipDuration(int species, int form, int isShiny, int animState);
 
 #ifdef __cplusplus
 }

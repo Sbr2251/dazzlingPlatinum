@@ -2334,10 +2334,10 @@ index 4c50209..fea3d68 100644
  
 diff --git a/include/simulator/sim_battle3d.h b/include/simulator/sim_battle3d.h
 new file mode 100644
-index 0000000..470db62
+index 0000000..1073d5f
 --- /dev/null
 +++ b/include/simulator/sim_battle3d.h
-@@ -0,0 +1,206 @@
+@@ -0,0 +1,214 @@
 +#ifndef SIM_BATTLE3D_H
 +#define SIM_BATTLE3D_H
 +
@@ -2538,6 +2538,14 @@ index 0000000..470db62
 +// Queries the live world-space position of an actor's named hand bone (1=RHand, 2=LHand).
 +// Returns 1 and writes outPos[3] if the actor is loaded and the bone was evaluated.
 +int SIM_Battle3D_GetActorBonePos(int actorIdx, int boneKind, float outPos[3]);
++// Queries a versioned, bone-local-offset world socket position (e.g. palm center) for
++// an actor matching `expectedNonce` and `animTime >= minAnimTime`. Returns 1 on match.
++int SIM_Battle3D_GetActorSocketPos(int actorIdx, int boneKind, int expectedNonce,
++                                   float minAnimTime, const float localOffset[3],
++                                   float outPos[3]);
++// Returns the loaded animation clip duration in seconds for a 3D Pokemon model slot
++// (SIM_Battle3DAnimState), or 0.0f if unavailable.
++float SIM_Battle3D_GetClipDuration(int species, int form, int isShiny, int animState);
 +
 +#ifdef __cplusplus
 +}
@@ -17872,10 +17880,10 @@ index 0000000..5f952c6
 +} // namespace SIM::Render
 diff --git a/libraries/sim/src/render_gpu/fx_battle3d.cpp b/libraries/sim/src/render_gpu/fx_battle3d.cpp
 new file mode 100644
-index 0000000..1622398
+index 0000000..c2860e5
 --- /dev/null
 +++ b/libraries/sim/src/render_gpu/fx_battle3d.cpp
-@@ -0,0 +1,1945 @@
+@@ -0,0 +1,2026 @@
 +#include "fx_battle3d.hpp"
 +
 +#include "generated/battle3d_shaders.h"
@@ -17885,12 +17893,14 @@ index 0000000..1622398
 +#include <simulator/sim_platform.h>
 +
 +#include <algorithm>
++#include <array>
 +#include <cmath>
 +#include <cstdio>
 +#include <cstdlib>
 +#include <cstring>
 +#include <mutex>
 +#include <unordered_map>
++#include <unordered_set>
 +
 +#ifdef __APPLE__
 +#include <mach-o/dyld.h>
@@ -17909,6 +17919,10 @@ index 0000000..1622398
 +struct CachedActorBones {
 +  bool valid[2] = {false, false}; // [0] = RHand (boneKind=1), [1] = LHand (boneKind=2)
 +  float pos[2][3] = {};
++  float mat[2][16] = {};
++  int animNonce = 0;
++  int animState = 0;
++  float animTime = 0.0f;
 +};
 +CachedActorBones gActorBones[SIM_BATTLE3D_MAX_ACTORS];
 +
@@ -18105,8 +18119,12 @@ index 0000000..1622398
 +std::unordered_map<std::uint64_t, std::string> gModelPathCache;
 +std::unordered_map<int, std::string> gArenaPathCache;
 +std::unordered_map<int, std::string> gActorPathCache;
++std::unordered_set<std::uint64_t> gFailedModels;
++std::unordered_set<int> gFailedArenas;
++std::unordered_set<int> gFailedActors;
++std::unordered_map<std::uint64_t, std::array<float, kBattle3DAnimSlotCount>> gModelClipDurations;
 +
-+std::string ResolveBdspAssetPath(const std::string &relPath) {
++std::string ResolveBdspAssetPath(const std::string &relPath, bool checkSkinned) {
 +  const char *envDir = std::getenv("SIM_BDSP_ASSETS_DIR");
 +  const char *writableDir = SIM_Platform_WritableDir();
 +  const char *dataDir = SIM_Platform_DataDir();
@@ -18118,7 +18136,7 @@ index 0000000..1622398
 +  for (const auto &root : candidates) {
 +    if (root.empty()) continue;
 +    std::string full = JoinPath(root, relPath);
-+    if (FileExists(full) && ValidateGlbHeader(full)) {
++    if (FileExists(full) && ValidateGlbAsset(full, checkSkinned)) {
 +      return full;
 +    }
 +  }
@@ -18130,6 +18148,7 @@ index 0000000..1622398
 +  const std::uint64_t key = MakeModelKey(species, form, isShiny);
 +  {
 +    std::lock_guard<std::mutex> lock(gProbeMutex);
++    if (gFailedModels.count(key) != 0) return "";
 +    auto it = gModelPathCache.find(key);
 +    if (it != gModelPathCache.end()) return it->second;
 +  }
@@ -18137,16 +18156,17 @@ index 0000000..1622398
 +  std::string found;
 +  char rel[64];
 +  if (isShiny) {
++    // Never substitute normal colours for a shiny battler; keep the 2D shiny sprite if absent.
 +    std::snprintf(rel, sizeof(rel), "mons/pm%04d_%02d_shiny.glb", species, form);
-+    found = ResolveBdspAssetPath(rel);
-+  }
-+  if (found.empty()) {
++    found = ResolveBdspAssetPath(rel, true);
++  } else {
 +    std::snprintf(rel, sizeof(rel), "mons/pm%04d_%02d.glb", species, form);
-+    found = ResolveBdspAssetPath(rel);
++    found = ResolveBdspAssetPath(rel, true);
 +  }
 +
 +  {
 +    std::lock_guard<std::mutex> lock(gProbeMutex);
++    if (gFailedModels.count(key) != 0) return "";
 +    gModelPathCache[key] = found;
 +  }
 +  return found;
@@ -18156,15 +18176,17 @@ index 0000000..1622398
 +  if (biome < 0 || biome >= SIM_BATTLE3D_BIOME_COUNT) return "";
 +  {
 +    std::lock_guard<std::mutex> lock(gProbeMutex);
++    if (gFailedArenas.count(biome) != 0) return "";
 +    auto it = gArenaPathCache.find(biome);
 +    if (it != gArenaPathCache.end()) return it->second;
 +  }
 +
 +  std::string rel = std::string("arenas/") + kBiomeStems[biome] + ".glb";
-+  std::string found = ResolveBdspAssetPath(rel);
++  std::string found = ResolveBdspAssetPath(rel, false);
 +
 +  {
 +    std::lock_guard<std::mutex> lock(gProbeMutex);
++    if (gFailedArenas.count(biome) != 0) return "";
 +    gArenaPathCache[biome] = found;
 +  }
 +  return found;
@@ -18187,14 +18209,16 @@ index 0000000..1622398
 +  }
 +  {
 +    std::lock_guard<std::mutex> lock(gProbeMutex);
++    if (gFailedActors.count(kind) != 0) return "";
 +    auto it = gActorPathCache.find(kind);
 +    if (it != gActorPathCache.end()) return it->second;
 +  }
 +
-+  std::string found = ResolveBdspAssetPath(rel);
++  std::string found = ResolveBdspAssetPath(rel, true);
 +
 +  {
 +    std::lock_guard<std::mutex> lock(gProbeMutex);
++    if (gFailedActors.count(kind) != 0) return "";
 +    gActorPathCache[kind] = found;
 +  }
 +  return found;
@@ -18730,6 +18754,8 @@ index 0000000..1622398
 +  if (path.empty()) return nullptr;
 +  if (!LoadGltfArena(device, frame, path, slot)) {
 +    slot.valid = false;
++    std::lock_guard<std::mutex> lock(gProbeMutex);
++    gFailedArenas.insert(biomeId);
 +    return nullptr;
 +  }
 +  return &slot;
@@ -18749,6 +18775,15 @@ index 0000000..1622398
 +  if (!path.empty()) {
 +    if (!LoadGltfModel(device, frame, path, *model)) {
 +      model->valid = false;
++      std::lock_guard<std::mutex> lock(gProbeMutex);
++      gFailedModels.insert(key);
++    } else {
++      std::array<float, kBattle3DAnimSlotCount> durs{};
++      for (int s = 0; s < kBattle3DAnimSlotCount; s++) {
++        durs[s] = model->hasClip[s] ? model->clips[s].duration : 0.0f;
++      }
++      std::lock_guard<std::mutex> lock(gProbeMutex);
++      gModelClipDurations[key] = durs;
 +    }
 +  }
 +  const GltfModel *ptr = model->valid ? model.get() : nullptr;
@@ -18768,6 +18803,8 @@ index 0000000..1622398
 +  if (!path.empty()) {
 +    if (!LoadGltfModel(device, frame, path, *model)) {
 +      model->valid = false;
++      std::lock_guard<std::mutex> lock(gProbeMutex);
++      gFailedActors.insert(kind);
 +    }
 +  }
 +  const GltfModel *ptr = model->valid ? model.get() : nullptr;
@@ -19109,22 +19146,19 @@ index 0000000..1622398
 +                         a.yawDeg, a.pitchDeg, a.rollDeg, a.scale);
 +      EvaluateGltfPose(*actor, a.animState, a.animTime, la.nodeWorldMats);
 +
++      newBones[i].animNonce = a.animNonce;
++      newBones[i].animState = a.animState;
++      newBones[i].animTime = a.animTime;
 +      for (int bk = 1; bk <= 2; bk++) {
 +        float bm[16];
 +        if (GetGltfBoneWorldMatrix(*actor, la.modelMat, la.nodeWorldMats, bk, bm)) {
 +          std::memcpy(actorBoneMats[i][bk - 1], bm, sizeof(bm));
++          std::memcpy(newBones[i].mat[bk - 1], bm, sizeof(bm));
 +          newBones[i].valid[bk - 1] = true;
 +          newBones[i].pos[bk - 1][0] = bm[12];
 +          newBones[i].pos[bk - 1][1] = bm[13];
 +          newBones[i].pos[bk - 1][2] = bm[14];
 +        }
-+      }
-+    }
-+
-+    {
-+      std::lock_guard<std::mutex> lock(gStateMutex);
-+      for (int i = 0; i < SIM_BATTLE3D_MAX_ACTORS; i++) {
-+        gActorBones[i] = newBones[i];
 +      }
 +    }
 +
@@ -19144,6 +19178,10 @@ index 0000000..1622398
 +        wx = bm[0] * a.attachOffset[0] + bm[4] * a.attachOffset[1] + bm[8]  * a.attachOffset[2] + bm[12];
 +        wy = bm[1] * a.attachOffset[0] + bm[5] * a.attachOffset[1] + bm[9]  * a.attachOffset[2] + bm[13];
 +        wz = bm[2] * a.attachOffset[0] + bm[6] * a.attachOffset[1] + bm[10] * a.attachOffset[2] + bm[14];
++        // Cache the exact transformed palm socket point as well as the full 4x4 bone matrix.
++        newBones[pIdx].pos[bSlot][0] = wx;
++        newBones[pIdx].pos[bSlot][1] = wy;
++        newBones[pIdx].pos[bSlot][2] = wz;
 +      }
 +      LatchedBattler &la = mLatchedActors[i];
 +      la.model = actor;
@@ -19152,6 +19190,13 @@ index 0000000..1622398
 +      Mat4ActorTransform(la.modelMat, wx, wy, wz,
 +                         a.yawDeg, a.pitchDeg, a.rollDeg, a.scale);
 +      EvaluateGltfPose(*actor, a.animState, a.animTime, la.nodeWorldMats);
++    }
++
++    {
++      std::lock_guard<std::mutex> lock(gStateMutex);
++      for (int i = 0; i < SIM_BATTLE3D_MAX_ACTORS; i++) {
++        gActorBones[i] = newBones[i];
++      }
 +    }
 +  }
 +
@@ -19820,6 +19865,50 @@ index 0000000..1622398
 +  return 1;
 +}
 +
++int SIM_Battle3D_GetActorSocketPos(int actorIdx, int boneKind, int expectedNonce,
++                                   float minAnimTime, const float localOffset[3],
++                                   float outPos[3]) {
++  if (!outPos || actorIdx < 0 || actorIdx >= SIM_BATTLE3D_MAX_ACTORS) {
++    return 0;
++  }
++  const int bSlot = boneKind - 1;
++  if (bSlot < 0 || bSlot > 1) {
++    return 0;
++  }
++  std::lock_guard<std::mutex> lock(SIM::Render::gStateMutex);
++  const auto &ab = SIM::Render::gActorBones[actorIdx];
++  if (!ab.valid[bSlot]) {
++    return 0;
++  }
++  if (expectedNonce > 0 && ab.animNonce != expectedNonce) {
++    return 0;
++  }
++  if (ab.animTime + 0.025f < minAnimTime) {
++    return 0;
++  }
++  const float *bm = ab.mat[bSlot];
++  const float ox = localOffset ? localOffset[0] : 0.0f;
++  const float oy = localOffset ? localOffset[1] : 0.0f;
++  const float oz = localOffset ? localOffset[2] : 0.0f;
++  outPos[0] = bm[0] * ox + bm[4] * oy + bm[8]  * oz + bm[12];
++  outPos[1] = bm[1] * ox + bm[5] * oy + bm[9]  * oz + bm[13];
++  outPos[2] = bm[2] * ox + bm[6] * oy + bm[10] * oz + bm[14];
++  return 1;
++}
++
++float SIM_Battle3D_GetClipDuration(int species, int form, int isShiny, int animState) {
++  if (species <= 0 || animState < 0 || animState >= SIM::Render::kBattle3DAnimSlotCount) {
++    return 0.0f;
++  }
++  const std::uint64_t key = SIM::Render::MakeModelKey(species, form, isShiny);
++  std::lock_guard<std::mutex> lock(SIM::Render::gProbeMutex);
++  auto it = SIM::Render::gModelClipDurations.find(key);
++  if (it == SIM::Render::gModelClipDurations.end()) {
++    return 0.0f;
++  }
++  return it->second[static_cast<std::size_t>(animState)];
++}
++
 +} // extern "C"
 diff --git a/libraries/sim/src/render_gpu/fx_battle3d.hpp b/libraries/sim/src/render_gpu/fx_battle3d.hpp
 new file mode 100644
@@ -19967,10 +20056,10 @@ index 0000000..cd7383c
 +} // namespace SIM::Render
 diff --git a/libraries/sim/src/render_gpu/fx_battle3d_gltf.cpp b/libraries/sim/src/render_gpu/fx_battle3d_gltf.cpp
 new file mode 100644
-index 0000000..fb1649d
+index 0000000..a3ae0ae
 --- /dev/null
 +++ b/libraries/sim/src/render_gpu/fx_battle3d_gltf.cpp
-@@ -0,0 +1,1261 @@
+@@ -0,0 +1,1359 @@
 +#include "fx_battle3d_gltf.hpp"
 +
 +#define CGLTF_IMPLEMENTATION
@@ -20290,6 +20379,10 @@ index 0000000..fb1649d
 +    verts[baseVert + v].norm[2] = 0.0f;
 +  }
 +  for (std::uint32_t i = firstIdx; i + 2 < firstIdx + idxCount; i += 3) {
++    if (indices[i] >= verts.size() || indices[i + 1] >= verts.size() ||
++        indices[i + 2] >= verts.size()) {
++      continue;
++    }
 +    auto &v0 = verts[indices[i]];
 +    auto &v1 = verts[indices[i + 1]];
 +    auto &v2 = verts[indices[i + 2]];
@@ -20366,6 +20459,66 @@ index 0000000..fb1649d
 +  return version == 2;
 +}
 +
++bool ValidateGlbAsset(const std::string &path, bool checkSkinned) {
++  if (!ValidateGlbHeader(path)) return false;
++  std::vector<std::uint8_t> fileBytes;
++  if (!ReadFileBytes(path, fileBytes)) return false;
++
++  cgltf_options opts{};
++  cgltf_data *data = nullptr;
++  if (cgltf_parse(&opts, fileBytes.data(), fileBytes.size(), &data) != cgltf_result_success || !data) {
++    return false;
++  }
++  if (cgltf_load_buffers(&opts, data, path.c_str()) != cgltf_result_success ||
++      cgltf_validate(data) != cgltf_result_success) {
++    cgltf_free(data);
++    return false;
++  }
++
++  if (checkSkinned) {
++    for (cgltf_size si = 0; si < data->skins_count; si++) {
++      if (data->skins[si].joints_count > kMaxGltfJoints) {
++        cgltf_free(data);
++        return false;
++      }
++    }
++  }
++
++  bool anyPrim = false;
++  for (cgltf_size ni = 0; ni < data->nodes_count; ni++) {
++    const cgltf_node &gn = data->nodes[ni];
++    if (!gn.mesh) continue;
++    for (cgltf_size pi = 0; pi < gn.mesh->primitives_count; pi++) {
++      const cgltf_primitive &prim = gn.mesh->primitives[pi];
++      if (prim.type != cgltf_primitive_type_triangles) continue;
++      const cgltf_accessor *posAcc = nullptr;
++      for (cgltf_size ai = 0; ai < prim.attributes_count; ai++) {
++        if (prim.attributes[ai].type == cgltf_attribute_type_position) {
++          posAcc = prim.attributes[ai].data;
++          break;
++        }
++      }
++      if (!posAcc || posAcc->count == 0) continue;
++      const cgltf_size vCount = posAcc->count;
++      if (prim.indices && prim.indices->count >= 3) {
++        const cgltf_size ic = (prim.indices->count / 3) * 3;
++        for (cgltf_size i = 0; i < ic; i++) {
++          if (cgltf_accessor_read_index(prim.indices, i) >= vCount) {
++            cgltf_free(data);
++            return false;
++          }
++        }
++        anyPrim = true;
++      } else if (vCount >= 3) {
++        anyPrim = true;
++      }
++    }
++  }
++
++  cgltf_free(data);
++  return anyPrim;
++}
++
 +bool LoadGltfArena(Device &device, Frame *frame, const std::string &path, GltfArena &out) {
 +  if (!frame) return false;
 +  std::vector<std::uint8_t> fileBytes;
@@ -20376,7 +20529,8 @@ index 0000000..fb1649d
 +  if (cgltf_parse(&opts, fileBytes.data(), fileBytes.size(), &data) != cgltf_result_success || !data) {
 +    return false;
 +  }
-+  if (cgltf_load_buffers(&opts, data, path.c_str()) != cgltf_result_success) {
++  if (cgltf_load_buffers(&opts, data, path.c_str()) != cgltf_result_success ||
++      cgltf_validate(data) != cgltf_result_success) {
 +    cgltf_free(data);
 +    return false;
 +  }
@@ -20474,9 +20628,17 @@ index 0000000..fb1649d
 +        std::size_t ic = (prim.indices->count / 3) * 3;
 +        indices.reserve(indices.size() + ic);
 +        for (std::size_t i = 0; i < ic; i += 3) {
-+          std::uint32_t i0 = baseVert + static_cast<std::uint32_t>(cgltf_accessor_read_index(prim.indices, i));
-+          std::uint32_t i1 = baseVert + static_cast<std::uint32_t>(cgltf_accessor_read_index(prim.indices, i + 1));
-+          std::uint32_t i2 = baseVert + static_cast<std::uint32_t>(cgltf_accessor_read_index(prim.indices, i + 2));
++          cgltf_size r0 = cgltf_accessor_read_index(prim.indices, i);
++          cgltf_size r1 = cgltf_accessor_read_index(prim.indices, i + 1);
++          cgltf_size r2 = cgltf_accessor_read_index(prim.indices, i + 2);
++          if (r0 >= vCount || r1 >= vCount || r2 >= vCount) {
++            cgltf_free(data);
++            ReleaseGltfArena(device, out);
++            return false;
++          }
++          std::uint32_t i0 = baseVert + static_cast<std::uint32_t>(r0);
++          std::uint32_t i1 = baseVert + static_cast<std::uint32_t>(r1);
++          std::uint32_t i2 = baseVert + static_cast<std::uint32_t>(r2);
 +          if (flipWinding) std::swap(i1, i2);
 +          indices.push_back(i0); indices.push_back(i1); indices.push_back(i2);
 +        }
@@ -20724,6 +20886,10 @@ index 0000000..fb1649d
 +    verts[baseVert + v].norm[2] = 0.0f;
 +  }
 +  for (std::uint32_t i = firstIdx; i + 2 < firstIdx + idxCount; i += 3) {
++    if (indices[i] >= verts.size() || indices[i + 1] >= verts.size() ||
++        indices[i + 2] >= verts.size()) {
++      continue;
++    }
 +    auto &v0 = verts[indices[i]];
 +    auto &v1 = verts[indices[i + 1]];
 +    auto &v2 = verts[indices[i + 2]];
@@ -20839,9 +21005,18 @@ index 0000000..fb1649d
 +  if (cgltf_parse(&opts, fileBytes.data(), fileBytes.size(), &data) != cgltf_result_success || !data) {
 +    return false;
 +  }
-+  if (cgltf_load_buffers(&opts, data, path.c_str()) != cgltf_result_success) {
++  if (cgltf_load_buffers(&opts, data, path.c_str()) != cgltf_result_success ||
++      cgltf_validate(data) != cgltf_result_success) {
 +    cgltf_free(data);
 +    return false;
++  }
++
++  // Reject oversized skins (> kMaxGltfJoints) cleanly before uploading any textures.
++  for (cgltf_size si = 0; si < data->skins_count; si++) {
++    if (data->skins[si].joints_count > kMaxGltfJoints) {
++      cgltf_free(data);
++      return false;
++    }
 +  }
 +
 +  UploadTexturesAndMaterials(device, frame, data, "battle3d_mon_tex", out.textures, out.materials);
@@ -20985,10 +21160,16 @@ index 0000000..fb1649d
 +          cgltf_uint jtmp[4] = {0, 0, 0, 0};
 +          cgltf_accessor_read_uint(jointsAcc, v, jtmp, 4);
 +          cgltf_accessor_read_float(weightsAcc, v, dv.weights, 4);
++          const std::size_t skinJointCount = out.skins[static_cast<std::size_t>(skinIdx)].joints.size();
 +          float wSum = 0.0f;
 +          for (int k = 0; k < 4; k++) {
-+            dv.joints[k] = std::min<std::uint32_t>(static_cast<std::uint32_t>(jtmp[k]), maxJoint);
 +            if (dv.weights[k] < 0.0f) dv.weights[k] = 0.0f;
++            if (dv.weights[k] > 0.0f && static_cast<std::size_t>(jtmp[k]) >= skinJointCount) {
++              cgltf_free(data);
++              ReleaseGltfModel(device, out);
++              return false;
++            }
++            dv.joints[k] = std::min<std::uint32_t>(static_cast<std::uint32_t>(jtmp[k]), maxJoint);
 +            wSum += dv.weights[k];
 +          }
 +          if (wSum > 1e-5f) {
@@ -21010,7 +21191,13 @@ index 0000000..fb1649d
 +        std::size_t ic = (prim.indices->count / 3) * 3;
 +        indices.reserve(indices.size() + ic);
 +        for (std::size_t i = 0; i < ic; i++) {
-+          indices.push_back(baseVert + static_cast<std::uint32_t>(cgltf_accessor_read_index(prim.indices, i)));
++          cgltf_size rawIdx = cgltf_accessor_read_index(prim.indices, i);
++          if (rawIdx >= vCount) {
++            cgltf_free(data);
++            ReleaseGltfModel(device, out);
++            return false;
++          }
++          indices.push_back(baseVert + static_cast<std::uint32_t>(rawIdx));
 +        }
 +      } else if (vCount >= 3) {
 +        std::uint32_t ic = (vCount / 3) * 3;
@@ -21234,10 +21421,10 @@ index 0000000..fb1649d
 +} // namespace SIM::Render
 diff --git a/libraries/sim/src/render_gpu/fx_battle3d_gltf.hpp b/libraries/sim/src/render_gpu/fx_battle3d_gltf.hpp
 new file mode 100644
-index 0000000..41ba034
+index 0000000..b3633f9
 --- /dev/null
 +++ b/libraries/sim/src/render_gpu/fx_battle3d_gltf.hpp
-@@ -0,0 +1,185 @@
+@@ -0,0 +1,189 @@
 +#pragma once
 +
 +// glTF 2.0 (.glb) loader & CPU skeletal animator for BDSP 3D arenas and Pokémon models.
@@ -21390,8 +21577,12 @@ index 0000000..41ba034
 +  std::int32_t lHandNode = -1;
 +};
 +
-+// Fast 12-byte GLB header sanity check for SIM_Battle3D_HasModel / HasArena.
++// Fast 12-byte GLB header sanity check.
 +bool ValidateGlbHeader(const std::string &path);
++// Full GLB v2 validation (cgltf_parse + cgltf_load_buffers + cgltf_validate +
++// primitive index bounds + skin joint limit <= kMaxGltfJoints). Rejects corrupt/
++// truncated/OOB assets before the game suppresses 2D fallback sprites.
++bool ValidateGlbAsset(const std::string &path, bool checkSkinned);
 +
 +// Load a static glTF 2.0 (.glb) battle arena (pre-transformed into world B3DVertex buffer).
 +// Automatically appends a procedural sky hemisphere if the glTF has no sky submesh.

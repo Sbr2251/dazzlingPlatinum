@@ -43,6 +43,25 @@ __attribute__((weak)) int SIM_Battle3D_GetActorBonePos(int actorIdx, int boneKin
     (void)outPos;
     return 0;
 }
+__attribute__((weak)) int SIM_Battle3D_GetActorSocketPos(int actorIdx, int boneKind, int expectedNonce,
+    float minAnimTime, const float localOffset[3], float outPos[3])
+{
+    (void)actorIdx;
+    (void)boneKind;
+    (void)expectedNonce;
+    (void)minAnimTime;
+    (void)localOffset;
+    (void)outPos;
+    return 0;
+}
+__attribute__((weak)) float SIM_Battle3D_GetClipDuration(int species, int form, int isShiny, int animState)
+{
+    (void)species;
+    (void)form;
+    (void)isShiny;
+    (void)animState;
+    return 0.0f;
+}
 #endif
 
 BOOL SIM_Battle3D_IsEnabled(void)
@@ -226,5 +245,40 @@ BOOL SIM_Battle3D_GetActorHandPos(int actorIdx, int boneKind, float outPos[3])
     (void)boneKind;
     (void)outPos;
     return FALSE;
+#endif
+}
+
+BOOL SIM_Battle3D_GetActorSocketWorldPos(int actorIdx, int boneKind, int expectedNonce,
+    float minAnimTime, const float localOffset[3], float outPos[3])
+{
+#ifdef SDK_PORT
+    if (!SIM_Battle3D_ModelsEnabled() || outPos == NULL) {
+        return FALSE;
+    }
+    return SIM_Battle3D_GetActorSocketPos(actorIdx, boneKind, expectedNonce, minAnimTime, localOffset, outPos) ? TRUE : FALSE;
+#else
+    (void)actorIdx;
+    (void)boneKind;
+    (void)expectedNonce;
+    (void)minAnimTime;
+    (void)localOffset;
+    (void)outPos;
+    return FALSE;
+#endif
+}
+
+float SIM_Battle3D_GetModelClipDuration(int species, int form, int isShiny, int animState)
+{
+#ifdef SDK_PORT
+    if (!SIM_Battle3D_ModelsEnabled() || species <= 0) {
+        return 0.0f;
+    }
+    return SIM_Battle3D_GetClipDuration(species, form, isShiny, animState);
+#else
+    (void)species;
+    (void)form;
+    (void)isShiny;
+    (void)animState;
+    return 0.0f;
 #endif
 }
