@@ -220,42 +220,109 @@ def extract_trainer_glb(
     # Pack SMRs into one or more skin buckets (each <= MAX_JOINTS bones).
     # Nearly all trainers fit into a single unified skin; rigs like tr1020_00 (210 bones)
     # cleanly split across 2 skins without dropping any geometry or joints.
+    # Omit zero-weight null/missing bones and assign per-slot synthetic fallback nodes
+    # (preserving distinct inverse bind matrices) for weighted null slots like tr2003_00.
     skin_buckets: list[dict[str, Any]] = []
     all_joint_pids: set[int] = set()
+    all_joint_keys: set[tuple[Any, ...]] = set()
+    null_fallback_labels: dict[tuple[Any, ...], str] = {}
 
     for smr, mesh, go_name, smr_pid in kept_smrs:
-        smr_bone_pids = [bp.path_id for bp in smr.m_Bones]
-        if len(set(smr_bone_pids)) > MAX_JOINTS:
-            raise RuntimeError(f"{trainer_id}/{go_name} uses {len(set(smr_bone_pids))} joints (> {MAX_JOINTS} limit)")
+        mh = MeshHelper.MeshHandler(mesh)
+        mh.process()
+
+        n_v = len(mh.m_Vertices)
+        n_bones = len(smr.m_Bones)
+        weighted_local_bones: set[int] = set()
+        if mh.m_BoneIndices and mh.m_BoneWeights and len(mh.m_BoneWeights) == n_v and n_bones > 0:
+            raw_j_scan = np.array(mh.m_BoneIndices, dtype=np.int32)
+            raw_w_scan = np.array(mh.m_BoneWeights, dtype=np.float32)
+            for k in range(min(4, raw_j_scan.shape[1])):
+                pos_mask = raw_w_scan[:, k] > 0.0
+                if np.any(pos_mask):
+                    clamped = np.clip(raw_j_scan[pos_mask, k], 0, n_bones - 1)
+                    weighted_local_bones.update(int(x) for x in np.unique(clamped))
+        elif n_bones > 0:
+            weighted_local_bones.add(0)
+
+        # Build per-slot (key, ibm_rh, bpid) entries; omit zero-weight null/missing bones.
+        smr_bone_keys: list[tuple[Any, ...] | None] = [None] * n_bones
+        smr_unique_entries: dict[tuple[Any, ...], tuple[np.ndarray, int, str]] = {}
+        for bi, bp_pptr in enumerate(smr.m_Bones):
+            bpid = int(bp_pptr.path_id)
+            is_null = (bpid == 0 or bpid not in transforms)
+            if is_null and bi not in weighted_local_bones:
+                continue
+            bp = mesh.m_BindPose[bi]
+            mat_u = np.array(
+                [
+                    [bp.e00, bp.e01, bp.e02, bp.e03],
+                    [bp.e10, bp.e11, bp.e12, bp.e13],
+                    [bp.e20, bp.e21, bp.e22, bp.e23],
+                    [bp.e30, bp.e31, bp.e32, bp.e33],
+                ],
+                dtype=np.float64,
+            )
+            ibm_rh = lh_to_rh_mat4(mat_u)
+            if is_null:
+                jkey: tuple[Any, ...] = ("null", int(smr_pid), bi)
+                label = f"{go_name}_null_bone_{bi}"
+            else:
+                jkey = ("pid", bpid)
+                label = ""
+            smr_bone_keys[bi] = jkey
+            if jkey not in smr_unique_entries:
+                smr_unique_entries[jkey] = (ibm_rh, bpid, label)
+
+        # Degenerate guard: if an SMR had only zero-weight null bones, keep slot 0 as fallback.
+        if not smr_unique_entries and n_bones > 0:
+            bp = mesh.m_BindPose[0]
+            mat_u = np.array(
+                [
+                    [bp.e00, bp.e01, bp.e02, bp.e03],
+                    [bp.e10, bp.e11, bp.e12, bp.e13],
+                    [bp.e20, bp.e21, bp.e22, bp.e23],
+                    [bp.e30, bp.e31, bp.e32, bp.e33],
+                ],
+                dtype=np.float64,
+            )
+            jkey = ("null", int(smr_pid), 0)
+            smr_bone_keys[0] = jkey
+            smr_unique_entries[jkey] = (lh_to_rh_mat4(mat_u), 0, f"{go_name}_null_bone_0")
+
+        if len(smr_unique_entries) > MAX_JOINTS:
+            raise RuntimeError(f"{trainer_id}/{go_name} uses {len(smr_unique_entries)} joints (> {MAX_JOINTS} limit)")
 
         placed = None
         for bkt in skin_buckets:
-            new_cnt = sum(1 for pid in set(smr_bone_pids) if pid not in bkt["pid_to_idx"])
-            if len(bkt["pids"]) + new_cnt <= MAX_JOINTS:
+            incompatible = False
+            new_cnt = 0
+            for jkey, (ibm_rh, _bpid, _lbl) in smr_unique_entries.items():
+                if jkey in bkt["key_to_idx"]:
+                    existing_ibm = bkt["ibms_rh"][bkt["key_to_idx"][jkey]]
+                    if not np.allclose(existing_ibm, ibm_rh, atol=1e-3):
+                        incompatible = True
+                        break
+                else:
+                    new_cnt += 1
+            if not incompatible and len(bkt["keys"]) + new_cnt <= MAX_JOINTS:
                 placed = bkt
                 break
         if placed is None:
-            placed = {"smrs": [], "pids": [], "pid_to_idx": {}, "ibms_rh": []}
+            placed = {"smrs": [], "keys": [], "key_to_idx": {}, "ibms_rh": []}
             skin_buckets.append(placed)
 
-        placed["smrs"].append((smr, mesh, go_name, smr_pid))
-        for bi, bp_pptr in enumerate(smr.m_Bones):
-            bpid = bp_pptr.path_id
-            all_joint_pids.add(bpid)
-            if bpid not in placed["pid_to_idx"]:
-                bp = mesh.m_BindPose[bi]
-                mat_u = np.array(
-                    [
-                        [bp.e00, bp.e01, bp.e02, bp.e03],
-                        [bp.e10, bp.e11, bp.e12, bp.e13],
-                        [bp.e20, bp.e21, bp.e22, bp.e23],
-                        [bp.e30, bp.e31, bp.e32, bp.e33],
-                    ],
-                    dtype=np.float64,
-                )
-                placed["pid_to_idx"][bpid] = len(placed["pids"])
-                placed["pids"].append(bpid)
-                placed["ibms_rh"].append(lh_to_rh_mat4(mat_u))
+        placed["smrs"].append((smr, mesh, mh, go_name, smr_pid, smr_bone_keys))
+        for jkey, (ibm_rh, bpid, label) in smr_unique_entries.items():
+            all_joint_keys.add(jkey)
+            if jkey[0] == "pid":
+                all_joint_pids.add(bpid)
+            else:
+                null_fallback_labels.setdefault(jkey, label)
+            if jkey not in placed["key_to_idx"]:
+                placed["key_to_idx"][jkey] = len(placed["keys"])
+                placed["keys"].append(jkey)
+                placed["ibms_rh"].append(ibm_rh)
 
     keep_pids: set[int] = {root_pid}
     for jpid in all_joint_pids:
@@ -299,6 +366,23 @@ def extract_trainer_glb(
     prefab_root_idx = add_transform_tree(root_pid)
     builder.nodes[align_node_idx]["children"].append(prefab_root_idx)
 
+    # Create one distinct synthetic fallback child node under prefab_root_idx per weighted null bone slot.
+    key_to_node_idx: dict[tuple[Any, ...], int] = {("pid", pid): nidx for pid, nidx in pid_to_node_idx.items()}
+    if null_fallback_labels:
+        prefab_children = builder.nodes[prefab_root_idx].setdefault("children", [])
+        for jkey in sorted(null_fallback_labels.keys()):
+            nidx = len(builder.nodes)
+            builder.nodes.append(
+                {
+                    "name": null_fallback_labels[jkey],
+                    "translation": [0.0, 0.0, 0.0],
+                    "rotation": [0.0, 0.0, 0.0, 1.0],
+                    "scale": [1.0, 1.0, 1.0],
+                }
+            )
+            prefab_children.append(nidx)
+            key_to_node_idx[jkey] = nidx
+
     mat_cache: dict[tuple[str, int, int, int], tuple[int, tuple[float, float], tuple[float, float]]] = {}
     baked_tex_cache: dict[tuple[int, int, tuple[int, ...]], int] = {}
     decoded_textures: list[tuple[str, Image.Image]] = []
@@ -307,7 +391,7 @@ def extract_trainer_glb(
     total_tris = 0
 
     for b_idx, bkt in enumerate(skin_buckets):
-        joint_node_indices = [pid_to_node_idx.get(jpid, prefab_root_idx) for jpid in bkt["pids"]]
+        joint_node_indices = [key_to_node_idx[jkey] for jkey in bkt["keys"]]
         ibm_arr = np.array([m.T.astype(np.float32) for m in bkt["ibms_rh"]], dtype=np.float32)
         ibm_acc = builder.add_accessor(ibm_arr.reshape((-1, 16)), COMP_FLOAT, "MAT4", target=None)
         skin_idx = len(builder.skins)
@@ -325,12 +409,9 @@ def extract_trainer_glb(
         bkt_positions: list[np.ndarray] = []
         bkt_joints: list[np.ndarray] = []
         bkt_weights: list[np.ndarray] = []
-        joint_pid_to_idx = bkt["pid_to_idx"]
+        joint_key_to_idx = bkt["key_to_idx"]
 
-        for smr, mesh, go_name, smr_pid in bkt["smrs"]:
-            mh = MeshHelper.MeshHandler(mesh)
-            mh.process()
-
+        for smr, mesh, mh, go_name, smr_pid, smr_bone_keys in bkt["smrs"]:
             verts_u = np.array(mh.m_Vertices, dtype=np.float32)[:, :3]
             if mh.m_Normals and len(mh.m_Normals) == len(verts_u):
                 norms_u = np.array(mh.m_Normals, dtype=np.float32)[:, :3]
@@ -341,11 +422,19 @@ def extract_trainer_glb(
             else:
                 uv0_u = np.zeros((len(verts_u), 2), dtype=np.float32)
 
-            local_to_unified = [joint_pid_to_idx[bp.path_id] for bp in smr.m_Bones]
+            fallback_joint = 0
+            for jkey in smr_bone_keys:
+                if jkey is not None:
+                    fallback_joint = joint_key_to_idx[jkey]
+                    break
+            local_to_unified = [
+                joint_key_to_idx[jkey] if jkey is not None else fallback_joint
+                for jkey in smr_bone_keys
+            ]
             n_v = len(verts_u)
             j_arr = np.zeros((n_v, 4), dtype=np.uint16)
             w_arr = np.zeros((n_v, 4), dtype=np.float32)
-            if mh.m_BoneIndices and mh.m_BoneWeights and len(mh.m_BoneWeights) == n_v:
+            if mh.m_BoneIndices and mh.m_BoneWeights and len(mh.m_BoneWeights) == n_v and local_to_unified:
                 raw_j = np.array(mh.m_BoneIndices, dtype=np.int32)
                 raw_w = np.array(mh.m_BoneWeights, dtype=np.float32)
                 for k in range(min(4, raw_j.shape[1])):
@@ -355,11 +444,11 @@ def extract_trainer_glb(
                 w_sum = w_arr.sum(axis=1, keepdims=True)
                 bad = w_sum[:, 0] < 1e-6
                 w_arr[bad] = [1.0, 0.0, 0.0, 0.0]
-                j_arr[bad] = [local_to_unified[0], 0, 0, 0]
+                j_arr[bad] = [fallback_joint, 0, 0, 0]
                 w_sum = w_arr.sum(axis=1, keepdims=True)
                 w_arr /= w_sum
             else:
-                j_arr[:, 0] = local_to_unified[0]
+                j_arr[:, 0] = fallback_joint
                 w_arr[:, 0] = 1.0
 
             pos_rh = verts_u.copy()
@@ -553,7 +642,7 @@ def extract_trainer_glb(
         "size_bytes": file_bytes,
         "vertices": total_verts,
         "triangles": total_tris,
-        "bones": len(all_joint_pids),
+        "bones": len(all_joint_keys),
         "skins": len(builder.skins),
         "materials": len(builder.materials),
         "textures": len(builder.textures),

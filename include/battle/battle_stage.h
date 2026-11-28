@@ -188,7 +188,7 @@ void BattleStage_FaintKick(int battler);
 // BDSP 3D model animation state machine triggers (deterministic frame-stepped
 // in battle_stage.c; no-op when out of range).
 void BattleStage_NotifyBdspCry(int battler);
-void BattleStage_NotifyBdspAttack(int battler, u16 move);
+void BattleStage_NotifyBdspAttack(int attacker, int defender, u16 move);
 void BattleStage_NotifyBdspHit(int battler);
 void BattleStage_NotifyBdspHitEnd(int battler);
 void BattleStage_NotifyBdspFaint(int battler);

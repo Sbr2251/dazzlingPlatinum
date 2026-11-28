@@ -2483,6 +2483,15 @@ static void Task_ShowPokemon(SysTask *task, void *data)
         }
 
         monShowData->ballRotation = ov12_02237728(&ballThrow);
+        if (monShowData->isQuickSendOut == 1
+            && monShowData->ballRotation != NULL
+            && BattleBdspCapture_OwnsBreakout(monShowData->battler)) {
+            ManagedSprite *quickBallSpr = BallRotation_GetSprite(monShowData->ballRotation);
+            if (quickBallSpr != NULL) {
+                ManagedSprite_SetDrawFlag(quickBallSpr, FALSE);
+                ManagedSprite_SetExplicitOamMode(quickBallSpr, GX_OAM_MODE_OBJWND);
+            }
+        }
         PokemonSpriteManager *monSpriteMan = BattleSystem_GetPokemonSpriteManager(monShowData->battleSys);
         SpriteAnimFrame animFrames[MAX_ANIMATION_FRAMES];
 
@@ -7305,7 +7314,7 @@ static void BattleDisplay_PlayMoveAnimation(BattleSystem *battleSys, BattlerData
     // fx_particles hook: signature-move tuning for this move's particles.
     if (animation->animMode == 0) {
         FxParticles_SetMove(animation->move);
-        BattleStage_NotifyBdspAttack(animation->attacker, animation->move);
+        BattleStage_NotifyBdspAttack(animation->attacker, animation->defender, animation->move);
     }
 
     if (animation->animMode == 0) {

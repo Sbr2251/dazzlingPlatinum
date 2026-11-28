@@ -14,7 +14,7 @@
 #define BDSP_CAP_DT               (1.0f / 60.0f)
 #define BDSP_CAP_PI               3.14159265f
 #define BDSP_CAP_THROW_DUR        0.45f
-#define BDSP_CAP_ABSORB_DUR       0.55f
+#define BDSP_CAP_ABSORB_DUR       0.30f
 #define BDSP_CAP_DROP_DUR         0.58f
 #define BDSP_CAP_WOBBLE_DUR       0.52f
 #define BDSP_CAP_WOBBLE_PERIOD    0.72f
@@ -54,6 +54,7 @@ enum BdspCapturePhase {
 
 typedef struct BdspCaptureState {
     BOOL active;
+    BOOL decided2d;
     BOOL syncedToTask;
     BOOL hasBallsThrownInit;
     u16 lastBallsThrown;
@@ -135,6 +136,11 @@ static void SuppressLegacyCaptureBall(BattleContext *ctx)
     }
 }
 
+static BOOL IsUnsupportedCaptureBattle(u32 battleType)
+{
+    return (battleType & (BATTLE_TYPE_TRAINER | BATTLE_TYPE_SAFARI | BATTLE_TYPE_PAL_PARK)) != 0;
+}
+
 static void EnterPhase(int newPhase)
 {
     sCap.phase = newPhase;
@@ -160,6 +166,9 @@ void BattleBdspCapture_Start(BattleSystem *battleSys, int targetBattler, int bal
     if (!SIM_Battle3D_ModelsEnabled() || !SIM_Battle3D_HasActorLoaded(SIM_BATTLE3D_ACTOR_POKEBALL)) {
         return;
     }
+    if (battleSys != NULL && IsUnsupportedCaptureBattle(BattleSystem_GetBattleType(battleSys))) {
+        return;
+    }
 
     memset(&sCap, 0, sizeof(sCap));
     sCap.hasBallsThrownInit = hadInit;
@@ -170,6 +179,7 @@ void BattleBdspCapture_Start(BattleSystem *battleSys, int targetBattler, int bal
     }
 
     sCap.active = TRUE;
+    sCap.decided2d = FALSE;
     sCap.syncedToTask = FALSE;
     sCap.phase = BDSP_CAP_PHASE_THROW;
     sCap.targetBattler = targetBattler;
@@ -190,19 +200,28 @@ void BattleBdspCapture_NotifyOpen(BattleSystem *battleSys, int targetBattler, in
 {
     BattleContext *ctx;
 
-    if (!SIM_Battle3D_ModelsEnabled() || !SIM_Battle3D_HasActorLoaded(SIM_BATTLE3D_ACTOR_POKEBALL)) {
+    if (!SIM_Battle3D_ModelsEnabled()) {
         return;
     }
-    if (battleSys != NULL && (BattleSystem_GetBattleType(battleSys) & BATTLE_TYPE_TRAINER)) {
+    if (battleSys != NULL && IsUnsupportedCaptureBattle(BattleSystem_GetBattleType(battleSys))) {
+        return;
+    }
+    if (sCap.decided2d) {
+        return;
+    }
+    if (!SIM_Battle3D_HasActorLoaded(SIM_BATTLE3D_ACTOR_POKEBALL)) {
+        sCap.decided2d = TRUE;
         return;
     }
 
+    ctx = (battleSys != NULL) ? BattleSystem_GetBattleContext(battleSys) : NULL;
     if (!sCap.active) {
-        BattleBdspCapture_Start(battleSys, targetBattler, ballItemId, 0, FALSE);
-        ctx = (battleSys != NULL) ? BattleSystem_GetBattleContext(battleSys) : NULL;
+        // Never take over mid-throw if a live CatchMonTask was already started on the 2D path.
         if (ctx != NULL && ctx->taskData != NULL) {
-            sCap.syncedToTask = TRUE;
+            sCap.decided2d = TRUE;
+            return;
         }
+        BattleBdspCapture_Start(battleSys, targetBattler, ballItemId, 0, FALSE);
     }
 
     if (sCap.active && sCap.phase == BDSP_CAP_PHASE_THROW) {
@@ -232,6 +251,21 @@ BOOL BattleBdspCapture_IsActive(void)
     return sCap.active ? TRUE : FALSE;
 }
 
+BOOL BattleBdspCapture_OwnsBreakout(int battler)
+{
+    if (!sCap.active) {
+        return FALSE;
+    }
+    if (sCap.targetBattler >= 0 && sCap.targetBattler != battler) {
+        return FALSE;
+    }
+    return (sCap.phase == BDSP_CAP_PHASE_DROP
+            || sCap.phase == BDSP_CAP_PHASE_SHAKES
+            || sCap.phase == BDSP_CAP_PHASE_BREAKOUT)
+        ? TRUE
+        : FALSE;
+}
+
 void BattleBdspCapture_Update(BattleSystem *battleSys, SIM_Battle3DFrame *frame)
 {
     BattleContext *ctx;
@@ -245,35 +279,46 @@ void BattleBdspCapture_Update(BattleSystem *battleSys, SIM_Battle3DFrame *frame)
         return;
     }
 
-    hasBall3d = SIM_Battle3D_HasActorLoaded(SIM_BATTLE3D_ACTOR_POKEBALL);
-    if (!hasBall3d) {
-        if (sCap.active) {
-            BattleBdspCapture_End();
-        }
-        return;
-    }
-
     battleType = BattleSystem_GetBattleType(battleSys);
     ctx = BattleSystem_GetBattleContext(battleSys);
+    hasBall3d = SIM_Battle3D_HasActorLoaded(SIM_BATTLE3D_ACTOR_POKEBALL);
 
     if (!sCap.hasBallsThrownInit) {
         sCap.hasBallsThrownInit = TRUE;
         sCap.lastBallsThrown = battleSys->ballsThrown;
     }
 
+    if (sCap.decided2d && (ctx == NULL || ctx->taskData == NULL)) {
+        sCap.decided2d = FALSE;
+    }
+
     // Auto-detect wild Poke Ball throw start on the exact frame BattleScript_CatchMonTask launches it.
+    // Latch one visual owner per throw: if the 3D ball is not ready yet, stay 2D for the entire throw.
     if (battleSys->ballsThrown > sCap.lastBallsThrown) {
         sCap.lastBallsThrown = battleSys->ballsThrown;
-        if ((battleType & BATTLE_TYPE_TRAINER) == 0
+        sCap.decided2d = FALSE;
+        if (!IsUnsupportedCaptureBattle(battleType)
             && ctx != NULL
             && ctx->taskData != NULL) {
-            int targetBattler = BATTLER_ENEMY_1;
-            if (ctx->battlersSwitchingMask & (1u << BATTLER_ENEMY_1)) {
-                targetBattler = BATTLER_ENEMY_2;
+            if (hasBall3d) {
+                int targetBattler = BATTLER_ENEMY_1;
+                if (ctx->battlersSwitchingMask & (1u << BATTLER_ENEMY_1)) {
+                    targetBattler = BATTLER_ENEMY_2;
+                }
+                BattleBdspCapture_Start(battleSys, targetBattler, ctx->taskData->ball, 0, FALSE);
+                sCap.syncedToTask = TRUE;
+            } else {
+                sCap.decided2d = TRUE;
             }
-            BattleBdspCapture_Start(battleSys, targetBattler, ctx->taskData->ball, 0, FALSE);
-            sCap.syncedToTask = TRUE;
         }
+    }
+
+    if (!hasBall3d) {
+        if (sCap.active) {
+            BattleBdspCapture_End();
+            sCap.decided2d = TRUE;
+        }
+        return;
     }
 
     if (!sCap.active) {
@@ -321,9 +366,10 @@ void BattleBdspCapture_Update(BattleSystem *battleSys, SIM_Battle3DFrame *frame)
                 return;
             }
 
-            if (sCap.phase == BDSP_CAP_PHASE_THROW && seq >= CAP_SEQ_CALC_SHAKES) {
-                EnterPhase(BDSP_CAP_PHASE_ABSORB);
-            } else if (sCap.phase == BDSP_CAP_PHASE_ABSORB && seq >= CAP_SEQ_WAIT_BALL_OPEN) {
+            // Hold THROW at its landed/hover pose until BattleBdspCapture_NotifyOpen fires;
+            // only fall back to DROP if the task already advanced past open (seq >= 4).
+            if ((sCap.phase == BDSP_CAP_PHASE_ABSORB || sCap.phase == BDSP_CAP_PHASE_THROW)
+                && seq >= CAP_SEQ_WAIT_BALL_OPEN) {
                 EnterPhase(BDSP_CAP_PHASE_DROP);
             } else if (sCap.phase == BDSP_CAP_PHASE_DROP && seq >= CAP_SEQ_DO_SHAKES) {
                 EnterPhase(BDSP_CAP_PHASE_SHAKES);
@@ -363,18 +409,30 @@ void BattleBdspCapture_Update(BattleSystem *battleSys, SIM_Battle3DFrame *frame)
         float endX = sCap.monX;
         float endY = sCap.monY + BDSP_CAP_HOVER_Y;
         float endZ = sCap.monZ;
+        BOOL arrived = (u >= 1.0f) || (sCap.syncedToTask && sCap.lastSeqNum >= CAP_SEQ_CALC_SHAKES);
 
         ball->visible = 1;
         ball->kind = SIM_BATTLE3D_ACTOR_POKEBALL;
         ball->trainerId = 0;
         ball->ballVariant = sCap.ballVariant;
-        ball->worldX = startX + (endX - startX) * u;
-        ball->worldY = startY + (endY - startY) * u + 4.0f * BDSP_CAP_ARC_PEAK * u * (1.0f - u);
-        ball->worldZ = startZ + (endZ - startZ) * u;
-        ball->yawDeg = 135.0f;
-        ball->pitchDeg = u * 900.0f;
-        ball->rollDeg = u * 270.0f;
-        ball->scale = 1.55f + 0.35f * sinf(u * BDSP_CAP_PI);
+        if (arrived) {
+            // Hold cleanly at the landed/hover pose until NotifyOpen starts the absorb beam & shrink.
+            ball->worldX = endX;
+            ball->worldY = endY;
+            ball->worldZ = endZ;
+            ball->yawDeg = -45.0f;
+            ball->pitchDeg = 0.0f;
+            ball->rollDeg = 0.0f;
+            ball->scale = BDSP_CAP_BALL_SCALE;
+        } else {
+            ball->worldX = startX + (endX - startX) * u;
+            ball->worldY = startY + (endY - startY) * u + 4.0f * BDSP_CAP_ARC_PEAK * u * (1.0f - u);
+            ball->worldZ = startZ + (endZ - startZ) * u;
+            ball->yawDeg = 135.0f;
+            ball->pitchDeg = u * 900.0f;
+            ball->rollDeg = u * 270.0f;
+            ball->scale = 1.55f + 0.35f * sinf(u * BDSP_CAP_PI);
+        }
         ball->alpha = 1.0f;
         ball->attachActorIdx = 0;
         ball->attachBoneKind = 0;

@@ -99,6 +99,8 @@ typedef struct BdspTrainerState {
     float ballStartX;
     float ballStartY;
     float ballStartZ;
+    ManagedSprite *hidden2dSpr;
+    ManagedSprite *hiddenBallSpr[2];
     u32 tickCount;
 } BdspTrainerState;
 
@@ -106,7 +108,8 @@ typedef struct BdspOppTrainerState {
     int phase;
     int trainerModelId;
     int enemySlot;
-    BOOL hasHidden2d;
+    BOOL decided2d;
+    ManagedSprite *hidden2dSpr;
     s16 settledSprX;
     float animTime;
     float phaseTime;
@@ -232,6 +235,9 @@ static int FindEnemySlot(BattleSystem *battleSys)
     }
 
     for (i = 0; i < maxBattlers; i++) {
+        if (BattleSystem_GetBattlerData(battleSys, i) == NULL) {
+            continue;
+        }
         int btype = BattleSystem_GetBattlerType(battleSys, i);
         if (btype == BATTLER_TYPE_SOLO_ENEMY || btype == BATTLER_TYPE_ENEMY_SIDE_SLOT_1) {
             return i;
@@ -423,6 +429,9 @@ static int FindPlayerSlot(BattleSystem *battleSys)
     }
 
     for (i = 0; i < maxBattlers; i++) {
+        if (BattleSystem_GetBattlerData(battleSys, i) == NULL) {
+            continue;
+        }
         int btype = BattleSystem_GetBattlerType(battleSys, i);
         if (btype == BATTLER_TYPE_SOLO_PLAYER || btype == BATTLER_TYPE_PLAYER_SIDE_SLOT_1) {
             return i;
@@ -442,6 +451,9 @@ static int FindPlayerSlot2(BattleSystem *battleSys)
     }
 
     for (i = 0; i < maxBattlers; i++) {
+        if (BattleSystem_GetBattlerData(battleSys, i) == NULL) {
+            continue;
+        }
         if (BattleSystem_GetBattlerType(battleSys, i) == BATTLER_TYPE_PLAYER_SIDE_SLOT_2) {
             return i;
         }
@@ -589,22 +601,99 @@ static void BeginThrow(BattleSystem *battleSys, const SIM_Battle3DFrame *frame, 
     (void)battleSys;
 }
 
-static void SuppressLegacyBallSprite(BattleSystem *battleSys, int slot)
+static void SetOwnedSpriteHidden(ManagedSprite **trackedSlot, ManagedSprite *liveSpr, BOOL hide)
+{
+    if (liveSpr == NULL) {
+        *trackedSlot = NULL;
+        return;
+    }
+    if (hide) {
+        ManagedSprite_SetDrawFlag(liveSpr, FALSE);
+        *trackedSlot = liveSpr;
+    } else {
+        if (*trackedSlot == liveSpr) {
+            ManagedSprite_SetDrawFlag(liveSpr, TRUE);
+        }
+        *trackedSlot = NULL;
+    }
+}
+
+static void SuppressLegacyBallSprite(BattleSystem *battleSys, int slot, int ballIdx)
 {
     BattlerData *bd;
     ManagedSprite *ballSpr;
 
-    if (slot < 0) {
+    if (slot < 0 || ballIdx < 0 || ballIdx >= 2) {
         return;
     }
     bd = BattleSystem_GetBattlerData(battleSys, slot);
     if (bd == NULL || bd->ballRotation == NULL) {
+        sTrainer.hiddenBallSpr[ballIdx] = NULL;
         return;
     }
     ballSpr = BallRotation_GetSprite(bd->ballRotation);
     if (ballSpr != NULL) {
         ManagedSprite_SetDrawFlag(ballSpr, FALSE);
         ManagedSprite_SetExplicitOamMode(ballSpr, GX_OAM_MODE_OBJWND);
+        sTrainer.hiddenBallSpr[ballIdx] = ballSpr;
+    } else {
+        sTrainer.hiddenBallSpr[ballIdx] = NULL;
+    }
+}
+
+static void RestoreOwnedBallSprite(BattleSystem *battleSys, int slot, int ballIdx)
+{
+    BattlerData *bd;
+    ManagedSprite *ballSpr;
+
+    if (ballIdx < 0 || ballIdx >= 2) {
+        return;
+    }
+    if (slot < 0 || sTrainer.hiddenBallSpr[ballIdx] == NULL) {
+        sTrainer.hiddenBallSpr[ballIdx] = NULL;
+        return;
+    }
+    bd = BattleSystem_GetBattlerData(battleSys, slot);
+    ballSpr = (bd != NULL && bd->ballRotation != NULL) ? BallRotation_GetSprite(bd->ballRotation) : NULL;
+    if (ballSpr != NULL && ballSpr == sTrainer.hiddenBallSpr[ballIdx]) {
+        ManagedSprite_SetDrawFlag(ballSpr, TRUE);
+        ManagedSprite_SetExplicitOamMode(ballSpr, GX_OAM_MODE_NORMAL);
+    }
+    sTrainer.hiddenBallSpr[ballIdx] = NULL;
+}
+
+void BattleBdspTrainer_Prefetch(BattleSystem *battleSys)
+{
+    u32 battleType;
+    int enemySlot;
+    Trainer *trainer;
+    int trId;
+
+    if (battleSys == NULL || !SIM_Battle3D_ModelsEnabled()) {
+        return;
+    }
+    if (sOppTrainer.decided2d || sOppTrainer.phase == BDSP_TRAINER_PHASE_DONE) {
+        return;
+    }
+
+    battleType = BattleSystem_GetBattleType(battleSys);
+    if ((battleType & BATTLE_TYPE_TRAINER) == 0) {
+        return;
+    }
+    if (battleType & (BATTLE_TYPE_SAFARI | BATTLE_TYPE_PAL_PARK | BATTLE_TYPE_CATCH_TUTORIAL
+                      | BATTLE_TYPE_TAG | BATTLE_TYPE_2vs2)) {
+        return;
+    }
+
+    enemySlot = FindEnemySlot(battleSys);
+    if (enemySlot < 0) {
+        enemySlot = BATTLER_ENEMY_1;
+    }
+
+    trainer = BattleSystem_GetTrainer(battleSys, enemySlot);
+    trId = (trainer != NULL) ? MapTrainerClassToBdspModel(trainer->header.trainerType) : 0;
+    if (trId > 0) {
+        (void)SIM_Battle3D_HasOpponentTrainerReady(trId);
     }
 }
 
@@ -671,21 +760,48 @@ static void UpdateOpponentTrainer(BattleSystem *battleSys, SIM_Battle3DFrame *fr
 
     enemyBd = BattleSystem_GetBattlerData(battleSys, enemySlot);
     enemySpr = (enemyBd != NULL) ? enemyBd->managedSprite : NULL;
-    trainer = BattleSystem_GetTrainer(battleSys, enemySlot);
-    trId = (trainer != NULL) ? MapTrainerClassToBdspModel(trainer->header.trainerType) : 0;
 
-    hasOpp3d = (trId > 0) ? SIM_Battle3D_HasOpponentTrainerReady(trId) : FALSE;
-    if (!hasOpp3d) {
-        if (enemySpr != NULL && sOppTrainer.hasHidden2d) {
-            ManagedSprite_SetDrawFlag(enemySpr, TRUE);
-        }
-        sOppTrainer.hasHidden2d = FALSE;
+    // Two-trainer doubles (TAG / 2vs2) use distinct enemy sprites at X=216 and slot 2:
+    // keep both enemy trainers cleanly on the legacy 2D path.
+    if (battleType & (BATTLE_TYPE_TAG | BATTLE_TYPE_2vs2)) {
+        SetOwnedSpriteHidden(&sOppTrainer.hidden2dSpr, enemySpr, FALSE);
+        sOppTrainer.decided2d = TRUE;
+        sOppTrainer.phase = BDSP_TRAINER_PHASE_DONE;
+        return;
+    }
+
+    if (sOppTrainer.decided2d || sOppTrainer.phase == BDSP_TRAINER_PHASE_DONE) {
+        SetOwnedSpriteHidden(&sOppTrainer.hidden2dSpr, enemySpr, FALSE);
         return;
     }
 
     if (enemySlot < SIM_BATTLE3D_MAX_BATTLERS && frame->battlers[enemySlot].visible) {
         enemyMonVisible = TRUE;
     }
+
+    trainer = BattleSystem_GetTrainer(battleSys, enemySlot);
+    trId = (trainer != NULL) ? MapTrainerClassToBdspModel(trainer->header.trainerType) : 0;
+    hasOpp3d = (trId > 0) ? SIM_Battle3D_HasOpponentTrainerReady(trId) : FALSE;
+
+    // Latch one opponent-trainer decision per battle so a late-loaded model never pops in
+    // mid-intro or hijacks the victory outro slide-in.
+    if (sOppTrainer.phase == BDSP_TRAINER_PHASE_IDLE) {
+        if (enemyMonVisible || (enemySpr != NULL && !hasOpp3d)) {
+            SetOwnedSpriteHidden(&sOppTrainer.hidden2dSpr, enemySpr, FALSE);
+            sOppTrainer.decided2d = TRUE;
+            sOppTrainer.phase = BDSP_TRAINER_PHASE_DONE;
+            return;
+        }
+        if (!hasOpp3d) {
+            return;
+        }
+    } else if (!hasOpp3d) {
+        SetOwnedSpriteHidden(&sOppTrainer.hidden2dSpr, enemySpr, FALSE);
+        sOppTrainer.decided2d = TRUE;
+        sOppTrainer.phase = BDSP_TRAINER_PHASE_DONE;
+        return;
+    }
+
     if (enemySpr != NULL) {
         ManagedSprite_GetPositionXY(enemySpr, &sprX, &sprY);
     }
@@ -779,16 +895,14 @@ static void UpdateOpponentTrainer(BattleSystem *battleSys, SIM_Battle3DFrame *fr
         break;
     }
 
-    // Hide the 2D opponent trainer OBJ sprite ONLY while our 3D opponent trainer is active & ready.
-    if (enemySpr != NULL) {
+    // Hide the 2D opponent trainer OBJ sprite ONLY while our 3D opponent trainer is active & ready,
+    // and only restore a sprite pointer that WE hid.
+    {
         BOOL hide2d = (sOppTrainer.phase == BDSP_TRAINER_PHASE_ENTERING
             || sOppTrainer.phase == BDSP_TRAINER_PHASE_STANDING
             || sOppTrainer.phase == BDSP_TRAINER_PHASE_THROWING
             || sOppTrainer.phase == BDSP_TRAINER_PHASE_FADING);
-        ManagedSprite_SetDrawFlag(enemySpr, hide2d ? FALSE : TRUE);
-        sOppTrainer.hasHidden2d = hide2d;
-    } else {
-        sOppTrainer.hasHidden2d = FALSE;
+        SetOwnedSpriteHidden(&sOppTrainer.hidden2dSpr, enemySpr, hide2d);
     }
 
     if (sOppTrainer.phase == BDSP_TRAINER_PHASE_ENTERING
@@ -877,7 +991,25 @@ void BattleBdspTrainer_Update(BattleSystem *battleSys, SIM_Battle3DFrame *frame)
         return;
     }
 
+    // Prefetch opponent trainer early, even before the 3D stage has faded in (frame->alpha <= 0.01).
+    BattleBdspTrainer_Prefetch(battleSys);
+
     if (frame->alpha <= 0.01f) {
+        int pSlot = FindPlayerSlot(battleSys);
+        int pSlot2 = FindPlayerSlot2(battleSys);
+        int eSlot = FindEnemySlot(battleSys);
+        if (pSlot >= 0) {
+            BattlerData *pBd = BattleSystem_GetBattlerData(battleSys, pSlot);
+            SetOwnedSpriteHidden(&sTrainer.hidden2dSpr, (pBd != NULL) ? pBd->managedSprite : NULL, FALSE);
+            RestoreOwnedBallSprite(battleSys, pSlot, 0);
+        }
+        if (pSlot2 >= 0) {
+            RestoreOwnedBallSprite(battleSys, pSlot2, 1);
+        }
+        if (eSlot >= 0) {
+            BattlerData *eBd = BattleSystem_GetBattlerData(battleSys, eSlot);
+            SetOwnedSpriteHidden(&sOppTrainer.hidden2dSpr, (eBd != NULL) ? eBd->managedSprite : NULL, FALSE);
+        }
         return;
     }
 
@@ -902,15 +1034,10 @@ void BattleBdspTrainer_Update(BattleSystem *battleSys, SIM_Battle3DFrame *frame)
     hasTrainer3d = SIM_Battle3D_HasActorLoaded(trainerKind);
     if (!hasTrainer3d) {
         BattlerData *bdRestore = BattleSystem_GetBattlerData(battleSys, playerSlot);
-        if (bdRestore != NULL && bdRestore->managedSprite != NULL) {
-            ManagedSprite_SetDrawFlag(bdRestore->managedSprite, TRUE);
-        }
-        if (bdRestore != NULL && bdRestore->ballRotation != NULL) {
-            ManagedSprite *bsRestore = BallRotation_GetSprite(bdRestore->ballRotation);
-            if (bsRestore != NULL) {
-                ManagedSprite_SetDrawFlag(bsRestore, TRUE);
-                ManagedSprite_SetExplicitOamMode(bsRestore, GX_OAM_MODE_NORMAL);
-            }
+        SetOwnedSpriteHidden(&sTrainer.hidden2dSpr, (bdRestore != NULL) ? bdRestore->managedSprite : NULL, FALSE);
+        RestoreOwnedBallSprite(battleSys, playerSlot, 0);
+        if (playerSlot2 >= 0) {
+            RestoreOwnedBallSprite(battleSys, playerSlot2, 1);
         }
         return;
     }
@@ -935,9 +1062,14 @@ void BattleBdspTrainer_Update(BattleSystem *battleSys, SIM_Battle3DFrame *frame)
 
     // Suppress the 2D OAM send-out ball sprite(s) only while our intro 3D Poke Ball(s) own the send-out.
     if (hasBall3d && sTrainer.phase != BDSP_TRAINER_PHASE_DONE) {
-        SuppressLegacyBallSprite(battleSys, playerSlot);
+        SuppressLegacyBallSprite(battleSys, playerSlot, 0);
         if (playerSlot2 >= 0) {
-            SuppressLegacyBallSprite(battleSys, playerSlot2);
+            SuppressLegacyBallSprite(battleSys, playerSlot2, 1);
+        }
+    } else {
+        RestoreOwnedBallSprite(battleSys, playerSlot, 0);
+        if (playerSlot2 >= 0) {
+            RestoreOwnedBallSprite(battleSys, playerSlot2, 1);
         }
     }
 
@@ -1069,14 +1201,14 @@ void BattleBdspTrainer_Update(BattleSystem *battleSys, SIM_Battle3DFrame *frame)
         break;
     }
 
-    // Opus B1: Only hide the 2D player trainer back OBJ while 3D Lucas/Dawn is actively
-    // rendered (ENTERING/STANDING/THROWING/FADING); restore it otherwise.
-    if (trainerSpr != NULL) {
+    // Opus B1 / Codex P2-4: Only hide the 2D player trainer back OBJ while 3D Lucas/Dawn is actively
+    // rendered (ENTERING/STANDING/THROWING/FADING), and only restore a sprite pointer WE hid.
+    {
         BOOL hide2d = (sTrainer.phase == BDSP_TRAINER_PHASE_ENTERING
             || sTrainer.phase == BDSP_TRAINER_PHASE_STANDING
             || sTrainer.phase == BDSP_TRAINER_PHASE_THROWING
             || sTrainer.phase == BDSP_TRAINER_PHASE_FADING);
-        ManagedSprite_SetDrawFlag(trainerSpr, hide2d ? FALSE : TRUE);
+        SetOwnedSpriteHidden(&sTrainer.hidden2dSpr, trainerSpr, hide2d);
     }
 
     // Advance 3D Poke Ball open light-burst VFX independently so it always completes cleanly.

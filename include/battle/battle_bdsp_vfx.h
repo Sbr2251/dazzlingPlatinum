@@ -5,6 +5,7 @@
 #include "port/sim_battle3d.h"
 
 void BattleBdspVfx_Reset(void);
+void BattleBdspVfx_DiscardPending(void);
 void BattleBdspVfx_NotifyAttack(int attacker, int defender, u16 move);
 void BattleBdspVfx_NotifyHit(int defender);
 void BattleBdspVfx_NotifyShiny(int battler);

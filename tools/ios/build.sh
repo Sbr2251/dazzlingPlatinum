@@ -41,11 +41,45 @@ while read -r name rev; do
   if [ "$(git -C "$d" rev-parse HEAD)" != "$rev" ] && ! git -C "$d" merge-base --is-ancestor "$rev" HEAD 2>/dev/null; then
     git -C "$d" fetch -q --depth 1 origin "$rev" && git -C "$d" checkout -q "$rev"
   fi
-  for p in "tools/macos/patches/$name.patch" "tools/ios/patches/$name.patch"; do
-    if [ -f "$p" ] && git -C "$d" apply --check "$ROOT/$p" 2>/dev/null; then
-      git -C "$d" apply "$ROOT/$p" && echo "patched $name ($p)"
+  p_macos="tools/macos/patches/$name.patch"
+  p_ios="tools/ios/patches/$name.patch"
+  if git -C "$d" apply --check "$ROOT/$p_macos" 2>/dev/null; then
+    git -C "$d" apply "$ROOT/$p_macos" && echo "patched $name ($p_macos)"
+  elif git -C "$d" apply --reverse --check "$ROOT/$p_macos" 2>/dev/null; then
+    : # exact current macOS patch already applied
+  elif [ -f "$ROOT/$p_ios" ] && git -C "$d" apply --reverse --check "$ROOT/$p_ios" 2>/dev/null; then
+    # iOS patch is stacked on top of the macOS patch (e.g. libntrwifi); verify macOS patch underneath
+    git -C "$d" apply --reverse "$ROOT/$p_ios"
+    rc=0
+    git -C "$d" apply --reverse --check "$ROOT/$p_macos" 2>/dev/null || rc=$?
+    git -C "$d" apply "$ROOT/$p_ios"
+    if [ "$rc" -ne 0 ]; then
+      echo "error: $d does not match $p_macos (stale patch or local edits under $p_ios)." >&2
+      echo "Refresh $d to pinned rev $rev from tools/macos/patches/REVISIONS (back up local edits first):" >&2
+      echo "  rm -rf $d" >&2
+      echo "  # or: git -C $d fetch origin $rev && git -C $d checkout -f $rev && git -C $d clean -fd" >&2
+      exit 1
     fi
-  done
+  else
+    echo "error: $d cannot apply $p_macos and does not already have this exact patch applied." >&2
+    echo "Refresh $d to pinned rev $rev from tools/macos/patches/REVISIONS (back up local edits first):" >&2
+    echo "  rm -rf $d" >&2
+    echo "  # or: git -C $d fetch origin $rev && git -C $d checkout -f $rev && git -C $d clean -fd" >&2
+    exit 1
+  fi
+  if [ -f "$ROOT/$p_ios" ]; then
+    if git -C "$d" apply --check "$ROOT/$p_ios" 2>/dev/null; then
+      git -C "$d" apply "$ROOT/$p_ios" && echo "patched $name ($p_ios)"
+    elif git -C "$d" apply --reverse --check "$ROOT/$p_ios" 2>/dev/null; then
+      : # exact current iOS patch already applied
+    else
+      echo "error: $d cannot apply $p_ios and does not already have this exact patch applied." >&2
+      echo "Refresh $d to pinned rev $rev from tools/macos/patches/REVISIONS (back up local edits first):" >&2
+      echo "  rm -rf $d" >&2
+      echo "  # or: git -C $d fetch origin $rev && git -C $d checkout -f $rev && git -C $d clean -fd" >&2
+      exit 1
+    fi
+  fi
 done < tools/macos/patches/REVISIONS
 
 mkdir -p "$BUILD"
