@@ -17973,10 +17973,10 @@ index 0000000..5f952c6
 +} // namespace SIM::Render
 diff --git a/libraries/sim/src/render_gpu/fx_battle3d.cpp b/libraries/sim/src/render_gpu/fx_battle3d.cpp
 new file mode 100644
-index 0000000..f3e200c
+index 0000000..aa8013a
 --- /dev/null
 +++ b/libraries/sim/src/render_gpu/fx_battle3d.cpp
-@@ -0,0 +1,3095 @@
+@@ -0,0 +1,3459 @@
 +#include "fx_battle3d.hpp"
 +#include "fx_battle3d_vfx.hpp"
 +#include "fx_battle3d_env.hpp"
@@ -18035,6 +18035,9 @@ index 0000000..f3e200c
 +constexpr std::size_t kModelVramBudgetBytes = 256u * 1024u * 1024u;
 +#endif
 +constexpr std::uint64_t kModelEvictMinAgeFrames = 120;
++constexpr std::size_t kOpponentTrainerMaxCount = 8;
++constexpr std::size_t kOpponentTrainerVramBudgetBytes = 48u * 1024u * 1024u;
++constexpr std::uint64_t kOpponentEvictMinAgeFrames = 60;
 +
 +std::atomic<bool> gClearNonActiveArenasPending{false};
 +
@@ -18279,11 +18282,14 @@ index 0000000..f3e200c
 +std::unordered_map<std::uint64_t, ProbeEntry> gModelProbeCache;
 +std::unordered_map<int, ProbeEntry> gArenaProbeCache;
 +std::unordered_map<int, ProbeEntry> gActorProbeCache;
++std::unordered_map<int, ProbeEntry> gOpponentProbeCache;
 +std::unordered_set<std::uint64_t> gFailedModels;
 +std::unordered_set<int> gFailedArenas;
 +std::unordered_set<int> gFailedActors;
++std::unordered_set<int> gFailedOpponentTrainers;
 +std::unordered_set<std::uint64_t> gReadyModels;
 +std::unordered_set<int> gReadyActors;
++std::unordered_set<int> gReadyOpponentTrainers;
 +std::unordered_map<std::uint64_t, std::array<float, kBattle3DAnimSlotCount>> gModelClipDurations;
 +std::unordered_map<std::uint64_t, CachedModelBounds> gModelBounds;
 +
@@ -18365,6 +18371,16 @@ index 0000000..f3e200c
 +    mCv.notify_one();
 +  }
 +
++  void EnqueueOpponentTrainer(int trainerId, const std::string &path) {
++    if (path.empty() || trainerId <= 0) return;
++    std::lock_guard<std::mutex> lock(mMutex);
++    if (mInFlightOpponentTrainers.count(trainerId) || mCompletedOpponentTrainers.count(trainerId)) return;
++    mInFlightOpponentTrainers.insert(trainerId);
++    mJobs.push_back({JobKind::OpponentTrainer, static_cast<std::uint64_t>(trainerId), path});
++    StartWorkerLocked();
++    mCv.notify_one();
++  }
++
 +  void StoreSyncModel(std::uint64_t key, GltfModelCpuData &&cpu) {
 +    std::lock_guard<std::mutex> lock(mMutex);
 +    mCompletedModels[key] = std::move(cpu);
@@ -18377,6 +18393,31 @@ index 0000000..f3e200c
 +  void StageActorCpu(int kind, GltfModelCpuData &&cpu) {
 +    std::lock_guard<std::mutex> lock(mMutex);
 +    mCompletedActors[kind] = std::move(cpu);
++  }
++  bool HasPendingOpponentTrainerCpu(int trainerId) {
++    std::lock_guard<std::mutex> lock(mMutex);
++    return mCompletedOpponentTrainers.count(trainerId) != 0;
++  }
++  void StageOpponentTrainerCpu(int trainerId, GltfModelCpuData &&cpu) {
++    std::lock_guard<std::mutex> lock(mMutex);
++    mCompletedOpponentTrainers[trainerId] = std::move(cpu);
++  }
++  bool PopCompletedOpponentTrainer(int trainerId, GltfModelCpuData &out) {
++    std::lock_guard<std::mutex> lock(mMutex);
++    auto it = mCompletedOpponentTrainers.find(trainerId);
++    if (it == mCompletedOpponentTrainers.end()) return false;
++    out = std::move(it->second);
++    mCompletedOpponentTrainers.erase(it);
++    return true;
++  }
++  bool PopAnyCompletedOpponentTrainer(int &outTrainerId, GltfModelCpuData &out) {
++    std::lock_guard<std::mutex> lock(mMutex);
++    if (mCompletedOpponentTrainers.empty()) return false;
++    auto it = mCompletedOpponentTrainers.begin();
++    outTrainerId = it->first;
++    out = std::move(it->second);
++    mCompletedOpponentTrainers.erase(it);
++    return true;
 +  }
 +  bool HasPendingModelCpu(std::uint64_t key) {
 +    std::lock_guard<std::mutex> lock(mMutex);
@@ -18430,9 +18471,11 @@ index 0000000..f3e200c
 +      mInFlightArenas.clear();
 +      mInFlightModels.clear();
 +      mInFlightActors.clear();
++      mInFlightOpponentTrainers.clear();
 +      mCompletedArenas.clear();
 +      mCompletedModels.clear();
 +      mCompletedActors.clear();
++      mCompletedOpponentTrainers.clear();
 +    }
 +    mCv.notify_all();
 +    if (mWorker.joinable()) {
@@ -18443,7 +18486,7 @@ index 0000000..f3e200c
 +  }
 +
 + private:
-+  enum class JobKind : std::uint8_t { Arena, Model, Actor };
++  enum class JobKind : std::uint8_t { Arena, Model, Actor, OpponentTrainer };
 +  struct Job {
 +    JobKind kind;
 +    std::uint64_t key;
@@ -18494,7 +18537,7 @@ index 0000000..f3e200c
 +        if (ok && !mStop) {
 +          mCompletedModels[job.key] = std::move(cpu);
 +        }
-+      } else {
++      } else if (job.kind == JobKind::Actor) {
 +        GltfModelCpuData cpu;
 +        const bool ok = LoadGltfModelCpu(job.path, cpu);
 +        const int kind = static_cast<int>(job.key);
@@ -18506,6 +18549,19 @@ index 0000000..f3e200c
 +        mInFlightActors.erase(kind);
 +        if (ok && !mStop) {
 +          mCompletedActors[kind] = std::move(cpu);
++        }
++      } else {
++        GltfModelCpuData cpu;
++        const bool ok = LoadGltfModelCpu(job.path, cpu);
++        const int trainerId = static_cast<int>(job.key);
++        if (!ok) {
++          std::lock_guard<std::mutex> plock(gProbeMutex);
++          gFailedOpponentTrainers.insert(trainerId);
++        }
++        std::lock_guard<std::mutex> lock(mMutex);
++        mInFlightOpponentTrainers.erase(trainerId);
++        if (ok && !mStop) {
++          mCompletedOpponentTrainers[trainerId] = std::move(cpu);
 +        }
 +      }
 +    }
@@ -18519,9 +18575,11 @@ index 0000000..f3e200c
 +  std::unordered_set<int> mInFlightArenas;
 +  std::unordered_set<std::uint64_t> mInFlightModels;
 +  std::unordered_set<int> mInFlightActors;
++  std::unordered_set<int> mInFlightOpponentTrainers;
 +  std::unordered_map<int, GltfArenaCpuData> mCompletedArenas;
 +  std::unordered_map<std::uint64_t, GltfModelCpuData> mCompletedModels;
 +  std::unordered_map<int, GltfModelCpuData> mCompletedActors;
++  std::unordered_map<int, GltfModelCpuData> mCompletedOpponentTrainers;
 +};
 +
 +GlbAsyncLoader gAsyncLoader;
@@ -18662,6 +18720,83 @@ index 0000000..f3e200c
 +  if (gFailedActors.count(kind) != 0) return "";
 +  auto it = gActorProbeCache.find(kind);
 +  return (it != gActorProbeCache.end() && it->second.exists) ? it->second.path : "";
++}
++
++bool HasOpponentTrainerFast(int trainerId, bool triggerAsyncPrefetch) {
++  if (trainerId <= 0 || trainerId > 9999) return false;
++  std::string prefetchPath;
++  {
++    std::lock_guard<std::mutex> lock(gProbeMutex);
++    if (gFailedOpponentTrainers.count(trainerId) != 0) return false;
++    auto it = gOpponentProbeCache.find(trainerId);
++    if (it != gOpponentProbeCache.end()) {
++      if (!it->second.exists) return false;
++      if (gReadyOpponentTrainers.count(trainerId) != 0) return true;
++      if (triggerAsyncPrefetch && !SIM_Headless_Enabled()) {
++        prefetchPath = it->second.path;
++      } else {
++        return true;
++      }
++    }
++  }
++  if (!prefetchPath.empty()) {
++    gAsyncLoader.EnqueueOpponentTrainer(trainerId, prefetchPath);
++    return true;
++  }
++
++  char rel[64];
++  std::snprintf(rel, sizeof(rel), "trainers/tr%04d_00.glb", trainerId);
++  std::string found = ProbeBdspAssetPath(rel);
++  const bool exists = !found.empty();
++  bool shouldPrefetch = false;
++  {
++    std::lock_guard<std::mutex> lock(gProbeMutex);
++    if (gFailedOpponentTrainers.count(trainerId) != 0) return false;
++    gOpponentProbeCache[trainerId] = {exists, found};
++    shouldPrefetch = exists && triggerAsyncPrefetch && !SIM_Headless_Enabled() &&
++                     gReadyOpponentTrainers.count(trainerId) == 0;
++  }
++  if (shouldPrefetch) {
++    gAsyncLoader.EnqueueOpponentTrainer(trainerId, found);
++  }
++  return exists;
++}
++
++std::string ResolveOpponentTrainerPath(int trainerId) {
++  if (!HasOpponentTrainerFast(trainerId, false)) return "";
++  std::lock_guard<std::mutex> lock(gProbeMutex);
++  if (gFailedOpponentTrainers.count(trainerId) != 0) return "";
++  auto it = gOpponentProbeCache.find(trainerId);
++  return (it != gOpponentProbeCache.end() && it->second.exists) ? it->second.path : "";
++}
++
++void BallVariantTint(int variant, float outTint[3]) {
++  switch (variant) {
++    case 1: // Great Ball (cobalt blue accent)
++      outTint[0] = 0.52f; outTint[1] = 0.74f; outTint[2] = 1.15f;
++      break;
++    case 2: // Ultra Ball (dark gold accent)
++      outTint[0] = 0.90f; outTint[1] = 0.80f; outTint[2] = 0.38f;
++      break;
++    case 3: // Master Ball (royal purple accent)
++      outTint[0] = 0.78f; outTint[1] = 0.46f; outTint[2] = 1.10f;
++      break;
++    case 4: // Safari Ball (marsh green accent)
++      outTint[0] = 0.60f; outTint[1] = 0.88f; outTint[2] = 0.54f;
++      break;
++    case 5: // Quick Ball (cyan-yellow accent)
++      outTint[0] = 0.54f; outTint[1] = 0.92f; outTint[2] = 1.14f;
++      break;
++    case 6: // Dusk Ball (deep emerald accent)
++      outTint[0] = 0.44f; outTint[1] = 0.74f; outTint[2] = 0.50f;
++      break;
++    case 7: // Premier Ball (crisp white accent)
++      outTint[0] = 1.08f; outTint[1] = 1.08f; outTint[2] = 1.10f;
++      break;
++    default: // 0: classic Poke Ball
++      outTint[0] = 1.0f; outTint[1] = 1.0f; outTint[2] = 1.0f;
++      break;
++  }
 +}
 +
 +// P3: Extract 6 clip-space frustum planes from column-major matrix (Zero-to-One NDC: x,y in [-w,w], z in [0,w]).
@@ -19011,13 +19146,20 @@ index 0000000..f3e200c
 +    for (auto &kv : mActors) {
 +      if (kv.second) ReleaseGltfModel(*mDevice, *kv.second);
 +    }
++    for (auto &kv : mOpponentTrainers) {
++      if (kv.second.model) ReleaseGltfModel(*mDevice, *kv.second.model);
++    }
 +  }
 +  mModels.clear();
 +  mActors.clear();
++  mOpponentTrainers.clear();
++  mModelVramOverBudget = false;
++  mOpponentVramOverBudget = false;
 +  {
 +    std::lock_guard<std::mutex> lock(gProbeMutex);
 +    gReadyModels.clear();
 +    gReadyActors.clear();
++    gReadyOpponentTrainers.clear();
 +  }
 +  for (int i = 0; i < SIM_BATTLE3D_MAX_BATTLERS; i++) {
 +    mLatchedBattlers[i] = LatchedBattler{};
@@ -19458,9 +19600,93 @@ index 0000000..f3e200c
 +    }
 +  }
 +
++  // Upload up to 2 completed opponent trainer models per frame.
++  bool anyOpponentUploaded = false;
++  for (int n = 0; n < 2; n++) {
++    int trainerId = 0;
++    GltfModelCpuData oppCpu;
++    if (!gAsyncLoader.PopAnyCompletedOpponentTrainer(trainerId, oppCpu)) break;
++    auto it = mOpponentTrainers.find(trainerId);
++    if (it != mOpponentTrainers.end() && it->second.model && it->second.model->valid) {
++      continue;
++    }
++    auto model = std::make_unique<GltfModel>();
++    model->attempted = true;
++    if (!UploadGltfModelCpu(device, frame, std::move(oppCpu), *model)) {
++      model->valid = false;
++      std::lock_guard<std::mutex> lock(gProbeMutex);
++      gFailedOpponentTrainers.insert(trainerId);
++    } else {
++      {
++        std::lock_guard<std::mutex> lock(gProbeMutex);
++        gReadyOpponentTrainers.insert(trainerId);
++      }
++      CachedModelEntry entry;
++      entry.model = std::move(model);
++      entry.lastUsedFrame = mFrameCounter;
++      mOpponentTrainers[trainerId] = std::move(entry);
++      anyOpponentUploaded = true;
++    }
++  }
++
 +  if (anyUploaded) {
 +    EvictLruModelsIfNeeded(device);
 +  }
++  if (anyOpponentUploaded) {
++    EvictLruOpponentTrainersIfNeeded(device);
++  }
++}
++
++void FxBattle3D::EvictLruOpponentTrainersIfNeeded(Device &device) {
++  std::size_t totalBytes = 0;
++  std::size_t validCount = 0;
++  for (const auto &kv : mOpponentTrainers) {
++    if (kv.second.model && kv.second.model->valid) {
++      totalBytes += kv.second.model->vramBytes;
++      ++validCount;
++    }
++  }
++  if (validCount <= kOpponentTrainerMaxCount && totalBytes <= kOpponentTrainerVramBudgetBytes) {
++    mOpponentVramOverBudget = false;
++    return;
++  }
++
++  while (validCount > kOpponentTrainerMaxCount || totalBytes > kOpponentTrainerVramBudgetBytes) {
++    auto victim = mOpponentTrainers.end();
++    for (auto it = mOpponentTrainers.begin(); it != mOpponentTrainers.end(); ++it) {
++      const auto &entry = it->second;
++      if (!entry.model || !entry.model->valid) continue;
++      if (mFrameCounter < entry.lastUsedFrame ||
++          (mFrameCounter - entry.lastUsedFrame) < kOpponentEvictMinAgeFrames) {
++        continue;
++      }
++      bool latched = false;
++      for (int i = 0; i < SIM_BATTLE3D_MAX_ACTORS; i++) {
++        if (mLatchedActors[i].model == entry.model.get()) {
++          latched = true;
++          break;
++        }
++      }
++      if (latched) continue;
++      if (victim == mOpponentTrainers.end() || entry.lastUsedFrame < victim->second.lastUsedFrame) {
++        victim = it;
++      }
++    }
++    if (victim == mOpponentTrainers.end()) break;
++
++    const int evictId = victim->first;
++    const std::size_t freed = victim->second.model->vramBytes;
++    ReleaseGltfModel(device, *victim->second.model);
++    mOpponentTrainers.erase(victim);
++    {
++      std::lock_guard<std::mutex> lock(gProbeMutex);
++      gReadyOpponentTrainers.erase(evictId);
++    }
++    totalBytes = (totalBytes > freed) ? (totalBytes - freed) : 0;
++    if (validCount > 0) --validCount;
++  }
++  mOpponentVramOverBudget =
++      (validCount > kOpponentTrainerMaxCount || totalBytes > kOpponentTrainerVramBudgetBytes);
 +}
 +
 +void FxBattle3D::EvictLruModelsIfNeeded(Device &device) {
@@ -19665,6 +19891,80 @@ index 0000000..f3e200c
 +  }
 +  const GltfModel *ptr = model.get();
 +  mActors[kind] = std::move(model);
++  {
++    std::lock_guard<std::mutex> lock(gProbeMutex);
++    gReadyActors.insert(kind);
++  }
++  return ptr;
++}
++
++const GltfModel *FxBattle3D::LoadOpponentTrainerModel(Device &device, Frame *frame, int trainerId) {
++  if (trainerId <= 0 || trainerId > 9999) return nullptr;
++  auto it = mOpponentTrainers.find(trainerId);
++  if (it != mOpponentTrainers.end() && it->second.model && it->second.model->valid) {
++    it->second.lastUsedFrame = mFrameCounter;
++    return it->second.model.get();
++  }
++  {
++    std::lock_guard<std::mutex> lock(gProbeMutex);
++    if (gFailedOpponentTrainers.count(trainerId) != 0) return nullptr;
++  }
++
++  GltfModelCpuData preParsed;
++  if (gAsyncLoader.PopCompletedOpponentTrainer(trainerId, preParsed)) {
++    auto model = std::make_unique<GltfModel>();
++    model->attempted = true;
++    if (!UploadGltfModelCpu(device, frame, std::move(preParsed), *model)) {
++      model->valid = false;
++      std::lock_guard<std::mutex> lock(gProbeMutex);
++      gFailedOpponentTrainers.insert(trainerId);
++      return nullptr;
++    }
++    {
++      std::lock_guard<std::mutex> lock(gProbeMutex);
++      gReadyOpponentTrainers.insert(trainerId);
++    }
++    const GltfModel *ptr = model.get();
++    CachedModelEntry entry;
++    entry.model = std::move(model);
++    entry.lastUsedFrame = mFrameCounter;
++    mOpponentTrainers[trainerId] = std::move(entry);
++    EvictLruOpponentTrainersIfNeeded(device);
++    return ptr;
++  }
++
++  std::string path = ResolveOpponentTrainerPath(trainerId);
++  if (path.empty()) return nullptr;
++
++  if (!SIM_Headless_Enabled()) {
++    gAsyncLoader.EnqueueOpponentTrainer(trainerId, path);
++    return nullptr;
++  }
++
++  GltfModelCpuData cpu;
++  if (!LoadGltfModelCpu(path, cpu)) {
++    std::lock_guard<std::mutex> lock(gProbeMutex);
++    gFailedOpponentTrainers.insert(trainerId);
++    return nullptr;
++  }
++  auto model = std::make_unique<GltfModel>();
++  model->attempted = true;
++  if (!UploadGltfModelCpu(device, frame, std::move(cpu), *model)) {
++    model->valid = false;
++    std::lock_guard<std::mutex> lock(gProbeMutex);
++    gFailedOpponentTrainers.insert(trainerId);
++    return nullptr;
++  }
++  {
++    std::lock_guard<std::mutex> lock(gProbeMutex);
++    gReadyOpponentTrainers.insert(trainerId);
++  }
++  const GltfModel *ptr = model.get();
++  CachedModelEntry entry;
++  entry.model = std::move(model);
++  entry.lastUsedFrame = mFrameCounter;
++  mOpponentTrainers[trainerId] = std::move(entry);
++  EvictLruOpponentTrainersIfNeeded(device);
 +  return ptr;
 +}
 +
@@ -20068,10 +20368,23 @@ index 0000000..f3e200c
 +    }
 +  }
 +
++  for (int i = 0; i < SIM_BATTLE3D_MAX_ACTORS; i++) {
++    const auto &a = mLatched.actors[i];
++    if (a.kind == SIM_BATTLE3D_ACTOR_OPPONENT_TRAINER && a.trainerId > 0) {
++      auto it = mOpponentTrainers.find(a.trainerId);
++      if (it != mOpponentTrainers.end()) {
++        it->second.lastUsedFrame = mFrameCounter;
++      }
++    }
++  }
++
 +  // P1: Drain any completed background worker GLB CPU loads into GPU resources.
 +  DrainCompletedLoads(device, frame);
 +  if (mModelVramOverBudget) {
 +    EvictLruModelsIfNeeded(device);
++  }
++  if (mOpponentVramOverBudget) {
++    EvictLruOpponentTrainersIfNeeded(device);
 +  }
 +
 +  const auto &gateEnv = GetGateEnv();
@@ -20165,27 +20478,44 @@ index 0000000..f3e200c
 +      LatchedBattler &lb = mLatchedBattlers[i];
 +      lb.model = mon;
 +      lb.combinedAlpha = std::clamp(b.alpha * mLatched.alpha, 0.0f, 1.0f);
-+      lb.flashAmount = std::clamp(b.flashAmount, 0.0f, 1.0f);
-+      Mat4BattlerTransform(lb.modelMat, b.worldX, b.worldY, b.worldZ, b.yawDeg, b.modelScale);
++      lb.flashAmount = std::clamp(std::max(b.flashAmount, b.hitFlash), 0.0f, 1.0f);
++      lb.colorTint[0] = 1.0f; lb.colorTint[1] = 1.0f; lb.colorTint[2] = 1.0f;
++      Mat4BattlerTransform(lb.modelMat,
++                           b.worldX + b.lungeOffset[0],
++                           b.worldY + b.lungeOffset[1],
++                           b.worldZ + b.lungeOffset[2],
++                           b.yawDeg, b.modelScale);
 +      EvaluateGltfPose(*mon, b.animState, b.animTime, lb.nodeWorldMats, lb.poseScratch);
 +      buildPalettesOnce(lb);
 +    }
 +
 +    // Evaluate actors in 2 passes:
-+    //   Pass A: unattached actors (e.g. Lucas/Dawn) + live RHand/LHand world sockets.
++    //   Pass A: unattached actors (e.g. Lucas/Dawn/opponent trainer) + live RHand/LHand world sockets.
 +    //   Pass B: bone-attached actors (e.g. Poke Ball locked to trainer LHand/RHand).
 +    float actorBoneMats[SIM_BATTLE3D_MAX_ACTORS][2][16] = {};
 +    CachedActorBones newBones[SIM_BATTLE3D_MAX_ACTORS];
 +
++    auto resolveActorModel = [&](const auto &a) -> const GltfModel * {
++      if (a.kind == SIM_BATTLE3D_ACTOR_OPPONENT_TRAINER) {
++        return LoadOpponentTrainerModel(device, frame, a.trainerId);
++      }
++      return LoadActorModel(device, frame, a.kind);
++    };
++
 +    for (int i = 0; i < SIM_BATTLE3D_MAX_ACTORS; i++) {
 +      const auto &a = mLatched.actors[i];
 +      if (!a.visible || a.alpha <= 0.01f || a.kind <= 0 || a.attachBoneKind != 0) continue;
-+      const GltfModel *actor = LoadActorModel(device, frame, a.kind);
++      const GltfModel *actor = resolveActorModel(a);
 +      if (!actor || !actor->valid) continue;
 +      LatchedBattler &la = mLatchedActors[i];
 +      la.model = actor;
 +      la.combinedAlpha = std::clamp(a.alpha * mLatched.alpha, 0.0f, 1.0f);
 +      la.flashAmount = 0.0f;
++      if (a.kind == SIM_BATTLE3D_ACTOR_POKEBALL) {
++        BallVariantTint(a.ballVariant, la.colorTint);
++      } else {
++        la.colorTint[0] = 1.0f; la.colorTint[1] = 1.0f; la.colorTint[2] = 1.0f;
++      }
 +      Mat4ActorTransform(la.modelMat, a.worldX, a.worldY, a.worldZ,
 +                         a.yawDeg, a.pitchDeg, a.rollDeg, a.scale);
 +      EvaluateGltfPose(*actor, a.animState, a.animTime, la.nodeWorldMats, la.poseScratch);
@@ -20210,7 +20540,7 @@ index 0000000..f3e200c
 +    for (int i = 0; i < SIM_BATTLE3D_MAX_ACTORS; i++) {
 +      const auto &a = mLatched.actors[i];
 +      if (!a.visible || a.alpha <= 0.01f || a.kind <= 0 || a.attachBoneKind == 0) continue;
-+      const GltfModel *actor = LoadActorModel(device, frame, a.kind);
++      const GltfModel *actor = resolveActorModel(a);
 +      if (!actor || !actor->valid) continue;
 +      float wx = a.worldX;
 +      float wy = a.worldY;
@@ -20232,6 +20562,11 @@ index 0000000..f3e200c
 +      la.model = actor;
 +      la.combinedAlpha = std::clamp(a.alpha * mLatched.alpha, 0.0f, 1.0f);
 +      la.flashAmount = 0.0f;
++      if (a.kind == SIM_BATTLE3D_ACTOR_POKEBALL) {
++        BallVariantTint(a.ballVariant, la.colorTint);
++      } else {
++        la.colorTint[0] = 1.0f; la.colorTint[1] = 1.0f; la.colorTint[2] = 1.0f;
++      }
 +      Mat4ActorTransform(la.modelMat, wx, wy, wz,
 +                         a.yawDeg, a.pitchDeg, a.rollDeg, a.scale);
 +      EvaluateGltfPose(*actor, a.animState, a.animTime, la.nodeWorldMats, la.poseScratch);
@@ -20678,7 +21013,10 @@ index 0000000..f3e200c
 +      fu.fogColor[3] = mLatched.timeSec;
 +      fu.shadowTint[0] = atmo.shadowTint[0]; fu.shadowTint[1] = atmo.shadowTint[1]; fu.shadowTint[2] = atmo.shadowTint[2];
 +      fu.shadowTint[3] = atmo.shadowStrength;
-+      std::memcpy(fu.baseColorFactor, mat.baseColorFactor, sizeof(fu.baseColorFactor));
++      fu.baseColorFactor[0] = mat.baseColorFactor[0] * lb.colorTint[0];
++      fu.baseColorFactor[1] = mat.baseColorFactor[1] * lb.colorTint[1];
++      fu.baseColorFactor[2] = mat.baseColorFactor[2] * lb.colorTint[2];
++      fu.baseColorFactor[3] = mat.baseColorFactor[3];
 +      fu.emissiveFactor[0] = mat.emissiveFactor[0];
 +      fu.emissiveFactor[1] = mat.emissiveFactor[1];
 +      fu.emissiveFactor[2] = mat.emissiveFactor[2];
@@ -20952,6 +21290,32 @@ index 0000000..f3e200c
 +  return 1;
 +}
 +
++int SIM_Battle3D_HasOpponentTrainer(int trainerModelId) {
++  if (trainerModelId <= 0 || trainerModelId > 9999) return 0;
++  {
++    std::lock_guard<std::mutex> lock(SIM::Render::gProbeMutex);
++    if (SIM::Render::gFailedOpponentTrainers.count(trainerModelId) != 0) return 0;
++    if (SIM::Render::gReadyOpponentTrainers.count(trainerModelId) != 0) return 1;
++  }
++  if (!SIM_Headless_Enabled()) {
++    SIM::Render::HasOpponentTrainerFast(trainerModelId, true);
++    return 0;
++  }
++  if (SIM::Render::gAsyncLoader.HasPendingOpponentTrainerCpu(trainerModelId)) {
++    return 1;
++  }
++  std::string path = SIM::Render::ResolveOpponentTrainerPath(trainerModelId);
++  if (path.empty()) return 0;
++  SIM::Render::GltfModelCpuData cpu;
++  if (!SIM::Render::LoadGltfModelCpu(path, cpu)) {
++    std::lock_guard<std::mutex> lock(SIM::Render::gProbeMutex);
++    SIM::Render::gFailedOpponentTrainers.insert(trainerModelId);
++    return 0;
++  }
++  SIM::Render::gAsyncLoader.StageOpponentTrainerCpu(trainerModelId, std::move(cpu));
++  return 1;
++}
++
 +int SIM_Battle3D_GetModelBounds(int species, int form, int isShiny, float outMin[3], float outMax[3]) {
 +  if (species <= 0 || !outMin || !outMax) {
 +    return 0;
@@ -21074,10 +21438,10 @@ index 0000000..f3e200c
 +} // extern "C"
 diff --git a/libraries/sim/src/render_gpu/fx_battle3d.hpp b/libraries/sim/src/render_gpu/fx_battle3d.hpp
 new file mode 100644
-index 0000000..4588dc5
+index 0000000..6c3cd12
 --- /dev/null
 +++ b/libraries/sim/src/render_gpu/fx_battle3d.hpp
-@@ -0,0 +1,167 @@
+@@ -0,0 +1,173 @@
 +#pragma once
 +
 +// BDSP-style HD-2D / 3D Battle Arena & Skinned Pokémon GPU Renderer (Metal / Vulkan via SIM::Gpu).
@@ -21166,6 +21530,7 @@ index 0000000..4588dc5
 +    float modelMat[16] = {};
 +    float combinedAlpha = 0.0f;
 +    float flashAmount = 0.0f;
++    float colorTint[3] = {1.0f, 1.0f, 1.0f};
 +    std::vector<float> nodeWorldMats;
 +    GltfPoseScratch poseScratch;
 +    std::vector<CachedSkinPalette> skinPalettes;
@@ -21180,6 +21545,7 @@ index 0000000..4588dc5
 +  void PrewarmPipelines(SIM::Gpu::Device &device);
 +  void DrainCompletedLoads(SIM::Gpu::Device &device, SIM::Gpu::Frame *frame);
 +  void EvictLruModelsIfNeeded(SIM::Gpu::Device &device);
++  void EvictLruOpponentTrainersIfNeeded(SIM::Gpu::Device &device);
 +  void ReleaseNonActiveArenas(SIM::Gpu::Device &device);
 +  LoadedBiome *LoadBiome(SIM::Gpu::Device &device, SIM::Gpu::Frame *frame, int biomeId);
 +  bool LoadBiomeFile(SIM::Gpu::Device &device, SIM::Gpu::Frame *frame,
@@ -21188,6 +21554,8 @@ index 0000000..4588dc5
 +  const GltfModel *LoadMonModel(SIM::Gpu::Device &device, SIM::Gpu::Frame *frame,
 +                                int species, int form, int isShiny);
 +  const GltfModel *LoadActorModel(SIM::Gpu::Device &device, SIM::Gpu::Frame *frame, int kind);
++  const GltfModel *LoadOpponentTrainerModel(SIM::Gpu::Device &device, SIM::Gpu::Frame *frame,
++                                            int trainerId);
 +
 +  void RenderShadowPass(SIM::Gpu::Device &device, SIM::Gpu::Frame *frame,
 +                        SIM::Gpu::Phase phase);
@@ -21226,8 +21594,10 @@ index 0000000..4588dc5
 +  GltfArena mGltfArenas[SIM_BATTLE3D_BIOME_COUNT];
 +  std::unordered_map<std::uint64_t, CachedModelEntry> mModels;
 +  std::unordered_map<int, std::unique_ptr<GltfModel>> mActors;
++  std::unordered_map<int, CachedModelEntry> mOpponentTrainers;
 +  std::uint64_t mFrameCounter = 0;
 +  bool mModelVramOverBudget = false;
++  bool mOpponentVramOverBudget = false;
 +  int mLastActiveBiome = -1;
 +  std::string mAssetDir;
 +  bool mAssetDirProbed = false;

@@ -6,6 +6,7 @@
 
 void BattleBdspCapture_Reset(void);
 void BattleBdspCapture_Start(BattleSystem *battleSys, int targetBattler, int ballItemId, int shakes, BOOL caught);
+void BattleBdspCapture_NotifyOpen(BattleSystem *battleSys, int targetBattler, int ballItemId);
 void BattleBdspCapture_End(void);
 BOOL BattleBdspCapture_IsActive(void);
 void BattleBdspCapture_Update(BattleSystem *battleSys, SIM_Battle3DFrame *frame);

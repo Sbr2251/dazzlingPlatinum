@@ -1,4 +1,5 @@
 #include "battle/battle_debug.h"
+#include "battle/battle_bdsp_capture.h"
 #include "battle/battle_bdsp_overlay.h"
 #include "battle/battle_bdsp_dialogue.h"
 #include "battle/battle_display.h"
@@ -519,6 +520,7 @@ void BattleDisplay_InitTaskOpenCaptureBall(BattleSystem *battleSys, BattlerData 
 
     PokemonSprite_StartFade(captureOpenBallData->monSprite, 0, 16, 0, sFadeColors[message->ball]);
     PokemonSprite_SetAttribute(captureOpenBallData->monSprite, MON_SPRITE_SHADOW_IS_AFFINE, TRUE);
+    BattleBdspCapture_NotifyOpen(battleSys, battlerData->battler, message->ball);
     SysTask_Start(Task_OpenCaptureBall, captureOpenBallData, 0);
 }
 
