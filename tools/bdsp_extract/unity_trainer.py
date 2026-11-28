@@ -445,7 +445,8 @@ def extract_trainer_glb(
         if chosen is None:
             continue
 
-        decoded = decode_animation_clip(chosen, path_crc_map, pid_to_node_idx, sample_fps=sample_fps)
+        clip_fps = max(sample_fps, 60.0) if canonical_name == "throw" else sample_fps
+        decoded = decode_animation_clip(chosen, path_crc_map, pid_to_node_idx, sample_fps=clip_fps)
         times = decoded["times"]
         channels = decoded["channels"]
 

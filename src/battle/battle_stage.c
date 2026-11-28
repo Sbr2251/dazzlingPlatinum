@@ -195,9 +195,11 @@ static void BdspDumpInit(void);
 static void BdspDumpClose(void);
 
 #define BDSP_ANIM_DT         (1.0f / 60.0f)
-#define BDSP_ANIM_CRY_DUR    1.0f
-#define BDSP_ANIM_ATTACK_DUR 1.2f
-#define BDSP_ANIM_HIT_DUR    0.7f
+#define BDSP_ANIM_BLEND_DUR  0.15f
+#define BDSP_ANIM_CRY_DUR    3.20f
+#define BDSP_ANIM_ATTACK_DUR 2.35f
+#define BDSP_ANIM_HIT_DUR    1.20f
+#define BDSP_ANIM_FAINT_HOLD 1.65f
 
 typedef struct BdspBattlerAnim {
     int species;
@@ -2377,15 +2379,58 @@ static void SubmitBdspFrame(void)
             const PokemonSprite *spr = &monSpriteMan->sprites[i];
             const PokemonSpriteTransforms *tr = &spr->transforms;
             if (!spr->active) {
-                anim->wasVisible = FALSE;
-                anim->hitFlickering = FALSE;
-                if (anim->animState == SIM_BATTLE3D_ANIM_FAINT) {
-                    anim->animState = SIM_BATTLE3D_ANIM_IDLE;
-                    anim->animTime = 0.0f;
-                    anim->animDuration = 0.0f;
+                if (has3d && anim->animState == SIM_BATTLE3D_ANIM_FAINT && species > 0) {
+                    float clipDur = SIM_Battle3D_GetModelClipDuration(species, form, isShiny, SIM_BATTLE3D_ANIM_FAINT);
+                    float faintTotal = (clipDur > 0.05f ? clipDur : (BDSP_ANIM_FAINT_HOLD - 0.35f)) + 0.35f;
+                    if (anim->animTime < faintTotal) {
+                        float fadeStart = faintTotal - 0.35f;
+                        float fadeAlpha = (anim->animTime > fadeStart)
+                            ? (1.0f - (anim->animTime - fadeStart) / 0.35f)
+                            : 1.0f;
+                        if (fadeAlpha < 0.0f) {
+                            fadeAlpha = 0.0f;
+                        }
+                        dst->visible = 1;
+                        dst->worldX = wx;
+                        dst->worldY = 0.0f;
+                        dst->worldZ = wz;
+                        dst->alpha = fadeAlpha;
+                    } else {
+                        anim->wasVisible = FALSE;
+                        anim->hitFlickering = FALSE;
+                        anim->animState = SIM_BATTLE3D_ANIM_IDLE;
+                        anim->animTime = 0.0f;
+                        anim->animDuration = 0.0f;
+                    }
+                } else {
+                    anim->wasVisible = FALSE;
+                    anim->hitFlickering = FALSE;
+                    if (anim->animState == SIM_BATTLE3D_ANIM_FAINT) {
+                        anim->animState = SIM_BATTLE3D_ANIM_IDLE;
+                        anim->animTime = 0.0f;
+                        anim->animDuration = 0.0f;
+                    }
                 }
             } else {
                 BOOL hidden = (tr->hide && !(has3d && anim->hitFlickering)) || tr->hide2 || tr->alpha <= 0;
+                if (hidden && has3d && anim->animState == SIM_BATTLE3D_ANIM_FAINT && species > 0) {
+                    float clipDur = SIM_Battle3D_GetModelClipDuration(species, form, isShiny, SIM_BATTLE3D_ANIM_FAINT);
+                    float faintTotal = (clipDur > 0.05f ? clipDur : (BDSP_ANIM_FAINT_HOLD - 0.35f)) + 0.35f;
+                    if (anim->animTime < faintTotal) {
+                        float fadeStart = faintTotal - 0.35f;
+                        float fadeAlpha = (anim->animTime > fadeStart)
+                            ? (1.0f - (anim->animTime - fadeStart) / 0.35f)
+                            : 1.0f;
+                        if (fadeAlpha < 0.0f) {
+                            fadeAlpha = 0.0f;
+                        }
+                        dst->visible = 1;
+                        dst->worldX = wx;
+                        dst->worldY = 0.0f;
+                        dst->worldZ = wz;
+                        dst->alpha = fadeAlpha;
+                    }
+                }
                 if (!hidden) {
                     int dxPx = (tr->xCenter + tr->xOffset) - homeX;
                     int sc = tr->scaleX < 0 ? -tr->scaleX : tr->scaleX;
@@ -2442,11 +2487,23 @@ static void SubmitBdspFrame(void)
                 anim->justTriggered = FALSE;
             } else {
                 anim->animTime += BDSP_ANIM_DT;
-                if (anim->animDuration > 0.0f && anim->animTime >= anim->animDuration) {
-                    anim->animState = SIM_BATTLE3D_ANIM_IDLE;
-                    anim->animTime = 0.0f;
-                    anim->animDuration = 0.0f;
-                    anim->animNonce++;
+                if (anim->animState != SIM_BATTLE3D_ANIM_IDLE && anim->animState != SIM_BATTLE3D_ANIM_FAINT) {
+                    float clipDur = has3d
+                        ? SIM_Battle3D_GetModelClipDuration(species, form, isShiny, anim->animState)
+                        : 0.0f;
+                    float effDur = (clipDur > 0.05f)
+                        ? (clipDur + BDSP_ANIM_BLEND_DUR + 0.05f)
+                        : anim->animDuration;
+                    if (effDur > 0.0f && anim->animTime >= effDur) {
+                        // Match the renderer's post-blend idle phase so IDLE resumes with zero snap.
+                        float resumeIdleT = (clipDur > 0.05f && anim->animTime > clipDur)
+                            ? (anim->animTime - clipDur)
+                            : 0.0f;
+                        anim->animState = SIM_BATTLE3D_ANIM_IDLE;
+                        anim->animTime = resumeIdleT;
+                        anim->animDuration = 0.0f;
+                        anim->animNonce++;
+                    }
                 } else if (anim->animState == SIM_BATTLE3D_ANIM_IDLE && anim->animTime >= 3600.0f) {
                     anim->animTime -= 3600.0f;
                 }
