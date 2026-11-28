@@ -27,7 +27,7 @@ ARENA_BIOME_MAP: dict[str, str] = {
     "plain_route": "g001",
     "forest": "g005",
     "water_lake": "g020",
-    "mountain_cave": "g011",
+    "mountain_cave": "g006",
     "snow": "g017",
     "city": "g008",
     "indoors_gym": "g024",
