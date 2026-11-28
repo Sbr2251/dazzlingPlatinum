@@ -5,6 +5,7 @@
 
 #include "constants/charcode.h"
 
+#include "battle/battle_bdsp_dialogue.h"
 #include "bg_window.h"
 #include "charcode.h"
 #include "font.h"
@@ -40,6 +41,9 @@ static BOOL HiRes_IsDialogueWindow(TextPrinter *printer)
     Window *window = printer->template.window;
 
     if (!HiResText_IsEnabled() || window == NULL) {
+        return FALSE;
+    }
+    if (BattleBdspDialogue_ShouldSuppressWindow(window)) {
         return FALSE;
     }
     if (printer->template.fontID != FONT_MESSAGE) {
@@ -166,7 +170,8 @@ enum RenderResult RenderText(TextPrinter *printer)
                 u16 screen = CharCode_FormatArgParam(printer->template.toPrint.raw, 0);
                 Text_RenderScreenIndicator(printer, printer->template.currX, printer->template.currY, screen);
 
-                if (printer->textSpeedTop != 0) {
+                if (printer->textSpeedTop != 0
+                    && !BattleBdspDialogue_ShouldSuppressWindow(printer->template.window)) {
                     Window_CopyToVRAM(printer->template.window);
                 }
             } break;
@@ -321,7 +326,9 @@ enum RenderResult RenderText(TextPrinter *printer)
                 printer->scrollDistance -= 4;
             }
 
-            Window_CopyToVRAM(printer->template.window);
+            if (!BattleBdspDialogue_ShouldSuppressWindow(printer->template.window)) {
+                Window_CopyToVRAM(printer->template.window);
+            }
         } else {
             printer->state = RENDER_STATE_HANDLE_CHAR;
         }
@@ -370,7 +377,7 @@ void TextPrinter_DrawScrollArrow(TextPrinter *printer)
 {
     TextPrinterSubstruct *substruct = (TextPrinterSubstruct *)printer->substruct;
 
-    if (sRenderControlFlags.autoScroll) {
+    if (sRenderControlFlags.autoScroll || BattleBdspDialogue_ShouldSuppressWindow(printer->template.window)) {
         return;
     }
 
@@ -425,6 +432,10 @@ void TextPrinter_DrawScrollArrow(TextPrinter *printer)
 
 void TextPrinter_ClearScrollArrow(TextPrinter *printer)
 {
+    if (BattleBdspDialogue_ShouldSuppressWindow(printer->template.window)) {
+        return;
+    }
+
     u8 bgID = Window_GetBgLayer(printer->template.window);
     u8 x = Window_GetXPos(printer->template.window);
     u8 y = Window_GetYPos(printer->template.window);

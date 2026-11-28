@@ -1,5 +1,6 @@
 #include "battle/battle_lib.h"
 #include "battle/battle_debug.h"
+#include "battle/battle_bdsp_dialogue.h"
 #include "battle/battle_hud.h"
 #include "battle/battle_stage.h"
 #include "battle/battle_textbox.h"
@@ -420,6 +421,7 @@ void BattleSystem_HideBattleScreen(BattleSystem *battleSys)
     // too. BattleStage_Init clears the suppression.
     BattleStage_Suppress(BATTLE_STAGE_SUPPRESS_MENU, TRUE);
     BattleTextbox_Suspend();
+    BattleBdspDialogue_Suspend();
     Window_Remove(&battleSys->windows[0]);
     GXLayers_EngineAToggleLayers(GX_PLANEMASK_BG0, FALSE);
     GXLayers_EngineAToggleLayers(GX_PLANEMASK_BG1, FALSE);
@@ -539,6 +541,7 @@ void BattleSystem_SetupBattleScreen(BattleSystem *battleSys)
 
     BattleSys_SetRenderControlFlags(battleSys);
     BattleTextbox_Resume();
+    BattleBdspDialogue_Resume();
 }
 
 void BattleSystem_LoadFightOverlay(BattleSystem *battleSys, int flags)
@@ -1699,6 +1702,9 @@ static void BattleMain_SyncBdspMessageFrame(BattleSystem *battleSys)
 
     msgWin = BattleSystem_GetWindow(battleSys, 0);
     if (msgWin == NULL || msgWin->bgConfig == NULL) {
+        return;
+    }
+    if (BattleBdspDialogue_ShouldSuppressWindow(msgWin)) {
         return;
     }
 

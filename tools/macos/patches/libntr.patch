@@ -21135,7 +21135,7 @@ index 0000000..fc10367
 +} // namespace SIM::Render
 diff --git a/libraries/sim/src/render_gpu/fx_hudhd.cpp b/libraries/sim/src/render_gpu/fx_hudhd.cpp
 new file mode 100644
-index 0000000..9d038b2
+index 0000000..ae19a12
 --- /dev/null
 +++ b/libraries/sim/src/render_gpu/fx_hudhd.cpp
 @@ -0,0 +1,1602 @@
@@ -22691,7 +22691,7 @@ index 0000000..9d038b2
 +      db.DrawSprite(sp, x, y, w, h, toC4(tint));
 +    };
 +    ext.spriteNineSlice = [&](const HudSprite *sp, float x, float y, float w, float h, float bs, HudExtColor tint) {
-+      db.DrawSpriteNineSlice(sp, x, y, w, h, bs, toC4(tint));
++      db.DrawSprite9Slice(sp, x, y, w, h, bs, toC4(tint));
 +    };
 +    ext.spriteAspectFit = [&](const HudSprite *sp, float x, float y, float w, float h, HudExtColor tint) {
 +      db.DrawSpriteAspectFit(sp, x, y, w, h, toC4(tint));
@@ -23399,26 +23399,116 @@ index 0000000..14c710a
 +} // namespace SIM::Render
 diff --git a/libraries/sim/src/render_gpu/fx_hudhd_dialogue.cpp b/libraries/sim/src/render_gpu/fx_hudhd_dialogue.cpp
 new file mode 100644
-index 0000000..9fa2ea1
+index 0000000..632acc0
 --- /dev/null
 +++ b/libraries/sim/src/render_gpu/fx_hudhd_dialogue.cpp
-@@ -0,0 +1,10 @@
+@@ -0,0 +1,100 @@
 +#include "fx_hudhd_ext.hpp"
++
++#include <algorithm>
++#include <cmath>
 +
 +namespace SIM::Render {
 +
 +void RenderHudDialogue(const HudExtDraw &ext, const SIM_HudHD_Dialogue &dlg) {
-+  (void)ext;
-+  (void)dlg;
++  if (!dlg.visible) {
++    return;
++  }
++
++  const float alpha = std::clamp(dlg.alpha > 0.0f ? dlg.alpha : 1.0f, 0.0f, 1.0f);
++  if (alpha <= 0.01f) {
++    return;
++  }
++
++  const float canvasW = (ext.canvasW > 0.0f) ? ext.canvasW : 342.0f;
++  const float canvasH = (ext.canvasH > 0.0f) ? ext.canvasH : 192.0f;
++
++  // BDSP-style centered wide translucent dark-slate rounded bottom dialogue bar
++  // (x=24..318, y=150..184, w=294, h=34 on the 342x192 canvas).
++  const float w = std::min(294.0f, canvasW - 24.0f);
++  const float h = 34.0f;
++  const float x = (canvasW - w) * 0.5f;
++  const float y = canvasH - h - 8.0f;
++  const float radius = 7.0f;
++
++  // 1. Soft ambient drop shadow beneath the bar.
++  if (ext.shadowRect) {
++    ext.shadowRect(x, y + 1.5f, w, h, radius, 3.6f, 0.45f * alpha);
++  }
++
++  // 2. Translucent dark-slate glass body with crisp light-blue/white border.
++  if (ext.roundRect) {
++    ext.roundRect(x, y, w, h, radius,
++                  HudC4(18, 26, 40, 0.88f * alpha),
++                  HudC4(10, 15, 25, 0.93f * alpha),
++                  0.95f,
++                  HudC4(204, 228, 255, 0.60f * alpha));
++
++    // Subtle inner luminous hairline rim & faint top-down glass sheen.
++    ext.roundRect(x + 1.5f, y + 1.5f, w - 3.0f, h - 3.0f, radius - 1.3f,
++                  HudC4(255, 255, 255, 0.055f * alpha),
++                  HudC4(130, 180, 240, 0.015f * alpha),
++                  0.42f,
++                  HudC4(230, 244, 255, 0.24f * alpha));
++
++    // Sleek left BDSP accent bar.
++    ext.roundRect(x + 6.0f, y + 7.5f, 2.0f, h - 15.0f, 1.0f,
++                  HudC4(142, 212, 255, 0.92f * alpha),
++                  HudC4(74, 152, 242, 0.88f * alpha),
++                  0.0f,
++                  HudC4(0, 0, 0, 0.0f));
++  }
++
++  // 3. Delicate top edge specular highlight sheen.
++  if (ext.line) {
++    ext.line(x + 12.0f, y + 1.9f, x + w - 12.0f, y + 1.9f, 0.65f,
++             HudC4(255, 255, 255, 0.25f * alpha));
++  }
++
++  // 4. Crisp white TrueType 2-line dialogue text with subtle drop shadow.
++  // Fixed top anchor prevents line 1 from jumping vertically when line 2 begins typing.
++  if (dlg.text[0] != '\0' && ext.drawWrappedText) {
++    const float textX = x + 14.5f;
++    const float textY = y + 5.8f;
++    const float textMaxW = w - 36.0f;
++    const float fontSize = 9.8f;
++    const float lineH = 12.6f;
++
++    ext.drawWrappedText(dlg.text, textX, textY, textMaxW, fontSize, lineH, 2,
++                        HudC4(250, 252, 255, alpha), true);
++  }
++
++  // 5. Animated gently bobbing crimson/white down-chevron when waiting for A.
++  if (dlg.waitArrow && ext.line) {
++    const float bob = 1.15f * std::sin(ext.timeSec * 6.5f);
++    const float ax = x + w - 12.5f;
++    const float ay = y + h - 10.0f + bob;
++
++    if (ext.circle) {
++      ext.circle(ax, ay + 0.8f, 4.4f,
++                 HudC4(240, 66, 84, 0.22f * alpha),
++                 HudC4(198, 36, 56, 0.12f * alpha));
++    }
++    // Outer crimson chevron
++    ext.line(ax - 3.6f, ay - 1.3f, ax, ay + 2.3f, 1.85f,
++             HudC4(238, 62, 78, 0.98f * alpha));
++    ext.line(ax + 3.6f, ay - 1.3f, ax, ay + 2.3f, 1.85f,
++             HudC4(238, 62, 78, 0.98f * alpha));
++    // Inner crisp white chevron highlight
++    ext.line(ax - 2.9f, ay - 1.5f, ax, ay + 1.4f, 0.95f,
++             HudC4(255, 250, 252, alpha));
++    ext.line(ax + 2.9f, ay - 1.5f, ax, ay + 1.4f, 0.95f,
++             HudC4(255, 250, 252, alpha));
++  }
 +}
 +
 +} // namespace SIM::Render
 diff --git a/libraries/sim/src/render_gpu/fx_hudhd_ext.hpp b/libraries/sim/src/render_gpu/fx_hudhd_ext.hpp
 new file mode 100644
-index 0000000..faed217
+index 0000000..a369524
 --- /dev/null
 +++ b/libraries/sim/src/render_gpu/fx_hudhd_ext.hpp
-@@ -0,0 +1,41 @@
+@@ -0,0 +1,43 @@
 +#pragma once
 +
 +#include "fx_hudhd_atlas.hpp"
@@ -23426,6 +23516,8 @@ index 0000000..faed217
 +#include <functional>
 +
 +namespace SIM::Render {
++
++using HudSprite = HudUiSprite;
 +
 +struct HudExtColor {
 +  float r, g, b, a;

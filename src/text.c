@@ -6,6 +6,7 @@
 #include "constants/heap.h"
 #include "constants/narc.h"
 
+#include "battle/battle_bdsp_dialogue.h"
 #include "bg_window.h"
 #include "font.h"
 #include "font_manager.h"
@@ -31,6 +32,7 @@ static const FontAttributes *sFontAttributesPtr = NULL;
 
 static u8 sPausePrinter = FALSE;
 static SysTask *sTextPrinterTasks[MAX_TEXT_PRINTERS] = { 0 };
+static const charcode_t *sTextPrinterStartRaw[MAX_TEXT_PRINTERS] = { 0 };
 static u16 sFontHalfRowLookupTable[4 * 4 * 4 * 4];
 static u16 sBgColor, sFgColor, sShadowColor;
 static BOOL sFontHalfRowLookupTableValid = FALSE;
@@ -49,6 +51,8 @@ static u8 Text_CreatePrinterTask(SysTaskFunc taskFunc, TextPrinter *printer, u32
 
             if (sTextPrinterTasks[i] == NULL) {
                 i = MAX_TEXT_PRINTERS;
+            } else {
+                sTextPrinterStartRaw[i] = printer->template.toPrint.raw;
             }
 
             break;
@@ -73,6 +77,7 @@ static void Text_DestroyPrinterTask(u8 printerID)
 
         SysTask_Done(sTextPrinterTasks[printerID]);
         sTextPrinterTasks[printerID] = NULL;
+        sTextPrinterStartRaw[printerID] = NULL;
     }
 }
 
@@ -89,12 +94,33 @@ void Text_ResetAllPrinters()
 {
     for (int i = 0; i < MAX_TEXT_PRINTERS; i++) {
         sTextPrinterTasks[i] = NULL;
+        sTextPrinterStartRaw[i] = NULL;
     }
 }
 
 u8 Text_IsPrinterActive(u8 printerID)
 {
     return Text_IsPrinterTaskActive(printerID);
+}
+
+BOOL Text_GetPrinterProgress(u8 printerID, TextPrinterProgress *out)
+{
+    TextPrinter *printer;
+    const charcode_t *startRaw;
+
+    if (out == NULL || !Text_IsPrinterTaskActive(printerID)) {
+        return FALSE;
+    }
+    printer = (TextPrinter *)SysTask_GetParam(sTextPrinterTasks[printerID]);
+    startRaw = sTextPrinterStartRaw[printerID];
+    if (printer == NULL || startRaw == NULL || printer->template.toPrint.raw < startRaw) {
+        return FALSE;
+    }
+    out->charOffset = (u32)(printer->template.toPrint.raw - startRaw);
+    out->state = printer->state;
+    // RenderState 1=WAIT, 2=CLEAR, 3=START_SCROLL
+    out->waitingInput = (printer->state == 1 || printer->state == 2 || printer->state == 3) ? 1 : 0;
+    return TRUE;
 }
 
 void Text_RemovePrinter(u8 printerID)
@@ -221,7 +247,8 @@ u8 Text_AddPrinter(const TextPrinterTemplate *template, u32 renderDelay, TextPri
         i++;
     }
 
-    if (renderDelay != TEXT_SPEED_NO_TRANSFER) {
+    if (renderDelay != TEXT_SPEED_NO_TRANSFER
+        && !BattleBdspDialogue_ShouldSuppressWindow(printer->template.window)) {
         Window_CopyToVRAM(printer->template.window);
     }
 
@@ -245,7 +272,9 @@ static void SysTask_RunTextPrinter(SysTask *task, void *data)
 
         switch (TextPrinter_Render(printer)) {
         case RENDER_PRINT:
-            Window_CopyToVRAM(printer->template.window);
+            if (!BattleBdspDialogue_ShouldSuppressWindow(printer->template.window)) {
+                Window_CopyToVRAM(printer->template.window);
+            }
             // fall-through
 
         case RENDER_UPDATE:
