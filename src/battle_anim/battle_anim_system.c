@@ -16,6 +16,7 @@
 
 #include "battle/battle_anim_battler_context.h"
 #include "battle/battle_stage.h"
+#include "port/sim_battle3d.h"
 #include "battle/battle_system.h"
 #include "battle/pokemon_sprite_data.h"
 #include "battle_anim/battle_anim_helpers.h"
@@ -2647,7 +2648,8 @@ static void BattleAnimScriptCmd_AddPokemonSprite(BattleAnimSystem *system)
 
     sprite = SpriteSystem_NewSprite(system->context->spriteSystem, system->pokemonSpriteManager, &template);
 
-    if (battlerSprite == NULL) {
+    if (battlerSprite == NULL
+        || (SIM_Battle3D_ModelsEnabled() && BattleStage_IsVisible() && BattleAnimSystem_IsContest(system) == FALSE)) {
         ManagedSprite_SetDrawFlag(sprite, FALSE);
     } else {
         int hidden = PokemonSprite_GetAttribute(battlerSprite, MON_SPRITE_HIDE);
@@ -2741,7 +2743,8 @@ static void BattleAnimPokemonSprite_DrawTask(SysTask *task, void *param)
         return;
     }
 
-    if (ctx->battleAnimSys->pokemonSpriteManager != NULL) {
+    if (ctx->battleAnimSys->pokemonSpriteManager != NULL
+        && !(SIM_Battle3D_ModelsEnabled() && BattleStage_IsVisible() && BattleAnimSystem_IsContest(ctx->battleAnimSys) == FALSE)) {
         SpriteSystem_DrawSprites(ctx->spriteManager);
     }
 }
@@ -2784,7 +2787,8 @@ static void BattleAnimScriptCmd_StartPokemonSpriteDrawTask(BattleAnimSystem *sys
                 isHidden = FALSE;
             }
 
-            if (isHidden == TRUE) {
+            if (isHidden == TRUE
+                || (SIM_Battle3D_ModelsEnabled() && BattleStage_IsVisible() && BattleAnimSystem_IsContest(system) == FALSE)) {
                 ManagedSprite_SetDrawFlag(system->pokemonSpriteDrawContexts[slotIdx].sprite, FALSE);
             } else {
                 ManagedSprite_SetDrawFlag(system->pokemonSpriteDrawContexts[slotIdx].sprite, TRUE);
@@ -4229,7 +4233,11 @@ static void BattleAnimScriptCmd_SetPokemonSpriteVisible(BattleAnimSystem *system
     int flag = BattleAnimScript_ReadWord(system->scriptPtr);
     BattleAnimScript_Next(system);
 
-    ManagedSprite_SetDrawFlag(system->pokemonSprites[spriteID], flag);
+    if (SIM_Battle3D_ModelsEnabled() && BattleStage_IsVisible() && BattleAnimSystem_IsContest(system) == FALSE) {
+        ManagedSprite_SetDrawFlag(system->pokemonSprites[spriteID], FALSE);
+    } else {
+        ManagedSprite_SetDrawFlag(system->pokemonSprites[spriteID], flag);
+    }
 }
 
 static void BattleAnimScriptCmd_SetExtraParams(BattleAnimSystem *system)

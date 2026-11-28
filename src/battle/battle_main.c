@@ -1740,9 +1740,16 @@ static void SysTask_DrawSprites(SysTask *task, void *inBattleSys)
     if (battleSys->renderMode == 0 || battleSys->renderMode == 3) {
         BattleStage_Draw();
 
-        // The party/bag menus (state 3) skip particles, but the Totem's aura should keep burning behind them
+        // The party/bag menus (state 3) skip particles, but the Totem's aura should keep burning behind them.
+        // In BDSP 3D battle mode, tick legacy DS emitters without drawing misaligned 2D .spa overlays over the 3D arena.
         if (battleSys->renderMode == 0 || TotemAura_IsActive()) {
-            ParticleHelper_DrawParticleSystems();
+            if (SIM_Battle3D_ModelsEnabled() && BattleStage_IsVisible() && !TotemAura_IsActive()) {
+                if (ParticleSystem_GetActiveAmount() > 0) {
+                    ParticleSystem_UpdateAll();
+                }
+            } else {
+                ParticleHelper_DrawParticleSystems();
+            }
         }
 
         PokemonSpriteManager_DrawSprites(battleSys->monSpriteMan);

@@ -103,6 +103,7 @@ typedef struct BdspBattlerVfxState {
 
     int lastAttacker;
     int lastMoveType;
+    float sinceImpactSec;
 } BdspBattlerVfxState;
 
 typedef struct BdspVfxSystem {
@@ -194,6 +195,9 @@ static void SpawnVfx(int kind, int moveType, int targetBattler, int trackBattler
     int idx = AllocVfxSlot();
     BdspVfxItem *it = &sVfx.pool[idx];
 
+    if (kind == SIM_BATTLE3D_VFX_IMPACT && targetBattler >= 0 && targetBattler < SIM_BATTLE3D_MAX_BATTLERS) {
+        sVfx.battlers[targetBattler].sinceImpactSec = 0.0f;
+    }
     memset(it, 0, sizeof(*it));
     it->active = TRUE;
     it->kind = kind;
@@ -371,9 +375,9 @@ static void ProcessAttack(const SIM_Battle3DFrame *frame, const BattleContext *c
         // Non-contact targeted physical moves (Stone Edge, Bullet Seed, etc.) and special moves:
         // elemental projectile orb/bolt flying src -> dst + explosion on arrival (no lunge).
         SpawnVfx(SIM_BATTLE3D_VFX_PROJECTILE, pa->moveType, defender, -1, 0.0f,
-                 0.0f, 0.42f, src, dst, color, 1.05f);
+                 0.10f, 1.45f, src, dst, color, 1.22f);
         SpawnVfx(SIM_BATTLE3D_VFX_IMPACT, pa->moveType, defender, -1, 0.0f,
-                 0.40f, 0.42f, src, dst, color, 1.25f);
+                 1.32f, 0.72f, src, dst, color, 1.32f);
     } else {
         // CLASS_STATUS: rising aura rings on self/ally recipient or falling rings on opponent.
         BOOL sameSide = (defB->isPlayer == atkB->isPlayer);
@@ -439,8 +443,8 @@ static void ProcessHit(const SIM_Battle3DFrame *frame, int maxBattlers, int defe
         bs->lungeVec[2] = dz * BDSP_KNOCK_DIST;
     }
 
-    // Ensure multi-hit or delayed hits also get a crisp impact flash if none is active.
-    if (defB->visible && !HasRecentImpactForBattler(defender)) {
+    // Ensure multi-hit or delayed hits also get a crisp impact flash if no recent impact played.
+    if (defB->visible && !HasRecentImpactForBattler(defender) && bs->sinceImpactSec > 2.8f) {
         float color[3];
         float pos[3] = { defB->worldX, defB->worldY + 0.80f, defB->worldZ };
         GetTypeColor(bs->lastMoveType, color);
@@ -457,6 +461,7 @@ void BattleBdspVfx_Reset(void)
         sVfx.battlers[i].sparkledPartySlot = -1;
         sVfx.battlers[i].lastAttacker = -1;
         sVfx.battlers[i].lastMoveType = TYPE_NORMAL;
+        sVfx.battlers[i].sinceImpactSec = 10.0f;
     }
 }
 
@@ -474,6 +479,9 @@ void BattleBdspVfx_DiscardPending(void)
             if (bs->lungeTime >= totalDur) {
                 bs->lungeActive = FALSE;
             }
+        }
+        if (bs->sinceImpactSec < 10.0f) {
+            bs->sinceImpactSec += BDSP_VFX_DT;
         }
         if (bs->hitFlashActive) {
             bs->hitFlashTime += BDSP_VFX_DT;

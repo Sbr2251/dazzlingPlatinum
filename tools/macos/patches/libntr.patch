@@ -24281,10 +24281,10 @@ index 0000000..de2700a
 +} // namespace SIM::Render
 diff --git a/libraries/sim/src/render_gpu/fx_battle3d_vfx.cpp b/libraries/sim/src/render_gpu/fx_battle3d_vfx.cpp
 new file mode 100644
-index 0000000..0a6c752
+index 0000000..4464749
 --- /dev/null
 +++ b/libraries/sim/src/render_gpu/fx_battle3d_vfx.cpp
-@@ -0,0 +1,812 @@
+@@ -0,0 +1,816 @@
 +#include "fx_battle3d_vfx.hpp"
 +
 +#include "generated/battle3d_vfx_shaders.h"
@@ -24507,40 +24507,44 @@ index 0000000..0a6c752
 +static void EmitProjectileVfx(VfxBatch<kMaxAddVerts> &add, const CamBasis &cb,
 +                              const VfxSlot &v, const float col[3], float scale) {
 +  const float p = std::clamp(v.progress, 0.0f, 1.0f);
-+  const float env = SmoothStep(0.0f, 0.08f, p) * (1.0f - SmoothStep(0.90f, 1.0f, p));
-+  float head[3];
-+  EvalProjectilePoint(v, p, head);
++  const float env = SmoothStep(0.0f, 0.07f, p) * (1.0f - SmoothStep(0.88f, 1.0f, p));
++  // Sustained beam/stream envelope: extends src->dst over [0..0.48], streams continuously onto dst [0.48..0.82],
++  // then tail catches up to dst over [0.56..1.0].
++  const float headU = std::clamp(p / 0.48f, 0.0f, 1.0f);
++  const float tailU = std::clamp((p - 0.56f) / 0.44f, 0.0f, 1.0f);
++  float head[3], tail[3];
++  EvalProjectilePoint(v, headU, head);
++  EvalProjectilePoint(v, tailU, tail);
 +
-+  // Pull slightly toward camera so orb pops cleanly in front of limbs.
-+  float toCam[3] = {cb.eye[0] - head[0], cb.eye[1] - head[1], cb.eye[2] - head[2]};
-+  Vec3Normalize(toCam);
-+  float headDraw[3] = {head[0] + toCam[0] * 0.25f, head[1] + toCam[1] * 0.10f, head[2] + toCam[2] * 0.25f};
++  if (tailU < 0.45f) {
++    const float srcEnv = env * (1.0f - tailU / 0.45f);
++    AddBillboard(add, cb, tail, 0.42f * scale, 0.42f * scale, col, srcEnv * 0.85f, 0.0f, p * 5.0f, 0.90f, 0.0f);
++  }
 +
-+  // Core incandescent orb + outer elemental aura.
-+  AddBillboard(add, cb, headDraw, 0.48f * scale, 0.48f * scale, col, env * 1.15f, 0.0f, p, 0.95f, 0.0f);
-+  AddBillboard(add, cb, headDraw, 0.78f * scale, 0.78f * scale, col, env * 0.55f, 0.0f, p + 0.3f, 0.35f, 0.0f);
-+
-+  // Ribbon trail (jagged lightning for Electric type 13, plasma ribbon otherwise).
-+  const float tailStart = std::max(0.0f, p - 0.34f);
-+  float tailPos[3];
-+  EvalProjectilePoint(v, tailStart, tailPos);
 +  const float ribbonShape = (v.moveType == 13) ? 4.0f : 3.0f;
-+  AddRibbon(add, cb, tailPos, head, 0.26f * scale, col, env * 0.95f, ribbonShape, p * 4.0f, 0.0f, 1.0f);
++  AddRibbon(add, cb, tail, head, 0.34f * scale, col, env * 0.88f, ribbonShape, p * 8.0f, 0.0f, 1.0f);
++  AddRibbon(add, cb, tail, head, 0.16f * scale, col, env * 1.10f, ribbonShape, p * 11.0f + 0.5f, 0.75f, 1.0f);
 +
-+  // 6 trailing elemental sparks along the curved path.
-+  for (int k = 1; k <= 6; k++) {
-+    float fk = static_cast<float>(k) / 6.0f;
-+    float tp = p - fk * 0.30f;
-+    if (tp < 0.0f) continue;
++  const float span = std::max(0.001f, headU - tailU);
++  for (int k = 0; k < 14; k++) {
++    float fk = static_cast<float>(k) / 13.0f;
++    float u = tailU + fk * span;
 +    float pt[3];
-+    EvalProjectilePoint(v, tp, pt);
-+    float swirlAng = tp * 14.0f + fk * kTwoPi;
-+    float swirlR = 0.14f * fk * scale;
++    EvalProjectilePoint(v, u, pt);
++    float swirlAng = (u * 16.0f - p * 22.0f) + fk * kTwoPi;
++    float swirlR = (0.08f + 0.18f * std::sin(fk * 3.14159265f)) * scale;
 +    pt[0] += cb.right[0] * std::cos(swirlAng) * swirlR + cb.up[0] * std::sin(swirlAng) * swirlR;
 +    pt[1] += cb.right[1] * std::cos(swirlAng) * swirlR + cb.up[1] * std::sin(swirlAng) * swirlR;
 +    pt[2] += cb.right[2] * std::cos(swirlAng) * swirlR + cb.up[2] * std::sin(swirlAng) * swirlR;
-+    float r = (0.28f - 0.18f * fk) * scale;
-+    AddBillboard(add, cb, pt, r, r, col, env * (1.0f - fk * 0.75f), 0.0f, fk, 0.75f, 0.0f);
++    float r = (0.24f + 0.22f * fk) * scale;
++    float a = env * (0.45f + 0.55f * std::sin(fk * 3.14159265f));
++    AddBillboard(add, cb, pt, r, r, col, a, 0.0f, u * 3.0f + p * 4.0f, 0.65f + 0.30f * fk, 0.0f);
++  }
++
++  AddBillboard(add, cb, head, 0.56f * scale, 0.56f * scale, col, env * 1.15f, 0.0f, p * 6.0f, 0.95f, 0.0f);
++  if (headU > 0.85f) {
++    const float hitEnv = env * ((headU - 0.85f) / 0.15f);
++    AddBillboard(add, cb, head, 0.92f * scale, 0.92f * scale, col, hitEnv * 0.65f, 1.0f, p * 5.0f, 0.65f, 0.0f);
 +  }
 +}
 +

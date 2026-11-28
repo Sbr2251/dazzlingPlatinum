@@ -221,14 +221,14 @@ static void PopulateFallbackBank(void)
     SetKey(c, 2, 1.95f, 0.45f, 1.68f, 2.55f, 2.32f, 1.02f, -2.12f, 32.5f);
     SetKey(c, 3, 3.20f, -3.60f, 2.55f, 8.80f, 0.60f, 1.45f, -2.00f, 38.0f);
 
-    // throw_cut
+    // throw_cut (BDSP over-the-shoulder left-third framing: never swings past trainer shoulder)
     c = &sBank.clips[CAM_CLIP_THROW_CUT];
     c->loaded = TRUE;
     c->loop = FALSE;
     c->duration = 1.8f;
-    SetKey(c, 0, 0.00f, -3.85f, 1.62f, 5.55f, -1.35f, 1.32f, 1.35f, 33.0f);
-    SetKey(c, 1, 0.45f, -4.55f, 1.82f, 4.95f, -0.85f, 1.48f, 0.55f, 34.5f);
-    SetKey(c, 2, 1.10f, -4.10f, 2.25f, 7.20f, -0.10f, 1.42f, -1.10f, 37.0f);
+    SetKey(c, 0, 0.00f, -4.20f, 1.85f, 6.20f, 0.15f, 1.15f, -0.35f, 34.5f);
+    SetKey(c, 1, 0.45f, -4.05f, 1.98f, 6.65f, 0.30f, 1.18f, -0.85f, 35.5f);
+    SetKey(c, 2, 1.10f, -3.80f, 2.28f, 7.80f, 0.48f, 1.32f, -1.55f, 37.0f);
     SetKey(c, 3, 1.80f, -3.60f, 2.55f, 8.80f, 0.60f, 1.45f, -2.00f, 38.0f);
 
     // wait_idle_0
@@ -268,14 +268,14 @@ static void PopulateFallbackBank(void)
     SetKey(c, 2, 0.82f, -1.45f, 2.02f, 4.15f, 1.85f, 1.15f, -1.80f, 33.0f);
     SetKey(c, 3, 1.20f, -2.20f, 2.22f, 5.80f, 1.30f, 1.25f, -1.90f, 35.5f);
 
-    // attack_enemy
+    // attack_enemy (front-3/4 enemy action angle clear of forward lunges -> player defender impact)
     c = &sBank.clips[CAM_CLIP_ATTACK_ENEMY];
     c->loaded = TRUE;
     c->loop = FALSE;
     c->duration = 1.2f;
-    SetKey(c, 0, 0.00f, -0.55f, 1.92f, 2.75f, 2.12f, 1.10f, -1.95f, 31.0f);
-    SetKey(c, 1, 0.42f, -0.05f, 1.76f, 2.05f, 2.28f, 1.05f, -2.10f, 28.5f);
-    SetKey(c, 2, 0.85f, -4.45f, 2.18f, 7.05f, -0.80f, 1.30f, 0.65f, 34.8f);
+    SetKey(c, 0, 0.00f, -0.85f, 2.10f, 4.10f, 2.05f, 0.95f, -1.90f, 32.5f);
+    SetKey(c, 1, 0.42f, -0.45f, 1.98f, 3.35f, 1.85f, 0.95f, -1.75f, 31.0f);
+    SetKey(c, 2, 0.85f, -4.45f, 2.15f, 6.95f, -1.35f, 1.18f, 1.25f, 34.5f);
     SetKey(c, 3, 1.20f, -3.90f, 2.40f, 8.05f, 0.10f, 1.38f, -1.10f, 37.0f);
 
     // hit_player

@@ -40,18 +40,18 @@
 // Both trainers throw with LHand (boneKind=2, ee400 _locators[75]=LItem1);
 // exact peak forward hand velocity & palm detachment occur on integer frame 19 (19/60s = 0.3167s).
 #define BDSP_THROW_HAND_BONE            2
-#define BDSP_BALL_RELEASE_TICK          19
-#define BDSP_BALL_FLIGHT_TICKS          25
+#define BDSP_BALL_RELEASE_TICK          21
+#define BDSP_BALL_FLIGHT_TICKS          20
 #define BDSP_BALL_EARLY_FINISH_TICKS    4
-#define BDSP_BALL_ARC_PEAK              0.92f
-#define BDSP_BALL_SCALE_HELD            0.90f
-#define BDSP_BALL_SCALE_FLIGHT          1.30f
-#define BDSP_BURST_DUR                  0.480f
-#define BDSP_BURST_RADIUS               1.58f
-#define BDSP_BURST_CENTER_Y             0.90f
+#define BDSP_BALL_ARC_PEAK              0.46f
+#define BDSP_BALL_SCALE_HELD            0.68f
+#define BDSP_BALL_SCALE_FLIGHT          0.76f
+#define BDSP_BURST_DUR                  0.360f
+#define BDSP_BURST_RADIUS               0.88f
+#define BDSP_BURST_CENTER_Y             0.68f
 #define BDSP_MAT_DUR                    0.440f
-#define BDSP_TRAINER_FOLLOWTHROUGH_END  0.920f
-#define BDSP_TRAINER_EXIT_DUR           0.420f
+#define BDSP_TRAINER_FOLLOWTHROUGH_END  0.620f
+#define BDSP_TRAINER_EXIT_DUR           0.300f
 
 enum BdspTrainerPhase {
     BDSP_TRAINER_PHASE_IDLE = 0,
