@@ -1,4 +1,5 @@
 #include "battle/battle_debug.h"
+#include "battle/battle_bdsp_overlay.h"
 #include "battle/battle_display.h"
 #include "battle/battle_stage.h"
 
@@ -4137,18 +4138,23 @@ static void Task_PlayerShowBagMenu(SysTask *task, void *data)
 {
     BagMenuData *bagMenuData = data;
     PaletteData *paletteData = BattleSystem_GetPaletteData(bagMenuData->battleSys);
+    BOOL useOverlay = BattleBdspOverlay_ShouldUse(bagMenuData->battleSys);
 
     switch (bagMenuData->state) {
     case 0:
         bagMenuData->isCursorEnabled = BattleSubscreen_GetSuppressActivationSFX(BattleSystem_GetBattleSubscreen(bagMenuData->battleSys));
-        sub_02015738(BattleSystem_GetPaletteAnimator(bagMenuData->battleSys), 1);
-        PaletteData_StartFade(paletteData, PLTTBUF_MAIN_BG_F | PLTTBUF_MAIN_OBJ_F, 0xC00, -8, 0, 7, 0);
-        PaletteData_StartFade(paletteData, PLTTBUF_SUB_BG_F | PLTTBUF_SUB_OBJ_F, 0xFFFF, -8, 0, 16, 0);
+        if (!useOverlay) {
+            sub_02015738(BattleSystem_GetPaletteAnimator(bagMenuData->battleSys), 1);
+            PaletteData_StartFade(paletteData, PLTTBUF_MAIN_BG_F | PLTTBUF_MAIN_OBJ_F, 0xC00, -8, 0, 7, 0);
+            PaletteData_StartFade(paletteData, PLTTBUF_SUB_BG_F | PLTTBUF_SUB_OBJ_F, 0xFFFF, -8, 0, 16, 0);
+        }
         bagMenuData->state++;
         break;
     case 1:
-        if (PaletteData_GetSelectedBuffersMask(paletteData) == 0) {
-            BattleSystem_EnterSubMenu(bagMenuData->battleSys);
+        if (useOverlay || PaletteData_GetSelectedBuffersMask(paletteData) == 0) {
+            if (!useOverlay) {
+                BattleSystem_EnterSubMenu(bagMenuData->battleSys);
+            }
 
             bagMenuData->battleBagCtx = Heap_Alloc(HEAP_ID_BATTLE, sizeof(BattleBagContext));
             memset(bagMenuData->battleBagCtx, 0, sizeof(BattleBagContext));
@@ -4164,13 +4170,21 @@ static void Task_PlayerShowBagMenu(SysTask *task, void *data)
             bagMenuData->battleBagCtx->opponentHidden = bagMenuData->semiInvulnerable;
             bagMenuData->battleBagCtx->opponentSubstituted = bagMenuData->substitute;
             bagMenuData->battleBagCtx->embargoRemainingTurns = bagMenuData->embargoTurns[bagMenuData->battler];
-            BattleBagTask_Start(bagMenuData->battleBagCtx);
+            if (useOverlay) {
+                BattleBdspOverlay_StartBag(bagMenuData->battleBagCtx);
+            } else {
+                BattleBagTask_Start(bagMenuData->battleBagCtx);
+            }
             bagMenuData->state = 3;
         }
         break;
     case 2:
         bagMenuData->battleBagCtx->isCursorEnabled = bagMenuData->isCursorEnabled;
-        BattleBagTask_Start(bagMenuData->battleBagCtx);
+        if (useOverlay) {
+            BattleBdspOverlay_StartBag(bagMenuData->battleBagCtx);
+        } else {
+            BattleBagTask_Start(bagMenuData->battleBagCtx);
+        }
         bagMenuData->state++;
     case 3:
         if (bagMenuData->battleBagCtx->battleBagExited) {
@@ -4233,7 +4247,11 @@ static void Task_PlayerShowBagMenu(SysTask *task, void *data)
             bagMenuData->partyMenuData->battlePartyCtx->embargoRemainingTurns[1] = bagMenuData->embargoTurns[BattleSystem_GetPartner(bagMenuData->battleSys, bagMenuData->battler)];
         }
 
-        BattlePartyTask_Start(bagMenuData->partyMenuData->battlePartyCtx);
+        if (useOverlay) {
+            BattleBdspOverlay_StartParty(bagMenuData->partyMenuData->battlePartyCtx);
+        } else {
+            BattlePartyTask_Start(bagMenuData->partyMenuData->battlePartyCtx);
+        }
         bagMenuData->state++;
         break;
     case 5:
@@ -4249,15 +4267,21 @@ static void Task_PlayerShowBagMenu(SysTask *task, void *data)
         }
         break;
     case 6:
-        BattleSystem_ExitSubMenu(bagMenuData->battleSys);
+        if (!useOverlay) {
+            BattleSystem_ExitSubMenu(bagMenuData->battleSys);
+        }
         BattleSubscreen_SetSuppressActivationSFX(BattleSystem_GetBattleSubscreen(bagMenuData->battleSys), bagMenuData->isCursorEnabled);
-        PaletteData_StartFade(paletteData, PLTTBUF_MAIN_BG_F | PLTTBUF_MAIN_OBJ_F, 0xC00, -8, 7, 0, 0);
-        PaletteData_StartFade(paletteData, PLTTBUF_SUB_BG_F | PLTTBUF_SUB_OBJ_F, 0xFFFF, -8, 16, 0, 0);
+        if (!useOverlay) {
+            PaletteData_StartFade(paletteData, PLTTBUF_MAIN_BG_F | PLTTBUF_MAIN_OBJ_F, 0xC00, -8, 7, 0, 0);
+            PaletteData_StartFade(paletteData, PLTTBUF_SUB_BG_F | PLTTBUF_SUB_OBJ_F, 0xFFFF, -8, 16, 0, 0);
+        }
         bagMenuData->state++;
         break;
     case 7:
-        if (PaletteData_GetSelectedBuffersMask(paletteData) == 0) {
-            sub_02015738(BattleSystem_GetPaletteAnimator(bagMenuData->battleSys), 0);
+        if (useOverlay || PaletteData_GetSelectedBuffersMask(paletteData) == 0) {
+            if (!useOverlay) {
+                sub_02015738(BattleSystem_GetPaletteAnimator(bagMenuData->battleSys), 0);
+            }
 
             if (bagMenuData->battleBagCtx->selectedBattleBagItem) {
                 bagMenuData->state = 9;
@@ -4726,28 +4750,33 @@ static void Task_PlayerShowPartyMenu(SysTask *task, void *data)
     PartyMenuData *partyMenuData = data;
 
     PaletteData *paletteData = BattleSystem_GetPaletteData(partyMenuData->battleSys);
+    BOOL useOverlay = BattleBdspOverlay_ShouldUse(partyMenuData->battleSys);
 
     switch (partyMenuData->state) {
     case 0:
-        Window *window = BattleSystem_GetWindow(partyMenuData->battleSys, 0);
-
-        Window_FillTilemap(window, 0xFF);
-        Window_LoadTiles(window);
-
         partyMenuData->isCursorEnabled = BattleSubscreen_GetSuppressActivationSFX(BattleSystem_GetBattleSubscreen(partyMenuData->battleSys));
-        sub_02015738(BattleSystem_GetPaletteAnimator(partyMenuData->battleSys), 1);
-        PaletteData_StartFade(paletteData, PLTTBUF_MAIN_BG_F | PLTTBUF_MAIN_OBJ_F, 0xC00, -8, 0, 7, 0);
-        PaletteData_StartFade(paletteData, PLTTBUF_SUB_BG_F | PLTTBUF_SUB_OBJ_F, 0xFFFF, -8, 0, 16, 0);
+        if (!useOverlay) {
+            Window *window = BattleSystem_GetWindow(partyMenuData->battleSys, 0);
+
+            Window_FillTilemap(window, 0xFF);
+            Window_LoadTiles(window);
+
+            sub_02015738(BattleSystem_GetPaletteAnimator(partyMenuData->battleSys), 1);
+            PaletteData_StartFade(paletteData, PLTTBUF_MAIN_BG_F | PLTTBUF_MAIN_OBJ_F, 0xC00, -8, 0, 7, 0);
+            PaletteData_StartFade(paletteData, PLTTBUF_SUB_BG_F | PLTTBUF_SUB_OBJ_F, 0xFFFF, -8, 0, 16, 0);
+        }
         partyMenuData->state++;
         break;
     case 1:
-        if (PaletteData_GetSelectedBuffersMask(paletteData) == 0) {
+        if (useOverlay || PaletteData_GetSelectedBuffersMask(paletteData) == 0) {
             int i;
             int battler;
             int battler1, battler2;
             Pokemon *monSrc, *monDst;
 
-            BattleSystem_EnterSubMenu(partyMenuData->battleSys);
+            if (!useOverlay) {
+                BattleSystem_EnterSubMenu(partyMenuData->battleSys);
+            }
 
             partyMenuData->battlePartyCtx = Heap_Alloc(HEAP_ID_BATTLE, sizeof(BattlePartyContext));
             partyMenuData->battlePartyCtx->party = Party_New(HEAP_ID_BATTLE);
@@ -4836,22 +4865,32 @@ static void Task_PlayerShowPartyMenu(SysTask *task, void *data)
                 partyMenuData->battlePartyCtx->partnerPokemonPartySlot = 6;
             }
 
-            BattlePartyTask_Start(partyMenuData->battlePartyCtx);
+            if (useOverlay) {
+                BattleBdspOverlay_StartParty(partyMenuData->battlePartyCtx);
+            } else {
+                BattlePartyTask_Start(partyMenuData->battlePartyCtx);
+            }
             partyMenuData->state++;
         }
         break;
     case 2:
         if (partyMenuData->battlePartyCtx->battlePartyExited) {
-            BattleSystem_ExitSubMenu(partyMenuData->battleSys);
+            if (!useOverlay) {
+                BattleSystem_ExitSubMenu(partyMenuData->battleSys);
+            }
             BattleSubscreen_SetSuppressActivationSFX(BattleSystem_GetBattleSubscreen(partyMenuData->battleSys), partyMenuData->battlePartyCtx->isCursorEnabled);
-            PaletteData_StartFade(paletteData, PLTTBUF_MAIN_BG_F | PLTTBUF_MAIN_OBJ_F, 0xC00, -8, 7, 0, 0);
-            PaletteData_StartFade(paletteData, PLTTBUF_SUB_BG_F | PLTTBUF_SUB_OBJ_F, 0xFFFF, -8, 16, 0, 0);
+            if (!useOverlay) {
+                PaletteData_StartFade(paletteData, PLTTBUF_MAIN_BG_F | PLTTBUF_MAIN_OBJ_F, 0xC00, -8, 7, 0, 0);
+                PaletteData_StartFade(paletteData, PLTTBUF_SUB_BG_F | PLTTBUF_SUB_OBJ_F, 0xFFFF, -8, 16, 0, 0);
+            }
             partyMenuData->state++;
         }
         break;
     case 3:
-        if (PaletteData_GetSelectedBuffersMask(paletteData) == 0) {
-            sub_02015738(BattleSystem_GetPaletteAnimator(partyMenuData->battleSys), 0);
+        if (useOverlay || PaletteData_GetSelectedBuffersMask(paletteData) == 0) {
+            if (!useOverlay) {
+                sub_02015738(BattleSystem_GetPaletteAnimator(partyMenuData->battleSys), 0);
+            }
 
             if (partyMenuData->battlePartyCtx->selectedPartyIndex == 6) {
                 BattleController_EmitPartyMenuResult(partyMenuData->battleSys, partyMenuData->battler, 0xFF);

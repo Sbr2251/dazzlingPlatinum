@@ -21135,7 +21135,7 @@ index 0000000..fc10367
 +} // namespace SIM::Render
 diff --git a/libraries/sim/src/render_gpu/fx_hudhd.cpp b/libraries/sim/src/render_gpu/fx_hudhd.cpp
 new file mode 100644
-index 0000000..9d038b2
+index 0000000..5226b89
 --- /dev/null
 +++ b/libraries/sim/src/render_gpu/fx_hudhd.cpp
 @@ -0,0 +1,1602 @@
@@ -22687,13 +22687,13 @@ index 0000000..9d038b2
 +    ext.line = [&](float x0, float y0, float x1, float y1, float t, HudExtColor col) {
 +      db.Line(x0, y0, x1, y1, t, toC4(col));
 +    };
-+    ext.sprite = [&](const HudSprite *sp, float x, float y, float w, float h, HudExtColor tint) {
++    ext.sprite = [&](const HudUiSprite *sp, float x, float y, float w, float h, HudExtColor tint) {
 +      db.DrawSprite(sp, x, y, w, h, toC4(tint));
 +    };
-+    ext.spriteNineSlice = [&](const HudSprite *sp, float x, float y, float w, float h, float bs, HudExtColor tint) {
-+      db.DrawSpriteNineSlice(sp, x, y, w, h, bs, toC4(tint));
++    ext.spriteNineSlice = [&](const HudUiSprite *sp, float x, float y, float w, float h, float bs, HudExtColor tint) {
++      db.DrawSprite9Slice(sp, x, y, w, h, bs, toC4(tint));
 +    };
-+    ext.spriteAspectFit = [&](const HudSprite *sp, float x, float y, float w, float h, HudExtColor tint) {
++    ext.spriteAspectFit = [&](const HudUiSprite *sp, float x, float y, float w, float h, HudExtColor tint) {
 +      db.DrawSpriteAspectFit(sp, x, y, w, h, toC4(tint));
 +    };
 +    ext.measureText = [&](const char *str, float sz) -> float { return measureText(str, sz); };
@@ -23415,7 +23415,7 @@ index 0000000..9fa2ea1
 +} // namespace SIM::Render
 diff --git a/libraries/sim/src/render_gpu/fx_hudhd_ext.hpp b/libraries/sim/src/render_gpu/fx_hudhd_ext.hpp
 new file mode 100644
-index 0000000..faed217
+index 0000000..8497f2f
 --- /dev/null
 +++ b/libraries/sim/src/render_gpu/fx_hudhd_ext.hpp
 @@ -0,0 +1,41 @@
@@ -23447,9 +23447,9 @@ index 0000000..faed217
 +  std::function<void(float x, float y, float w, float h, float radius, float soft, float alpha)> shadowRect;
 +  std::function<void(float cx, float cy, float r, HudExtColor top, HudExtColor bot)> circle;
 +  std::function<void(float x0, float y0, float x1, float y1, float thick, HudExtColor col)> line;
-+  std::function<void(const HudSprite *sp, float x, float y, float w, float h, HudExtColor tint)> sprite;
-+  std::function<void(const HudSprite *sp, float x, float y, float w, float h, float borderScale, HudExtColor tint)> spriteNineSlice;
-+  std::function<void(const HudSprite *sp, float x, float y, float w, float h, HudExtColor tint)> spriteAspectFit;
++  std::function<void(const HudUiSprite *sp, float x, float y, float w, float h, HudExtColor tint)> sprite;
++  std::function<void(const HudUiSprite *sp, float x, float y, float w, float h, float borderScale, HudExtColor tint)> spriteNineSlice;
++  std::function<void(const HudUiSprite *sp, float x, float y, float w, float h, HudExtColor tint)> spriteAspectFit;
 +  std::function<float(const char *str, float sizeCanvas)> measureText;
 +  std::function<void(const char *str, float x, float y, float sizeCanvas, HudExtColor col, bool shadow)> drawText;
 +  std::function<void(const char *str, float x, float y, float maxW, float sizeCanvas, float lineH,
@@ -23462,17 +23462,722 @@ index 0000000..faed217
 +} // namespace SIM::Render
 diff --git a/libraries/sim/src/render_gpu/fx_hudhd_overlay.cpp b/libraries/sim/src/render_gpu/fx_hudhd_overlay.cpp
 new file mode 100644
-index 0000000..fb81de4
+index 0000000..f8b407c
 --- /dev/null
 +++ b/libraries/sim/src/render_gpu/fx_hudhd_overlay.cpp
-@@ -0,0 +1,10 @@
+@@ -0,0 +1,715 @@
 +#include "fx_hudhd_ext.hpp"
 +
++#include <algorithm>
++#include <cmath>
++#include <cstdio>
++#include <cstring>
++
 +namespace SIM::Render {
++namespace {
++
++struct TypePal {
++  HudExtColor top;
++  HudExtColor bot;
++  const char *name;
++};
++
++const TypePal kTypePal[19] = {
++    {HudC4(168, 168, 136), HudC4(132, 132, 102), "NORMAL"},
++    {HudC4(204, 62, 50),   HudC4(162, 40, 30),   "FIGHTING"},
++    {HudC4(142, 168, 240), HudC4(104, 132, 206), "FLYING"},
++    {HudC4(174, 78, 174),  HudC4(136, 52, 136),  "POISON"},
++    {HudC4(218, 184, 96),  HudC4(182, 148, 66),  "GROUND"},
++    {HudC4(186, 162, 74),  HudC4(148, 126, 48),  "ROCK"},
++    {HudC4(166, 188, 42),  HudC4(130, 150, 24),  "BUG"},
++    {HudC4(118, 92, 168),  HudC4(88, 64, 134),   "GHOST"},
++    {HudC4(172, 178, 200), HudC4(132, 138, 164), "STEEL"},
++    {HudC4(110, 162, 148), HudC4(78, 126, 114),  "???"},
++    {HudC4(242, 118, 52),  HudC4(206, 82, 28),   "FIRE"},
++    {HudC4(88, 156, 242),  HudC4(56, 118, 206),  "WATER"},
++    {HudC4(110, 202, 82),  HudC4(76, 164, 52),   "GRASS"},
++    {HudC4(246, 204, 48),  HudC4(212, 166, 22),  "ELECTRIC"},
++    {HudC4(244, 96, 146),  HudC4(206, 62, 112),  "PSYCHIC"},
++    {HudC4(122, 212, 214), HudC4(84, 174, 178),  "ICE"},
++    {HudC4(118, 86, 244),  HudC4(82, 52, 206),   "DRAGON"},
++    {HudC4(116, 92, 78),   HudC4(82, 62, 50),    "DARK"},
++    {HudC4(236, 146, 198), HudC4(202, 108, 164), "FAIRY"},
++};
++
++struct TabAccent {
++  HudExtColor top;
++  HudExtColor bot;
++  HudExtColor glow;
++};
++
++const TabAccent kTabAccents[4] = {
++    {HudC4(46, 186, 126), HudC4(28, 142, 92),  HudC4(120, 245, 190)}, // HP/PP
++    {HudC4(228, 72, 84),  HudC4(182, 42, 54),  HudC4(255, 148, 158)}, // Poke Balls
++    {HudC4(228, 168, 44), HudC4(184, 124, 22), HudC4(255, 220, 120)}, // Status
++    {HudC4(64, 134, 232), HudC4(38, 94, 188),  HudC4(140, 196, 255)}, // Battle
++};
++
++int BdspTypeIndex(int ptType) {
++  if (ptType < 0 || ptType >= 19 || ptType == 9) return 0;
++  return (ptType > 9) ? (ptType - 1) : ptType;
++}
++
++void DrawSelectionBrackets(const HudExtDraw &ext, float x, float y, float w, float h, float pulse) {
++  if (ext.useBdspUi && ext.atlas && ext.atlas->cursorFrame) {
++    float pad = 1.6f + 0.35f * pulse;
++    ext.spriteNineSlice(ext.atlas->cursorFrame, x - pad, y - pad, w + pad * 2.0f, h + pad * 2.0f,
++                        0.16f, HudC4(255, 255, 255, 0.92f + 0.08f * pulse));
++    return;
++  }
++  float out = 1.1f + 0.4f * pulse;
++  float len = 4.4f;
++  float th = 1.15f;
++  HudExtColor col = HudC4(142, 222, 255, 0.90f + 0.10f * pulse);
++  float x0 = x - out, y0 = y - out;
++  float x1 = x + w + out, y1 = y + h + out;
++  ext.line(x0, y0, x0 + len, y0, th, col); ext.line(x0, y0, x0, y0 + len, th, col);
++  ext.line(x1, y0, x1 - len, y0, th, col); ext.line(x1, y0, x1, y0 + len, th, col);
++  ext.line(x0, y1, x0 + len, y1, th, col); ext.line(x0, y1, x0, y1 - len, th, col);
++  ext.line(x1, y1, x1 - len, y1, th, col); ext.line(x1, y1, x1, y1 - len, th, col);
++}
++
++void DrawStatusBadge(const HudExtDraw &ext, int status, float x, float y, float w, float h) {
++  if (status == SIM_HUDHD_STATUS_NONE) return;
++  if (ext.useBdspUi && ext.atlas) {
++    const HudUiSprite *sp = nullptr;
++    switch (status) {
++      case SIM_HUDHD_STATUS_PAR: sp = ext.atlas->statusPar; break;
++      case SIM_HUDHD_STATUS_SLP: sp = ext.atlas->statusSlp; break;
++      case SIM_HUDHD_STATUS_FRZ: sp = ext.atlas->statusFrz; break;
++      case SIM_HUDHD_STATUS_BRN: sp = ext.atlas->statusBrn; break;
++      case SIM_HUDHD_STATUS_PSN: sp = ext.atlas->statusPsn; break;
++      case SIM_HUDHD_STATUS_TOX: sp = ext.atlas->statusTox; break;
++      case SIM_HUDHD_STATUS_FNT: sp = ext.atlas->statusFnt; break;
++      default: break;
++    }
++    if (sp) {
++      ext.spriteAspectFit(sp, x, y, w, h, HudC4(255, 255, 255, 1.0f));
++      return;
++    }
++  }
++  const char *lbl = "";
++  HudExtColor top = HudC4(160, 160, 160), bot = HudC4(110, 110, 110);
++  switch (status) {
++    case SIM_HUDHD_STATUS_PSN: lbl = "PSN"; top = HudC4(178, 76, 190); bot = HudC4(134, 46, 148); break;
++    case SIM_HUDHD_STATUS_TOX: lbl = "TOX"; top = HudC4(134, 52, 168); bot = HudC4(96, 30, 128); break;
++    case SIM_HUDHD_STATUS_BRN: lbl = "BRN"; top = HudC4(236, 94, 52);  bot = HudC4(190, 58, 28); break;
++    case SIM_HUDHD_STATUS_PAR: lbl = "PAR"; top = HudC4(234, 186, 36); bot = HudC4(192, 142, 16); break;
++    case SIM_HUDHD_STATUS_SLP: lbl = "SLP"; top = HudC4(136, 152, 174); bot = HudC4(98, 114, 136); break;
++    case SIM_HUDHD_STATUS_FRZ: lbl = "FRZ"; top = HudC4(92, 200, 232); bot = HudC4(56, 154, 192); break;
++    case SIM_HUDHD_STATUS_FNT: lbl = "FNT"; top = HudC4(182, 52, 62);  bot = HudC4(136, 32, 42); break;
++    default: return;
++  }
++  ext.roundRect(x, y, w, h, 2.2f, top, bot, 0.35f, HudC4(255, 255, 255, 0.6f));
++  float tw = ext.measureText(lbl, 5.4f);
++  ext.drawText(lbl, x + (w - tw) * 0.5f, y + (h - 5.4f) * 0.5f - 0.3f, 5.4f, HudC4(255, 255, 255, 1.0f), false);
++}
++
++void DrawBallIcon(const HudExtDraw &ext, const SIM_HudHD_OverlayMon &mon, float cx, float cy, float r) {
++  if (ext.useBdspUi && ext.atlas) {
++    const HudUiSprite *sp = ext.atlas->ballHdOk ? ext.atlas->ballHdOk : ext.atlas->ballOk;
++    if (mon.isFainted) {
++      sp = ext.atlas->ballFainted ? ext.atlas->ballFainted : sp;
++    } else if (mon.status != SIM_HUDHD_STATUS_NONE) {
++      sp = ext.atlas->ballStatus ? ext.atlas->ballStatus : sp;
++    }
++    if (sp) {
++      ext.spriteAspectFit(sp, cx - r, cy - r, r * 2.0f, r * 2.0f, HudC4(255, 255, 255, 1.0f));
++      return;
++    }
++  }
++  HudExtColor top = mon.isFainted ? HudC4(110, 82, 88) : (mon.isActive ? HudC4(66, 198, 245) : HudC4(228, 66, 74));
++  HudExtColor bot = mon.isFainted ? HudC4(76, 64, 70) : HudC4(236, 242, 250);
++  ext.circle(cx, cy, r, top, bot);
++  ext.line(cx - r * 0.92f, cy, cx + r * 0.92f, cy, 0.9f, HudC4(28, 36, 52, 0.95f));
++  ext.circle(cx, cy, r * 0.32f, HudC4(252, 254, 255), HudC4(212, 222, 236));
++}
++
++void DrawHpBar(const HudExtDraw &ext, float x, float y, float w, float h, int hp, int maxHp) {
++  float frac = (maxHp > 0) ? std::clamp(static_cast<float>(hp) / static_cast<float>(maxHp), 0.0f, 1.0f) : 0.0f;
++  ext.roundRect(x, y, w, h, h * 0.5f, HudC4(16, 22, 34, 0.92f), HudC4(24, 32, 46, 0.92f),
++                0.45f, HudC4(180, 200, 228, 0.45f));
++  float fillW = (w - 1.6f) * frac;
++  if (fillW > 0.6f) {
++    HudExtColor top = HudC4(78, 224, 128), bot = HudC4(42, 180, 92);
++    if (frac <= 0.20f) {
++      top = HudC4(246, 84, 76);
++      bot = HudC4(204, 48, 44);
++    } else if (frac <= 0.50f) {
++      top = HudC4(248, 206, 62);
++      bot = HudC4(216, 162, 26);
++    }
++    ext.roundRect(x + 0.8f, y + 0.8f, fillW, h - 1.6f, (h - 1.6f) * 0.5f, top, bot, 0.0f, {});
++  }
++}
++
++void DrawScrimHeaderFooter(const HudExtDraw &ext, const SIM_HudHD_Overlay &ov) {
++  const float W = ext.canvasW;
++  const float H = ext.canvasH;
++
++  // Translucent dark-navy scrim letting the live 3D battle scene breathe behind it.
++  ext.roundRect(0.0f, 0.0f, W, H, 0.0f,
++                HudC4(10, 16, 28, 0.72f), HudC4(6, 11, 22, 0.80f), 0.0f, {});
++
++  // Top header bar.
++  ext.roundRect(0.0f, 0.0f, W, 21.0f, 0.0f,
++                HudC4(16, 26, 46, 0.90f), HudC4(12, 20, 36, 0.86f), 0.0f, {});
++  ext.line(0.0f, 21.0f, W, 21.0f, 0.65f, HudC4(130, 194, 255, 0.36f));
++
++  // Accent pill next to title + inline subtitle (avoids top-right fast-forward badge).
++  ext.roundRect(10.0f, 5.5f, 3.0f, 10.0f, 1.5f, HudC4(92, 198, 255), HudC4(48, 132, 232), 0.0f, {});
++  ext.drawText(ov.title, 16.5f, 5.4f, 9.6f, HudC4(248, 252, 255, 1.0f), true);
++
++  if (ov.subtitle[0] != '\0') {
++    float titleW = ext.measureText(ov.title, 9.6f);
++    float sepX = 16.5f + titleW + 8.0f;
++    ext.line(sepX, 6.0f, sepX, 15.2f, 0.7f, HudC4(140, 188, 240, 0.45f));
++    ext.drawText(ov.subtitle, sepX + 7.5f, 6.8f, 7.2f, HudC4(178, 214, 252, 0.96f), true);
++  }
++
++  // Bottom key-guide footer bar + touch-friendly Prev/Next and Back pills.
++  ext.roundRect(0.0f, H - 16.5f, W, 16.5f, 0.0f,
++                HudC4(10, 16, 28, 0.88f), HudC4(8, 12, 22, 0.94f), 0.0f, {});
++  ext.line(0.0f, H - 16.5f, W, H - 16.5f, 0.55f, HudC4(130, 194, 255, 0.25f));
++  if (ov.footerHint[0] != '\0') {
++    float fw = ext.measureText(ov.footerHint, 6.4f);
++    ext.drawText(ov.footerHint, (W - fw) * 0.5f, H - 11.8f, 6.4f, HudC4(204, 222, 244, 0.92f), false);
++  }
++
++  if (ov.kind == SIM_HUDHD_OVERLAY_SUMMARY && ov.confirmMode == 0) {
++    ext.roundRect(10.0f, H - 14.5f, 44.0f, 12.2f, 3.5f,
++                  HudC4(34, 50, 78, 0.92f), HudC4(22, 34, 56, 0.94f),
++                  0.5f, HudC4(150, 194, 242, 0.50f));
++    float pw = ext.measureText("< Prev", 6.0f);
++    ext.drawText("< Prev", 10.0f + (44.0f - pw) * 0.5f, H - 11.6f, 6.0f, HudC4(232, 242, 255, 0.96f), false);
++
++    ext.roundRect(58.0f, H - 14.5f, 44.0f, 12.2f, 3.5f,
++                  HudC4(34, 50, 78, 0.92f), HudC4(22, 34, 56, 0.94f),
++                  0.5f, HudC4(150, 194, 242, 0.50f));
++    float nw = ext.measureText("Next >", 6.0f);
++    ext.drawText("Next >", 58.0f + (44.0f - nw) * 0.5f, H - 11.6f, 6.0f, HudC4(232, 242, 255, 0.96f), false);
++  }
++
++  if (std::strstr(ov.footerHint, "Back") != nullptr) {
++    ext.roundRect(W - 56.0f, H - 14.5f, 46.0f, 12.2f, 3.5f,
++                  HudC4(46, 62, 92, 0.94f), HudC4(30, 42, 66, 0.96f),
++                  0.55f, HudC4(175, 210, 250, 0.60f));
++    float bw = ext.measureText("B Back", 6.0f);
++    ext.drawText("B Back", (W - 56.0f) + (46.0f - bw) * 0.5f, H - 11.6f, 6.0f, HudC4(246, 250, 255, 1.0f), false);
++  }
++}
++
++void DrawErrorBanner(const HudExtDraw &ext, const SIM_HudHD_Overlay &ov) {
++  if (ov.errorMsg[0] == '\0') return;
++  const float W = ext.canvasW;
++  float bw = std::min(W - 36.0f, std::max(150.0f, ext.measureText(ov.errorMsg, 7.2f) + 28.0f));
++  float bh = 18.0f;
++  float bx = (W - bw) * 0.5f;
++  float by = 152.0f;
++  ext.shadowRect(bx, by + 1.0f, bw, bh, 5.0f, 3.5f, 0.50f);
++  ext.roundRect(bx, by, bw, bh, 5.0f,
++                HudC4(128, 26, 38, 0.96f), HudC4(88, 16, 26, 0.96f),
++                0.9f, HudC4(255, 136, 146, 0.90f));
++  float tw = ext.measureText(ov.errorMsg, 7.2f);
++  ext.drawText(ov.errorMsg, bx + (bw - tw) * 0.5f, by + 5.2f, 7.2f, HudC4(255, 248, 248, 1.0f), true);
++}
++
++void RenderBagOverlay(const HudExtDraw &ext, const SIM_HudHD_Overlay &ov, float pulse) {
++  const int numTabs = std::clamp(ov.numTabs, 1, SIM_HUDHD_MAX_OVERLAY_TABS);
++  const int activeTab = std::clamp(ov.activeTab, 0, numTabs - 1);
++  const TabAccent &accent = kTabAccents[activeTab];
++
++  // Top category pill tabs with L/R badges.
++  ext.roundRect(10.0f, 27.5f, 13.0f, 11.0f, 3.0f,
++                HudC4(32, 46, 70, 0.92f), HudC4(20, 30, 48, 0.92f),
++                0.5f, HudC4(165, 200, 242, 0.55f));
++  ext.drawText("L", 14.5f, 29.5f, 6.4f, HudC4(226, 238, 255, 0.95f), false);
++
++  ext.roundRect(ext.canvasW - 23.0f, 27.5f, 13.0f, 11.0f, 3.0f,
++                HudC4(32, 46, 70, 0.92f), HudC4(20, 30, 48, 0.92f),
++                0.5f, HudC4(165, 200, 242, 0.55f));
++  ext.drawText("R", ext.canvasW - 18.8f, 29.5f, 6.4f, HudC4(226, 238, 255, 0.95f), false);
++
++  const float tabsX = 26.5f;
++  const float tabsW = ext.canvasW - 53.0f;
++  const float gap = 4.0f;
++  const float tabW = (tabsW - gap * (numTabs - 1)) / static_cast<float>(numTabs);
++  const float tabY = 25.0f;
++  const float tabH = 15.5f;
++
++  for (int t = 0; t < numTabs; ++t) {
++    float tx = tabsX + t * (tabW + gap);
++    bool isAct = (t == activeTab);
++    if (isAct) {
++      ext.shadowRect(tx, tabY + 1.0f, tabW, tabH, 5.0f, 2.5f, 0.40f);
++      ext.roundRect(tx, tabY, tabW, tabH, 5.0f,
++                    kTabAccents[t].top, kTabAccents[t].bot,
++                    0.95f, HudC4(255, 255, 255, 0.92f));
++    } else {
++      ext.roundRect(tx, tabY + 0.6f, tabW, tabH - 1.2f, 4.5f,
++                    HudC4(26, 38, 58, 0.82f), HudC4(18, 28, 44, 0.84f),
++                    0.5f, HudC4(130, 162, 204, 0.30f));
++    }
++    const char *tname = ov.tabNames[t];
++    float tw = ext.measureText(tname, 6.8f);
++    ext.drawText(tname, tx + (tabW - tw) * 0.5f, tabY + (isAct ? 4.1f : 4.5f), 6.8f,
++                 isAct ? HudC4(255, 255, 255, 1.0f) : HudC4(178, 196, 222, 0.86f), isAct);
++  }
++
++  // Left frosted description card.
++  const float leftX = 10.0f, leftY = 45.5f, leftW = 114.0f, leftH = 124.0f;
++  ext.shadowRect(leftX, leftY + 1.2f, leftW, leftH, 6.0f, 3.0f, 0.38f);
++  ext.roundRect(leftX, leftY, leftW, leftH, 6.0f,
++                HudC4(18, 29, 48, 0.90f), HudC4(12, 20, 35, 0.93f),
++                0.7f, HudC4(150, 195, 245, 0.36f));
++
++  // Colored pocket header stripe inside left card.
++  ext.roundRect(leftX + 5.0f, leftY + 5.0f, leftW - 10.0f, 15.0f, 3.8f,
++                accent.top, accent.bot, 0.4f, HudC4(255, 255, 255, 0.35f));
++  char countSummary[32];
++  std::snprintf(countSummary, sizeof(countSummary), "%s (%d)", ov.tabNames[activeTab], ov.totalItems);
++  float csw = ext.measureText(countSummary, 6.6f);
++  ext.drawText(countSummary, leftX + (leftW - csw) * 0.5f, leftY + 9.0f, 6.6f,
++               HudC4(255, 255, 255, 1.0f), true);
++
++  // Find selected item for left panel title/count.
++  const SIM_HudHD_OverlayItem *selItem = nullptr;
++  for (int i = 0; i < ov.numItems && i < SIM_HUDHD_MAX_OVERLAY_ITEMS; ++i) {
++    if (ov.items[i].valid && ov.items[i].selected) {
++      selItem = &ov.items[i];
++      break;
++    }
++  }
++
++  if (selItem) {
++    ext.drawText(selItem->name, leftX + 7.0f, leftY + 26.5f, 8.2f, HudC4(250, 253, 255, 1.0f), true);
++    char qtyBuf[24];
++    std::snprintf(qtyBuf, sizeof(qtyBuf), "In Bag: x%d", selItem->count);
++    ext.drawText(qtyBuf, leftX + 7.0f, leftY + 38.0f, 6.5f, accent.glow, false);
++    ext.line(leftX + 7.0f, leftY + 48.5f, leftX + leftW - 7.0f, leftY + 48.5f, 0.55f,
++             HudC4(160, 198, 240, 0.28f));
++    if (ov.desc[0] != '\0') {
++      ext.drawWrappedText(ov.desc, leftX + 7.0f, leftY + 53.0f, leftW - 14.0f, 6.4f, 8.8f, 5,
++                          HudC4(222, 234, 248, 0.95f), false);
++    }
++    // Touch-friendly "Use" action pill at bottom of left description panel.
++    ext.roundRect(leftX + 7.0f, leftY + leftH - 20.5f, leftW - 14.0f, 15.0f, 4.2f,
++                  accent.top, accent.bot, 0.7f, HudC4(255, 255, 255, 0.80f));
++    const char *useLbl = "A  Use Item";
++    float uw = ext.measureText(useLbl, 6.8f);
++    ext.drawText(useLbl, leftX + (leftW - uw) * 0.5f, leftY + leftH - 16.6f, 6.8f,
++                 HudC4(255, 255, 255, 1.0f), true);
++  } else {
++    ext.drawWrappedText("No usable items in this pocket.", leftX + 10.0f, leftY + 52.0f, leftW - 20.0f,
++                        6.8f, 9.5f, 3, HudC4(166, 184, 210, 0.85f), false);
++  }
++
++  // Right frosted item list container.
++  const float listX = 130.0f, listY = 45.5f, listW = ext.canvasW - 140.0f, listH = 124.0f;
++  ext.shadowRect(listX, listY + 1.2f, listW, listH, 6.0f, 3.0f, 0.36f);
++  ext.roundRect(listX, listY, listW, listH, 6.0f,
++                HudC4(16, 26, 44, 0.86f), HudC4(11, 18, 32, 0.90f),
++                0.7f, HudC4(150, 195, 245, 0.30f));
++
++  if (ov.numItems <= 0) {
++    const char *emptyMsg = "Pocket is empty";
++    float ew = ext.measureText(emptyMsg, 8.0f);
++    ext.drawText(emptyMsg, listX + (listW - ew) * 0.5f, listY + (listH - 8.0f) * 0.5f,
++                 8.0f, HudC4(162, 180, 206, 0.80f), false);
++    return;
++  }
++
++  const float padX = 5.0f;
++  const float padY = 4.5f;
++  const float rowH = 15.0f;
++  const float rowGap = 1.6f;
++  const float rowW = listW - padX * 2.0f - (ov.totalItems > ov.numItems ? 5.5f : 0.0f);
++
++  for (int i = 0; i < ov.numItems && i < SIM_HUDHD_MAX_OVERLAY_ITEMS; ++i) {
++    const SIM_HudHD_OverlayItem &it = ov.items[i];
++    if (!it.valid) continue;
++    float ry = listY + padY + i * (rowH + rowGap);
++    bool sel = (it.selected != 0);
++
++    if (sel) {
++      ext.shadowRect(listX + padX, ry + 0.8f, rowW, rowH, 4.0f, 2.0f, 0.32f);
++      ext.roundRect(listX + padX, ry, rowW, rowH, 4.0f,
++                    HudC4(250, 253, 255, 0.97f), HudC4(228, 238, 252, 0.97f),
++                    0.85f, accent.top);
++      ext.roundRect(listX + padX + 1.5f, ry + 2.2f, 2.6f, rowH - 4.4f, 1.2f,
++                    accent.top, accent.bot, 0.0f, {});
++    } else {
++      ext.roundRect(listX + padX, ry, rowW, rowH, 3.8f,
++                    HudC4(34, 48, 72, 0.68f), HudC4(24, 36, 56, 0.72f),
++                    0.45f, HudC4(160, 194, 236, 0.22f));
++    }
++
++    ext.drawText(it.name, listX + padX + 8.0f, ry + 3.6f, 7.6f,
++                 sel ? HudC4(18, 28, 46, 1.0f) : HudC4(236, 244, 255, 0.95f), !sel);
++
++    char qty[16];
++    std::snprintf(qty, sizeof(qty), "x%d", it.count);
++    float qw = ext.measureText(qty, 7.0f);
++    float qPillW = qw + 8.0f;
++    float qPillX = listX + padX + rowW - qPillW - 4.0f;
++    ext.roundRect(qPillX, ry + 2.6f, qPillW, rowH - 5.2f, 3.0f,
++                  sel ? accent.top : HudC4(20, 32, 52, 0.88f),
++                  sel ? accent.bot : HudC4(14, 24, 40, 0.88f),
++                  0.0f, {});
++    ext.drawText(qty, qPillX + 4.0f, ry + 3.8f, 7.0f,
++                 sel ? HudC4(255, 255, 255, 1.0f) : HudC4(192, 220, 252, 0.95f), false);
++
++    if (sel) {
++      DrawSelectionBrackets(ext, listX + padX, ry, rowW, rowH, pulse);
++    }
++  }
++
++  // Scrollbar when pocket has more items than visible rows.
++  if (ov.totalItems > ov.numItems && ov.totalItems > 0) {
++    float sbX = listX + listW - 6.0f;
++    float sbY = listY + 6.0f;
++    float sbH = listH - 12.0f;
++    ext.roundRect(sbX, sbY, 2.8f, sbH, 1.4f, HudC4(255, 255, 255, 0.14f), HudC4(255, 255, 255, 0.14f), 0.0f, {});
++    float thumbFrac = std::clamp(static_cast<float>(ov.numItems) / static_cast<float>(ov.totalItems), 0.15f, 1.0f);
++    float maxScroll = static_cast<float>(std::max(1, ov.totalItems - ov.numItems));
++    float scrollFrac = std::clamp(static_cast<float>(ov.scrollOffset) / maxScroll, 0.0f, 1.0f);
++    float thumbH = sbH * thumbFrac;
++    float thumbY = sbY + (sbH - thumbH) * scrollFrac;
++    ext.roundRect(sbX, thumbY, 2.8f, thumbH, 1.4f, accent.top, accent.bot, 0.0f, {});
++  }
++}
++
++void DrawGenderMark(const HudExtDraw &ext, int gender, float x, float y, float sz) {
++  if (gender == SIM_HUDHD_GENDER_MALE) {
++    if (ext.useBdspUi && ext.atlas && ext.atlas->genderM) {
++      ext.spriteAspectFit(ext.atlas->genderM, x, y, sz, sz, HudC4(255, 255, 255, 1.0f));
++    } else {
++      ext.drawText("\xE2\x99\x82", x, y, sz, HudC4(86, 174, 255, 1.0f), false);
++    }
++  } else if (gender == SIM_HUDHD_GENDER_FEMALE) {
++    if (ext.useBdspUi && ext.atlas && ext.atlas->genderF) {
++      ext.spriteAspectFit(ext.atlas->genderF, x, y, sz, sz, HudC4(255, 255, 255, 1.0f));
++    } else {
++      ext.drawText("\xE2\x99\x80", x, y, sz, HudC4(252, 114, 152, 1.0f), false);
++    }
++  }
++}
++
++void RenderPartyOverlay(const HudExtDraw &ext, const SIM_HudHD_Overlay &ov, float pulse) {
++  const float gridX = 12.0f;
++  const float gridY = 27.0f;
++  const float gapX = 8.0f;
++  const float gapY = 5.5f;
++  const float cardW = (ext.canvasW - gridX * 2.0f - gapX) * 0.5f;
++  const float cardH = 43.0f;
++
++  for (int i = 0; i < SIM_HUDHD_MAX_OVERLAY_PARTY; ++i) {
++    const int col = i & 1;
++    const int row = i >> 1;
++    const float cx = gridX + col * (cardW + gapX);
++    const float cy = gridY + row * (cardH + gapY);
++    const SIM_HudHD_OverlayMon &mon = ov.party[i];
++
++    if (!mon.valid) {
++      ext.roundRect(cx, cy, cardW, cardH, 5.5f,
++                    HudC4(14, 22, 36, 0.42f), HudC4(10, 16, 28, 0.46f),
++                    0.5f, HudC4(120, 150, 190, 0.16f));
++      continue;
++    }
++
++    const bool sel = (mon.selected != 0);
++    const bool act = (mon.isActive != 0);
++    const bool fnt = (mon.isFainted != 0);
++
++    HudExtColor topCol, botCol, borderCol;
++    if (sel) {
++      topCol = HudC4(250, 253, 255, 0.97f);
++      botCol = HudC4(228, 238, 252, 0.97f);
++      borderCol = act ? HudC4(56, 186, 248, 0.98f) : (fnt ? HudC4(228, 86, 96, 0.96f) : HudC4(88, 174, 255, 0.96f));
++    } else if (act) {
++      topCol = HudC4(24, 74, 122, 0.92f);
++      botCol = HudC4(16, 48, 86, 0.94f);
++      borderCol = HudC4(96, 206, 255, 0.72f);
++    } else if (fnt) {
++      topCol = HudC4(74, 30, 38, 0.88f);
++      botCol = HudC4(50, 20, 28, 0.90f);
++      borderCol = HudC4(212, 92, 102, 0.50f);
++    } else {
++      topCol = HudC4(26, 38, 60, 0.90f);
++      botCol = HudC4(18, 28, 46, 0.92f);
++      borderCol = HudC4(148, 184, 228, 0.34f);
++    }
++
++    ext.shadowRect(cx, cy + 1.2f, cardW, cardH, 5.5f, 2.5f, sel ? 0.42f : 0.28f);
++    ext.roundRect(cx, cy, cardW, cardH, 5.5f, topCol, botCol, sel ? 1.1f : 0.65f, borderCol);
++
++    // Left accent strip for active/fainted state.
++    HudExtColor stripTop = act ? HudC4(66, 204, 255) : (fnt ? HudC4(218, 66, 76) : HudC4(62, 198, 128));
++    HudExtColor stripBot = act ? HudC4(34, 142, 224) : (fnt ? HudC4(166, 38, 48) : HudC4(34, 152, 90));
++    ext.roundRect(cx + 2.0f, cy + 4.0f, 2.8f, cardH - 8.0f, 1.4f, stripTop, stripBot, 0.0f, {});
++
++    // Ball icon on left.
++    DrawBallIcon(ext, mon, cx + 15.5f, cy + 15.5f, 7.2f);
++
++    const HudExtColor mainText = sel ? HudC4(18, 28, 46, 1.0f) : HudC4(248, 252, 255, 1.0f);
++    const HudExtColor subText = sel ? HudC4(62, 80, 110, 0.96f) : HudC4(186, 208, 236, 0.92f);
++
++    // Name + Gender + Level.
++    const float tx = cx + 27.0f;
++    ext.drawText(mon.name, tx, cy + 5.2f, 8.2f, mainText, !sel);
++    float nw = ext.measureText(mon.name, 8.2f);
++    DrawGenderMark(ext, mon.gender, tx + nw + 2.5f, cy + 5.6f, 7.2f);
++
++    char lvBuf[16];
++    std::snprintf(lvBuf, sizeof(lvBuf), "Lv.%d", mon.level);
++    float lw = ext.measureText(lvBuf, 7.0f);
++    ext.drawText(lvBuf, cx + cardW - 6.0f - lw, cy + 6.0f, 7.0f, subText, false);
++
++    // HP bar + HP numbers.
++    DrawHpBar(ext, tx, cy + 18.0f, cardW - 33.0f, 5.2f, mon.hp, mon.maxHp);
++
++    char hpBuf[24];
++    std::snprintf(hpBuf, sizeof(hpBuf), "%d / %d", mon.hp, mon.maxHp);
++    float hpw = ext.measureText(hpBuf, 6.4f);
++    ext.drawText(hpBuf, cx + cardW - 6.0f - hpw, cy + 25.0f, 6.4f, mainText, false);
++
++    // Active tag or Status pill on bottom-left; held item on bottom-right/middle.
++    float badgeX = tx;
++    if (act) {
++      const char *tag = "IN BATTLE";
++      float tagW = ext.measureText(tag, 5.0f) + 6.0f;
++      ext.roundRect(badgeX, cy + 25.0f, tagW, 8.2f, 2.2f,
++                    HudC4(42, 162, 236), HudC4(24, 118, 196), 0.0f, {});
++      ext.drawText(tag, badgeX + 3.0f, cy + 26.4f, 5.0f, HudC4(255, 255, 255, 1.0f), false);
++      badgeX += tagW + 3.0f;
++    }
++    if (mon.status != SIM_HUDHD_STATUS_NONE) {
++      DrawStatusBadge(ext, mon.status, badgeX, cy + 24.8f, 20.0f, 8.6f);
++    }
++
++    if (mon.heldItem[0] != '\0' && std::strcmp(mon.heldItem, "None") != 0) {
++      char itemLbl[44];
++      std::snprintf(itemLbl, sizeof(itemLbl), "Item: %s", mon.heldItem);
++      ext.drawText(itemLbl, tx, cy + 34.5f, 5.6f, subText, false);
++    } else if (mon.ability[0] != '\0' && std::strcmp(mon.ability, "---") != 0) {
++      ext.drawText(mon.ability, tx, cy + 34.5f, 5.6f, subText, false);
++    }
++
++    if (sel && ov.confirmMode == 0) {
++      DrawSelectionBrackets(ext, cx, cy, cardW, cardH, pulse);
++    }
++  }
++
++  // Inline Shift / Summary / Cancel action prompt modal.
++  if (ov.confirmMode == 1 && ov.confirmCount > 0) {
++    const int nOpt = std::clamp(ov.confirmCount, 1, 3);
++    const float pw = 104.0f;
++    const float optH = 17.5f;
++    const float optGap = 3.5f;
++    const float ph = 14.0f + nOpt * optH + (nOpt - 1) * optGap;
++    const float px = ext.canvasW - pw - 12.0f;
++    const float py = 170.0f - ph;
++
++    ext.shadowRect(px, py + 2.0f, pw, ph, 6.0f, 4.5f, 0.55f);
++    ext.roundRect(px, py, pw, ph, 6.0f,
++                  HudC4(18, 28, 48, 0.96f), HudC4(12, 20, 36, 0.97f),
++                  1.0f, HudC4(130, 198, 255, 0.72f));
++
++    for (int k = 0; k < nOpt; ++k) {
++      float oy = py + 7.0f + k * (optH + optGap);
++      bool sel = (k == ov.confirmCursor);
++      if (sel) {
++        ext.roundRect(px + 7.0f, oy, pw - 14.0f, optH, 4.2f,
++                      HudC4(250, 253, 255, 0.98f), HudC4(228, 238, 252, 0.98f),
++                      0.9f, HudC4(66, 178, 252, 0.95f));
++      } else {
++        ext.roundRect(px + 7.0f, oy, pw - 14.0f, optH, 4.2f,
++                      HudC4(34, 48, 72, 0.80f), HudC4(24, 36, 56, 0.84f),
++                      0.45f, HudC4(150, 186, 228, 0.28f));
++      }
++      const char *lbl = ov.confirmLabels[k];
++      float lw = ext.measureText(lbl, 7.6f);
++      ext.drawText(lbl, px + (pw - lw) * 0.5f, oy + 4.8f, 7.6f,
++                   sel ? HudC4(18, 28, 46, 1.0f) : HudC4(236, 244, 255, 0.95f), !sel);
++      if (sel) {
++        DrawSelectionBrackets(ext, px + 7.0f, oy, pw - 14.0f, optH, pulse);
++      }
++    }
++  }
++}
++
++void RenderSummaryOverlay(const HudExtDraw &ext, const SIM_HudHD_Overlay &ov, float pulse) {
++  const int idx = std::clamp(ov.partyCursor, 0, SIM_HUDHD_MAX_OVERLAY_PARTY - 1);
++  const SIM_HudHD_OverlayMon &mon = ov.party[idx];
++  if (!mon.valid) return;
++
++  // Left card: Identity, Ability, Held Item & 6 Stats.
++  const float lx = 10.0f, ly = 26.0f, lw = 156.0f, lh = 144.0f;
++  ext.shadowRect(lx, ly + 1.2f, lw, lh, 6.0f, 3.0f, 0.40f);
++  ext.roundRect(lx, ly, lw, lh, 6.0f,
++                HudC4(20, 32, 54, 0.92f), HudC4(13, 21, 38, 0.95f),
++                0.8f, HudC4(142, 192, 248, 0.42f));
++
++  // Identity header inside left card.
++  DrawBallIcon(ext, mon, lx + 16.0f, ly + 16.0f, 7.5f);
++  ext.drawText(mon.name, lx + 28.0f, ly + 6.5f, 9.0f, HudC4(250, 253, 255, 1.0f), true);
++  float nw = ext.measureText(mon.name, 9.0f);
++  DrawGenderMark(ext, mon.gender, lx + 30.5f + nw, ly + 7.2f, 7.6f);
++
++  char lvBuf[16];
++  std::snprintf(lvBuf, sizeof(lvBuf), "Lv.%d", mon.level);
++  float lvw = ext.measureText(lvBuf, 7.2f);
++  ext.drawText(lvBuf, lx + lw - 8.0f - lvw, ly + 7.6f, 7.2f, HudC4(182, 216, 252, 0.96f), false);
++
++  DrawHpBar(ext, lx + 28.0f, ly + 19.5f, lw - 36.0f, 5.2f, mon.hp, mon.maxHp);
++  char hpBuf[28];
++  std::snprintf(hpBuf, sizeof(hpBuf), "HP %d / %d", mon.hp, mon.maxHp);
++  ext.drawText(hpBuf, lx + 28.0f, ly + 26.5f, 6.2f, HudC4(222, 236, 252, 0.95f), false);
++  if (mon.status != SIM_HUDHD_STATUS_NONE) {
++    DrawStatusBadge(ext, mon.status, lx + lw - 28.0f, ly + 26.0f, 20.0f, 8.4f);
++  }
++
++  // Ability & Held Item row.
++  ext.line(lx + 7.0f, ly + 37.5f, lx + lw - 7.0f, ly + 37.5f, 0.55f, HudC4(150, 192, 240, 0.26f));
++  ext.roundRect(lx + 7.0f, ly + 41.0f, (lw - 18.0f) * 0.5f, 18.0f, 3.5f,
++                HudC4(28, 44, 72, 0.85f), HudC4(20, 32, 54, 0.88f), 0.4f, HudC4(140, 184, 232, 0.25f));
++  ext.drawText("ABILITY", lx + 10.5f, ly + 43.0f, 4.8f, HudC4(140, 194, 248, 0.90f), false);
++  ext.drawText(mon.ability, lx + 10.5f, ly + 49.5f, 6.4f, HudC4(248, 252, 255, 1.0f), false);
++
++  float itemBoxX = lx + 11.0f + (lw - 18.0f) * 0.5f;
++  ext.roundRect(itemBoxX, ly + 41.0f, (lw - 18.0f) * 0.5f, 18.0f, 3.5f,
++                HudC4(28, 44, 72, 0.85f), HudC4(20, 32, 54, 0.88f), 0.4f, HudC4(140, 184, 232, 0.25f));
++  ext.drawText("HELD ITEM", itemBoxX + 3.5f, ly + 43.0f, 4.8f, HudC4(248, 206, 118, 0.90f), false);
++  ext.drawText(mon.heldItem, itemBoxX + 3.5f, ly + 49.5f, 6.4f, HudC4(248, 252, 255, 1.0f), false);
++
++  // 6 Stats bars.
++  static const char *const kStatNames[6] = {"HP", "Attack", "Defense", "Sp. Atk", "Sp. Def", "Speed"};
++  static const HudExtColor kStatCols[6] = {
++      {0.34f, 0.86f, 0.48f, 1.0f},
++      {0.96f, 0.46f, 0.36f, 1.0f},
++      {0.94f, 0.72f, 0.26f, 1.0f},
++      {0.42f, 0.68f, 0.98f, 1.0f},
++      {0.62f, 0.52f, 0.96f, 1.0f},
++      {0.96f, 0.44f, 0.72f, 1.0f},
++  };
++  float statY = ly + 64.0f;
++  for (int s = 0; s < 6; ++s) {
++    float ry = statY + s * 12.6f;
++    ext.drawText(kStatNames[s], lx + 8.0f, ry + 1.0f, 6.4f, HudC4(198, 218, 242, 0.95f), false);
++    char sv[16];
++    std::snprintf(sv, sizeof(sv), "%d", mon.stats[s]);
++    float svw = ext.measureText(sv, 6.8f);
++    ext.drawText(sv, lx + 64.0f - svw, ry + 0.8f, 6.8f, HudC4(250, 253, 255, 1.0f), false);
++
++    float barX = lx + 70.0f;
++    float barW = lw - 78.0f;
++    float frac = std::clamp(static_cast<float>(mon.stats[s]) / 260.0f, 0.04f, 1.0f);
++    ext.roundRect(barX, ry + 2.4f, barW, 4.6f, 2.3f,
++                  HudC4(14, 22, 36, 0.86f), HudC4(18, 28, 44, 0.86f), 0.0f, {});
++    ext.roundRect(barX, ry + 2.4f, barW * frac, 4.6f, 2.3f,
++                  kStatCols[s], kStatCols[s], 0.0f, {});
++  }
++
++  // Right card: 4 Type-Colored Move Cards.
++  const float rx = 172.0f, ry = 26.0f, rw = ext.canvasW - 182.0f, rh = 144.0f;
++  ext.shadowRect(rx, ry + 1.2f, rw, rh, 6.0f, 3.0f, 0.40f);
++  ext.roundRect(rx, ry, rw, rh, 6.0f,
++                HudC4(18, 29, 48, 0.90f), HudC4(12, 20, 35, 0.94f),
++                0.8f, HudC4(142, 192, 248, 0.38f));
++
++  const char *mvHdr = (ov.confirmMode == 1) ? "SELECT MOVE TO RESTORE PP" : "MOVES";
++  ext.drawText(mvHdr, rx + 8.0f, ry + 6.5f, 6.8f, HudC4(168, 210, 252, 0.96f), false);
++
++  const float mcX = rx + 7.0f;
++  const float mcW = rw - 14.0f;
++  const float mcH = 26.5f;
++  const float mcGap = 4.5f;
++
++  for (int m = 0; m < 4; ++m) {
++    float my = ry + 19.0f + m * (mcH + mcGap);
++    if (mon.moveNames[m][0] == '\0') {
++      ext.roundRect(mcX, my, mcW, mcH, 4.5f,
++                    HudC4(22, 32, 50, 0.50f), HudC4(16, 24, 38, 0.54f),
++                    0.45f, HudC4(120, 150, 190, 0.18f));
++      ext.drawText("---", mcX + 10.0f, my + 9.0f, 7.5f, HudC4(130, 148, 174, 0.65f), false);
++      continue;
++    }
++
++    int ti = std::clamp(mon.moveTypes[m], 0, 18);
++    int bdspTi = BdspTypeIndex(ti);
++    const TypePal &tp = kTypePal[ti];
++    bool sel = (ov.confirmMode == 1 && ov.confirmCursor == m);
++
++    ext.shadowRect(mcX, my + 1.0f, mcW, mcH, 4.8f, 2.0f, 0.32f);
++    const HudUiSprite *moveSp = (ext.useBdspUi && ext.atlas) ? ext.atlas->moveCard[bdspTi] : nullptr;
++    if (moveSp) {
++      const float sc = mcH / moveSp->h;
++      const float leftPad = std::min(mcW * 0.24f, 82.0f * sc);
++      const float ppBoxW = std::min(mcW * 0.34f, 114.0f * sc);
++      ext.spriteNineSlice(moveSp, mcX, my, mcW, mcH, sc, HudC4(255, 255, 255, 0.98f));
++
++      // High-contrast dark ink on pastel BDSP move card (matches fx_hudhd.cpp).
++      const float textX = mcX + leftPad + 2.0f;
++      ext.drawText(mon.moveNames[m], textX, my + 4.0f, 8.0f, HudC4(26, 32, 44, 1.0f), false);
++
++      float badgeW = ext.measureText(tp.name, 5.0f) + 7.0f;
++      ext.roundRect(textX, my + 15.2f, badgeW, 7.6f, 2.4f, tp.top, tp.bot, 0.35f, HudC4(255, 255, 255, 0.55f));
++      ext.drawText(tp.name, textX + 3.5f, my + 16.5f, 5.0f, HudC4(255, 255, 255, 1.0f), false);
++
++      char ppBuf[20];
++      std::snprintf(ppBuf, sizeof(ppBuf), "%d/%d", mon.movePp[m], mon.moveMaxPp[m]);
++      const float ppBoxX = mcX + mcW - ppBoxW;
++      const float ppNumW = ext.measureText(ppBuf, 7.2f);
++      HudExtColor ppCol = (mon.movePp[m] == 0) ? HudC4(204, 38, 38, 1.0f) : HudC4(34, 42, 56, 1.0f);
++      ext.drawText("PP", ppBoxX + 4.0f, my + 3.6f, 5.4f, HudC4(92, 102, 118, 1.0f), false);
++      ext.drawText(ppBuf, ppBoxX + (ppBoxW - ppNumW) * 0.5f, my + 13.0f, 7.2f, ppCol, false);
++    } else {
++      ext.roundRect(mcX, my, mcW, mcH, 4.8f, tp.top, tp.bot,
++                    sel ? 1.1f : 0.65f, HudC4(255, 255, 255, sel ? 0.95f : 0.45f));
++
++      ext.drawText(mon.moveNames[m], mcX + 8.0f, my + 4.5f, 8.2f, HudC4(255, 255, 255, 1.0f), true);
++
++      float badgeW = ext.measureText(tp.name, 5.2f) + 8.0f;
++      ext.roundRect(mcX + 8.0f, my + 15.8f, badgeW, 8.0f, 2.5f,
++                    HudC4(16, 24, 38, 0.62f), HudC4(10, 16, 28, 0.70f),
++                    0.35f, HudC4(255, 255, 255, 0.45f));
++      ext.drawText(tp.name, mcX + 12.0f, my + 17.2f, 5.2f, HudC4(248, 252, 255, 0.98f), false);
++
++      char ppBuf[24];
++      std::snprintf(ppBuf, sizeof(ppBuf), "PP %d / %d", mon.movePp[m], mon.moveMaxPp[m]);
++      float ppw = ext.measureText(ppBuf, 6.8f);
++      ext.roundRect(mcX + mcW - ppw - 13.0f, my + 13.5f, ppw + 8.0f, 10.2f, 3.0f,
++                    HudC4(12, 20, 34, 0.68f), HudC4(8, 14, 26, 0.74f), 0.0f, {});
++      ext.drawText(ppBuf, mcX + mcW - ppw - 9.0f, my + 15.2f, 6.8f,
++                   (mon.movePp[m] == 0) ? HudC4(255, 128, 128, 1.0f) : HudC4(248, 252, 255, 1.0f), false);
++    }
++
++    if (sel) {
++      DrawSelectionBrackets(ext, mcX, my, mcW, mcH, pulse);
++    }
++  }
++}
++
++} // namespace
 +
 +void RenderHudOverlay(const HudExtDraw &ext, const SIM_HudHD_Overlay &ov) {
-+  (void)ext;
-+  (void)ov;
++  if (ov.kind == SIM_HUDHD_OVERLAY_NONE) {
++    return;
++  }
++  const float pulse = 0.5f + 0.5f * std::sin(ext.timeSec * 5.2f);
++  DrawScrimHeaderFooter(ext, ov);
++  if (ov.kind == SIM_HUDHD_OVERLAY_BAG) {
++    RenderBagOverlay(ext, ov, pulse);
++  } else if (ov.kind == SIM_HUDHD_OVERLAY_PARTY) {
++    RenderPartyOverlay(ext, ov, pulse);
++  } else if (ov.kind == SIM_HUDHD_OVERLAY_SUMMARY) {
++    RenderSummaryOverlay(ext, ov, pulse);
++  }
++  DrawErrorBanner(ext, ov);
 +}
 +
 +} // namespace SIM::Render
