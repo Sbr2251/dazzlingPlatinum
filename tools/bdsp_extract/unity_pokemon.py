@@ -206,6 +206,28 @@ def _skin_positions(
     return out
 
 
+# In BDSP AssetAssistant, these 12 multi-form species store their battle forms starting at 11
+# (e.g. pm0487_11 = Giratina Altered = Platinum form 0; pm0487_12 = Giratina Origin = Platinum form 1).
+MULTI_FORM_BASE11_SPECIES = frozenset({201, 351, 386, 412, 413, 421, 422, 423, 479, 487, 492, 493})
+
+
+def discover_species_forms(aa_root: str, species: int) -> list[int]:
+    """Return sorted Platinum formNum values (0, 1, ...) available in BDSP for a species."""
+    battle_dir = os.path.join(aa_root, "Pokemon Database/pokemons/battle")
+    if species in MULTI_FORM_BASE11_SPECIES:
+        forms = []
+        prefix = f"pm{species:04d}_"
+        for name in os.listdir(battle_dir):
+            if name.startswith(prefix) and name.endswith("_00") and len(name) == 12:
+                bdsp_f = int(name[7:9])
+                if bdsp_f >= 11:
+                    forms.append(bdsp_f - 11)
+        return sorted(forms)
+    if os.path.isfile(os.path.join(battle_dir, f"pm{species:04d}_00_00")):
+        return [0]
+    return []
+
+
 def extract_pokemon_glb(
     aa_root: str,
     species: int,
@@ -214,19 +236,38 @@ def extract_pokemon_glb(
     out_glb_path: str,
     sample_fps: float = 30.0,
 ) -> dict[str, Any]:
-    """Extract one Pokemon species/form from BDSP AssetAssistant into a self-contained .glb."""
-    base_id = f"pm{species:04d}_{form:02d}"
+    """Extract one Pokemon species/form (Platinum formNum) from BDSP AssetAssistant into a self-contained .glb."""
+    bdsp_form = (11 + form) if species in MULTI_FORM_BASE11_SPECIES else form
+    base_id = f"pm{species:04d}_{bdsp_form:02d}"
     var_id = f"{base_id}_{1 if shiny else 0:02d}"
+    default_base_id = f"pm{species:04d}_{11 if species in MULTI_FORM_BASE11_SPECIES else 0:02d}"
+
+    common_dir = os.path.join(aa_root, "Pokemon Database/pokemons/common")
+    battle_dir = os.path.join(aa_root, "Pokemon Database/pokemons/battle")
+    anim_dir = os.path.join(battle_dir, "animations")
 
     bundle_paths = [
-        os.path.join(aa_root, "Pokemon Database/pokemons/common", base_id),
-        os.path.join(aa_root, "Pokemon Database/pokemons/common", var_id),
-        os.path.join(aa_root, "Pokemon Database/pokemons/battle", var_id),
-        os.path.join(aa_root, "Pokemon Database/pokemons/battle/animations", base_id),
+        os.path.join(common_dir, base_id),
+        os.path.join(common_dir, var_id),
+        os.path.join(battle_dir, var_id),
     ]
-    existing = [p for p in bundle_paths if os.path.isfile(p)]
-    if len(existing) < 3:
-        raise FileNotFoundError(f"Missing required bundles for {var_id}; found: {existing}")
+    # Animation bundle: exact form first, then default form fallback
+    anim_exact = os.path.join(anim_dir, base_id)
+    anim_default = os.path.join(anim_dir, default_base_id)
+    if os.path.isfile(anim_exact):
+        bundle_paths.append(anim_exact)
+    elif os.path.isfile(anim_default):
+        bundle_paths.append(anim_default)
+    # Also include default common if exact form common is absent
+    if not os.path.isfile(bundle_paths[0]) and os.path.isfile(os.path.join(common_dir, default_base_id)):
+        bundle_paths[0] = os.path.join(common_dir, default_base_id)
+
+    existing = []
+    for bp in bundle_paths:
+        if os.path.isfile(bp) and bp not in existing:
+            existing.append(bp)
+    if not os.path.isfile(os.path.join(battle_dir, var_id)):
+        raise FileNotFoundError(f"Missing battle bundle for {var_id}; found: {existing}")
 
     env = UnityPy.load(*existing)
 
@@ -281,8 +322,8 @@ def extract_pokemon_glb(
                 joint_pids.append(bpid)
                 joint_ibms_rh.append(lh_to_rh_mat4(mat_u))
 
-    if len(joint_pids) > 128:
-        raise RuntimeError(f"{var_id} uses {len(joint_pids)} joints (> 128 limit)")
+    if len(joint_pids) > 192:
+        raise RuntimeError(f"{var_id} uses {len(joint_pids)} joints (> 192 limit)")
 
     # Keep all ancestor transforms of joints + root + Origin (skip CusAnimMat_* & stripped mesh GOs)
     keep_pids: set[int] = {root_pid}
@@ -558,7 +599,9 @@ def extract_pokemon_glb(
     height_m = round(bbox_max[1] - bbox_min[1], 4)
 
     os.makedirs(os.path.dirname(os.path.abspath(out_glb_path)), exist_ok=True)
-    file_bytes = builder.write(out_glb_path)
+    tmp_path = f"{out_glb_path}.tmp.{os.getpid()}"
+    file_bytes = builder.write(tmp_path)
+    os.replace(tmp_path, out_glb_path)
 
     return {
         "species": species,

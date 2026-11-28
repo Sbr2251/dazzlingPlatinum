@@ -27,7 +27,8 @@ if str(SCRIPT_DIR) not in sys.path:
 from PIL import Image, ImageDraw
 
 from unity_arena import ARENA_BIOME_MAP, extract_arena_glb
-from unity_pokemon import extract_pokemon_glb
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from unity_pokemon import discover_species_forms, extract_pokemon_glb
 from verify_render import eval_glb_pose, load_glb, make_texture_contact_sheet, render_preview
 
 
@@ -201,6 +202,14 @@ def _render_verification_sheet(
         print(f"[verify] Wrote {a_out}")
 
 
+def _extract_mon_worker(
+    aa_root: str, species: int, form: int, shiny: bool, out_glb: str, fps: float
+) -> dict[str, Any]:
+    info = extract_pokemon_glb(aa_root, species=species, form=form, shiny=shiny, out_glb_path=out_glb, sample_fps=fps)
+    info.pop("decoded_textures", None)
+    return info
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="Extract BDSP 3D Pokemon & battle arenas to glTF 2.0 (.glb)")
     ap.add_argument("--xci", help="Path to user's Brilliant Diamond / Shining Pearl .xci (read-only)")
@@ -208,8 +217,14 @@ def main() -> int:
     ap.add_argument("--romfs-cache", required=True, help="Directory holding unpacked RomFS (reused across runs)")
     ap.add_argument("--hactool", default=None, help="Optional path to hactool binary")
     ap.add_argument("--out", required=True, help="Output assets directory (writes mons/, arenas/, manifest.json)")
-    ap.add_argument("--species", default="392,400", help="Comma-separated National Dex IDs or 'all' (default: 392,400)")
-    ap.add_argument("--arenas", default="forest", help="Comma-separated biome stems or 'all' (default: forest)")
+    ap.add_argument("--species", default="392,400", help="Comma-separated National Dex IDs, 'all', or 'none' (default: 392,400)")
+    ap.add_argument("--range", dest="species_range", default=None, help="Inclusive Dex range START-END (e.g. 1-151), overrides --species")
+    ap.add_argument("--forms", action="store_true", help="Extract all alternate battle forms for multi-form species")
+    ap.add_argument("--shiny", action="store_true", help="Also extract shiny variants (*_shiny.glb)")
+    ap.add_argument("--workers", type=int, default=1, help="Parallel worker processes for Pokemon extraction (default: 1)")
+    ap.add_argument("--skip-existing", action="store_true", help="Skip already extracted .glb files")
+    ap.add_argument("--no-manifest", action="store_true", help="Do not overwrite <out>/manifest.json (useful for parallel shards)")
+    ap.add_argument("--arenas", default="forest", help="Comma-separated biome stems, 'all', or 'none' (default: forest)")
     ap.add_argument("--arena-yaw", type=float, default=0.0, help="Yaw rotation (degrees) applied to arena geometry")
     ap.add_argument("--fps", type=float, default=30.0, help="Animation resample rate in FPS (default: 30)")
     ap.add_argument("--verify-dir", default=None, help="Optional directory to render texture/mesh sanity previews")
@@ -223,31 +238,74 @@ def main() -> int:
     os.makedirs(os.path.join(args.out, "mons"), exist_ok=True)
     os.makedirs(os.path.join(args.out, "arenas"), exist_ok=True)
 
-    species_list = (
-        _discover_all_species(aa_root)
-        if args.species.strip().lower() == "all"
-        else [int(s.strip()) for s in args.species.split(",") if s.strip()]
-    )
-    arena_list = (
-        list(ARENA_BIOME_MAP.keys())
-        if args.arenas.strip().lower() == "all"
-        else [a.strip() for a in args.arenas.split(",") if a.strip()]
-    )
+    if args.species_range:
+        lo_s, hi_s = args.species_range.split("-", 1)
+        lo, hi = int(lo_s), int(hi_s)
+        species_list = [sp for sp in _discover_all_species(aa_root) if lo <= sp <= hi]
+    elif args.species.strip().lower() == "all":
+        species_list = _discover_all_species(aa_root)
+    elif args.species.strip().lower() == "none":
+        species_list = []
+    else:
+        species_list = [int(s.strip()) for s in args.species.split(",") if s.strip()]
+
+    if args.arenas.strip().lower() == "all":
+        arena_list = list(ARENA_BIOME_MAP.keys())
+    elif args.arenas.strip().lower() == "none":
+        arena_list = []
+    else:
+        arena_list = [a.strip() for a in args.arenas.split(",") if a.strip()]
 
     all_textures: list[tuple[str, Image.Image]] = []
     mon_entries: list[dict[str, Any]] = []
     arena_entries: list[dict[str, Any]] = []
+    failures: list[dict[str, Any]] = []
 
+    jobs: list[tuple[int, int, bool, str]] = []
     for sp in species_list:
-        out_glb = os.path.join(args.out, "mons", f"pm{sp:04d}_00.glb")
-        print(f"[mon] Extracting species #{sp} -> {out_glb} ...")
-        info = extract_pokemon_glb(aa_root, species=sp, form=0, shiny=False, out_glb_path=out_glb, sample_fps=args.fps)
-        all_textures.extend(info.pop("decoded_textures", []))
-        mon_entries.append(info)
-        print(
-            f"      OK: {info['size_bytes']//1024} KB, verts={info['vertices']}, tris={info['triangles']}, "
-            f"bones={info['bones']}, height={info['height_m']}m, clips={list(info['clips'].keys())}"
-        )
+        forms = discover_species_forms(aa_root, sp) if args.forms else [0]
+        if not forms:
+            forms = [0]
+        for fm in forms:
+            for sh in ([False, True] if args.shiny else [False]):
+                suffix = "_shiny" if sh else ""
+                out_glb = os.path.join(args.out, "mons", f"pm{sp:04d}_{fm:02d}{suffix}.glb")
+                if args.skip_existing and os.path.isfile(out_glb) and os.path.getsize(out_glb) > 1024:
+                    continue
+                jobs.append((sp, fm, sh, out_glb))
+
+    if args.workers > 1 and len(jobs) > 1:
+        with ProcessPoolExecutor(max_workers=args.workers) as pool:
+            futs = {
+                pool.submit(_extract_mon_worker, aa_root, sp, fm, sh, out_glb, args.fps): (sp, fm, sh, out_glb)
+                for (sp, fm, sh, out_glb) in jobs
+            }
+            for fut in as_completed(futs):
+                sp, fm, sh, out_glb = futs[fut]
+                try:
+                    info = fut.result()
+                    mon_entries.append(info)
+                    print(
+                        f"[mon] OK pm{sp:04d}_{fm:02d}{'_shiny' if sh else ''}: "
+                        f"{info['size_bytes']//1024} KB, tris={info['triangles']}, bones={info['bones']}, clips={len(info['clips'])}"
+                    )
+                except Exception as exc:
+                    failures.append({"species": sp, "form": fm, "shiny": sh, "error": str(exc)})
+                    print(f"[mon] FAIL pm{sp:04d}_{fm:02d}{'_shiny' if sh else ''}: {exc}", file=sys.stderr)
+    else:
+        for sp, fm, sh, out_glb in jobs:
+            print(f"[mon] Extracting pm{sp:04d}_{fm:02d}{'_shiny' if sh else ''} -> {out_glb} ...")
+            try:
+                info = extract_pokemon_glb(aa_root, species=sp, form=fm, shiny=sh, out_glb_path=out_glb, sample_fps=args.fps)
+                all_textures.extend(info.pop("decoded_textures", []))
+                mon_entries.append(info)
+                print(
+                    f"      OK: {info['size_bytes']//1024} KB, verts={info['vertices']}, tris={info['triangles']}, "
+                    f"bones={info['bones']}, height={info['height_m']}m, clips={list(info['clips'].keys())}"
+                )
+            except Exception as exc:
+                failures.append({"species": sp, "form": fm, "shiny": sh, "error": str(exc)})
+                print(f"      FAIL: {exc}", file=sys.stderr)
 
     for biome in arena_list:
         out_glb = os.path.join(args.out, "arenas", f"{biome}.glb")
@@ -267,10 +325,14 @@ def main() -> int:
         "mons": mon_entries,
         "arenas": arena_entries,
     }
-    manifest_path = os.path.join(args.out, "manifest.json")
-    with open(manifest_path, "w", encoding="utf-8") as f:
-        json.dump(manifest, f, indent=2)
-    print(f"[manifest] Wrote {manifest_path}")
+    if not args.no_manifest:
+        manifest_path = os.path.join(args.out, "manifest.json")
+        with open(manifest_path, "w", encoding="utf-8") as f:
+            json.dump(manifest, f, indent=2)
+        print(f"[manifest] Wrote {manifest_path}")
+    if failures:
+        print(f"[summary] {len(mon_entries)} succeeded, {len(failures)} failed", file=sys.stderr)
+        return 1
 
     if args.verify_dir:
         _render_verification_sheet(args.out, args.verify_dir, mon_entries, arena_entries, all_textures)
