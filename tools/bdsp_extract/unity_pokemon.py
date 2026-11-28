@@ -39,7 +39,7 @@ CLIP_CANDIDATES: dict[str, list[str]] = {
     "cry": ["ba02_roar01", "ba01_landA01", "ba01_land01", "kw32_happyB01"],
 }
 
-STRIP_MESH_TOKENS = ("firemask", "shadow", "collider", "proxy", "debug", "hitcheck")
+STRIP_MESH_TOKENS = ("firemask", "smokemask", "shadow", "collider", "proxy", "debug", "hitcheck")
 
 
 def _get_dict(prop: Any) -> dict[str, Any]:
@@ -211,6 +211,42 @@ def _skin_positions(
 MULTI_FORM_BASE11_SPECIES = frozenset({201, 351, 386, 412, 413, 421, 422, 423, 479, 487, 492, 493})
 
 
+_MANIFEST_DEPS_CACHE: dict[str, dict[str, list[str]]] = {}
+
+
+def _get_pokemon_manifest_deps(aa_root: str) -> dict[str, list[str]]:
+    """Load Pokemon Database AssetBundleManifest dependencies once per process."""
+    cached = _MANIFEST_DEPS_CACHE.get(aa_root)
+    if cached is not None:
+        return cached
+    deps_map: dict[str, list[str]] = {}
+    mf_path = os.path.join(aa_root, "Pokemon Database", "Pokemon Database")
+    if os.path.isfile(mf_path):
+        mf_env = UnityPy.load(mf_path)
+        for obj in mf_env.objects:
+            if obj.type.name == "AssetBundleManifest":
+                m = obj.read()
+                names = dict(m.AssetBundleNames)
+                infos = dict(m.AssetBundleInfos)
+                for bid, bname in names.items():
+                    info = infos.get(bid)
+                    if info is not None:
+                        deps_map[bname] = [names[d] for d in info.AssetBundleDependencies if d in names]
+                break
+    _MANIFEST_DEPS_CACHE[aa_root] = deps_map
+    return deps_map
+
+
+def _resolve_manifest_bundle_path(aa_root: str, dep_name: str) -> str | None:
+    if dep_name == "shaders":
+        p = os.path.join(aa_root, "Dpr", "shaders")
+        return p if os.path.isfile(p) else None
+    if dep_name.startswith("pokemons/field/animations/"):
+        return None
+    p = os.path.join(aa_root, "Pokemon Database", dep_name)
+    return p if os.path.isfile(p) else None
+
+
 def discover_species_forms(aa_root: str, species: int) -> list[int]:
     """Return sorted Platinum formNum values (0, 1, ...) available in BDSP for a species."""
     battle_dir = os.path.join(aa_root, "Pokemon Database/pokemons/battle")
@@ -261,6 +297,17 @@ def extract_pokemon_glb(
     # Also include default common if exact form common is absent
     if not os.path.isfile(bundle_paths[0]) and os.path.isfile(os.path.join(common_dir, default_base_id)):
         bundle_paths[0] = os.path.join(common_dir, default_base_id)
+
+    # Pull every declared AssetBundleManifest dependency (Dpr/shaders, shared base-form
+    # common bundles like Kangaskhan baby, Unown A materials, Castform/Burmy/Wormadam mats).
+    deps_map = _get_pokemon_manifest_deps(aa_root)
+    for dep in deps_map.get(f"pokemons/battle/{var_id}", []):
+        rp = _resolve_manifest_bundle_path(aa_root, dep)
+        if rp is not None:
+            bundle_paths.append(rp)
+    shaders_bundle = os.path.join(aa_root, "Dpr", "shaders")
+    if os.path.isfile(shaders_bundle):
+        bundle_paths.append(shaders_bundle)
 
     existing = []
     for bp in bundle_paths:
@@ -445,26 +492,39 @@ def extract_pokemon_glb(
                 continue
             mat_obj = mats[smi] if smi < len(mats) else None
             mat_name = mat_obj.m_Name if mat_obj else f"{go_name}_mat{smi}"
+            lmat = mat_name.lower()
+            if "firemask" in lmat or "smokemask" in lmat:
+                continue
 
             if mat_name not in mat_cache:
                 img, uv_sc, uv_off, _, emissive = (
                     _extract_material_diffuse(mat_obj) if mat_obj else (None, (1.0, 1.0), (0.0, 0.0), False, None)
                 )
-                tex_idx = None
-                if img is not None:
-                    tex_idx = builder.add_texture_png(img, f"{mat_name}_diffuse", wrap_s=WRAP_REPEAT, wrap_t=WRAP_REPEAT)
-                    decoded_textures.append((mat_name, img))
-                gltf_mat_idx = builder.add_material(
-                    name=mat_name,
-                    base_color_tex=tex_idx,
-                    base_color_factor=[1.0, 1.0, 1.0, 1.0],
-                    alpha_mode="OPAQUE",
-                    double_sided=("firecore" in mat_name.lower()),
-                    emissive_factor=emissive,
-                )
-                mat_cache[mat_name] = (gltf_mat_idx, uv_sc, uv_off)
+                if "smokecore" in lmat and img is None:
+                    mat_cache[mat_name] = (-1, uv_sc, uv_off)
+                else:
+                    tex_idx = None
+                    if img is not None:
+                        tex_idx = builder.add_texture_png(img, f"{mat_name}_diffuse", wrap_s=WRAP_REPEAT, wrap_t=WRAP_REPEAT)
+                        decoded_textures.append((mat_name, img))
+                    alpha_mode = "OPAQUE"
+                    base_factor = [1.0, 1.0, 1.0, 1.0]
+                    if species == 479 and "firecore" in lmat:
+                        alpha_mode = "BLEND"
+                        base_factor = [1.0, 1.0, 1.0, 0.38]
+                    gltf_mat_idx = builder.add_material(
+                        name=mat_name,
+                        base_color_tex=tex_idx,
+                        base_color_factor=base_factor,
+                        alpha_mode=alpha_mode,
+                        double_sided=("firecore" in lmat),
+                        emissive_factor=emissive,
+                    )
+                    mat_cache[mat_name] = (gltf_mat_idx, uv_sc, uv_off)
 
             gltf_mat_idx, (usx, usy), (uox, uoy) = mat_cache[mat_name]
+            if gltf_mat_idx < 0:
+                continue
 
             # Compact vertices used by this submesh and reverse triangle winding (i0, i1, i2) -> (i0, i2, i1)
             tri_arr = np.array(sm_tris, dtype=np.uint32)

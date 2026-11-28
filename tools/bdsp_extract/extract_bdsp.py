@@ -114,7 +114,7 @@ def _discover_all_species(aa_root: str) -> list[int]:
     battle_dir = os.path.join(aa_root, "Pokemon Database/pokemons/battle")
     found: set[int] = set()
     for name in os.listdir(battle_dir):
-        if name.startswith("pm") and name.endswith("_00_00"):
+        if name.startswith("pm") and name.endswith("_00"):
             try:
                 found.add(int(name[2:6]))
             except ValueError:
