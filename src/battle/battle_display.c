@@ -886,6 +886,7 @@ typedef struct PartyMenuData {
     u8 battlersSwitchingMask;
     u8 unused[3];
     u8 partyOrder[MAX_BATTLERS][MAX_PARTY_SIZE];
+    BOOL useHdOverlay;
 } PartyMenuData;
 
 typedef struct BagMenuData {
@@ -905,6 +906,7 @@ typedef struct BagMenuData {
     u8 delay;
     u8 partyOrder[MAX_BATTLERS][MAX_PARTY_SIZE];
     u8 embargoTurns[MAX_BATTLERS];
+    BOOL useHdOverlay;
 } BagMenuData;
 
 void BattleDisplay_InitTaskShowBagMenu(BattleSystem *battleSys, BattlerData *battlerData, BagMenuMessage *message)
@@ -914,7 +916,9 @@ void BattleDisplay_InitTaskShowBagMenu(BattleSystem *battleSys, BattlerData *bat
     bagMenuData->partyMenuData = Heap_Alloc(HEAP_ID_BATTLE, sizeof(PartyMenuData));
     bagMenuData->partyMenuData->battlePartyCtx = Heap_Alloc(HEAP_ID_BATTLE, sizeof(BattlePartyContext));
     bagMenuData->partyMenuData->battlePartyCtx->party = Party_New(HEAP_ID_BATTLE);
+    bagMenuData->partyMenuData->useHdOverlay = FALSE;
     bagMenuData->state = 0;
+    bagMenuData->useHdOverlay = FALSE;
     bagMenuData->battleSys = battleSys;
     bagMenuData->command = message->command;
     bagMenuData->battler = battlerData->battler;
@@ -943,6 +947,7 @@ void BattleDisplay_InitTaskShowPartyMenu(BattleSystem *battleSys, BattlerData *b
     PartyMenuData *partyMenuData = Heap_Alloc(HEAP_ID_BATTLE, sizeof(PartyMenuData));
 
     partyMenuData->state = 0;
+    partyMenuData->useHdOverlay = FALSE;
     partyMenuData->battleSys = battleSys;
     partyMenuData->command = message->command;
     partyMenuData->battler = message->battler;
@@ -4138,7 +4143,14 @@ static void Task_PlayerShowBagMenu(SysTask *task, void *data)
 {
     BagMenuData *bagMenuData = data;
     PaletteData *paletteData = BattleSystem_GetPaletteData(bagMenuData->battleSys);
-    BOOL useOverlay = BattleBdspOverlay_ShouldUse(bagMenuData->battleSys);
+    BOOL useOverlay;
+
+    // Opus B8: Latch HD overlay decision ONCE at state 0 so mid-menu gate changes
+    // can never softlock or unbalance BattleSystem_Enter/ExitSubMenu.
+    if (bagMenuData->state == 0) {
+        bagMenuData->useHdOverlay = BattleBdspOverlay_ShouldUse(bagMenuData->battleSys);
+    }
+    useOverlay = bagMenuData->useHdOverlay;
 
     switch (bagMenuData->state) {
     case 0:
@@ -4187,6 +4199,9 @@ static void Task_PlayerShowBagMenu(SysTask *task, void *data)
         }
         bagMenuData->state++;
     case 3:
+        if (useOverlay) {
+            BattleBdspOverlay_Tick(bagMenuData->battleSys);
+        }
         if (bagMenuData->battleBagCtx->battleBagExited) {
             bagMenuData->battleBagCtx->battleBagExited = 0;
             bagMenuData->isCursorEnabled = bagMenuData->battleBagCtx->isCursorEnabled;
@@ -4255,6 +4270,9 @@ static void Task_PlayerShowBagMenu(SysTask *task, void *data)
         bagMenuData->state++;
         break;
     case 5:
+        if (useOverlay) {
+            BattleBdspOverlay_Tick(bagMenuData->battleSys);
+        }
         if (bagMenuData->partyMenuData->battlePartyCtx->battlePartyExited) {
             bagMenuData->isCursorEnabled = bagMenuData->partyMenuData->battlePartyCtx->isCursorEnabled;
             bagMenuData->partyMenuData->battlePartyCtx->battlePartyExited = 0;
@@ -4750,7 +4768,14 @@ static void Task_PlayerShowPartyMenu(SysTask *task, void *data)
     PartyMenuData *partyMenuData = data;
 
     PaletteData *paletteData = BattleSystem_GetPaletteData(partyMenuData->battleSys);
-    BOOL useOverlay = BattleBdspOverlay_ShouldUse(partyMenuData->battleSys);
+    BOOL useOverlay;
+
+    // Opus B8: Latch HD overlay decision ONCE at state 0 so mid-menu gate changes
+    // can never softlock or unbalance BattleSystem_Enter/ExitSubMenu.
+    if (partyMenuData->state == 0) {
+        partyMenuData->useHdOverlay = BattleBdspOverlay_ShouldUse(partyMenuData->battleSys);
+    }
+    useOverlay = partyMenuData->useHdOverlay;
 
     switch (partyMenuData->state) {
     case 0:
@@ -4874,6 +4899,9 @@ static void Task_PlayerShowPartyMenu(SysTask *task, void *data)
         }
         break;
     case 2:
+        if (useOverlay) {
+            BattleBdspOverlay_Tick(partyMenuData->battleSys);
+        }
         if (partyMenuData->battlePartyCtx->battlePartyExited) {
             if (!useOverlay) {
                 BattleSystem_ExitSubMenu(partyMenuData->battleSys);

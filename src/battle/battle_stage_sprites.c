@@ -1309,20 +1309,14 @@ static u32 DrawHook(PokemonSpriteManager *monSpriteMan, int index, const Pokemon
         return result;
     }
 
-    // BDSP 3D models: skip the 2D sprite & classic shadow when a 3D .glb model
-    // is loaded for this battler (and not currently showing a Substitute doll).
-    // Any non-extracted species falls back seamlessly to the 2D HD-2D sprite.
+    // BDSP 3D models: skip the 2D sprite & classic shadow ONLY when the 3D .glb model
+    // is GPU render-ready for this battler (and not currently showing a Substitute doll).
+    // Calling HasModelLoaded triggers async load while IsModelRenderReady gates hiding.
     if (bdsp3d && monSpriteMan->excludeIdentity != TRUE && !IsSubstituteDoll(&sprite->template)
         && sStageSprites.battleSys != NULL && index < BattleSystem_GetMaxBattlers(sStageSprites.battleSys)) {
-        BattleContext *ctx = BattleSystem_GetBattleContext(sStageSprites.battleSys);
-        if (ctx != NULL) {
-            int species = ctx->battleMons[index].species;
-            int form = ctx->battleMons[index].formNum;
-            int isShiny = ctx->battleMons[index].isShiny;
-            if (SIM_Battle3D_HasModelLoaded(species, form, isShiny)) {
-                ResetBreath(index);
-                return MON_SPRITE_DRAW_HOOK_DREW | MON_SPRITE_DRAW_HOOK_NO_SHADOW;
-            }
+        if (BattleStage_IsBattler3DModel(sStageSprites.battleSys, index)) {
+            ResetBreath(index);
+            return MON_SPRITE_DRAW_HOOK_DREW | MON_SPRITE_DRAW_HOOK_NO_SHADOW;
         }
     }
 

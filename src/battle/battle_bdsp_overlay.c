@@ -109,6 +109,7 @@ static void OverlayStringToUtf8(const String *str, char *out, int outSize)
 {
     int pos = 0;
     u32 i;
+    u32 len;
     const charcode_t *data;
 
     if (out == NULL || outSize <= 0) {
@@ -124,15 +125,27 @@ static void OverlayStringToUtf8(const String *str, char *out, int outSize)
         return;
     }
 
-    for (i = 0; i < 512 && pos < outSize - 1; i++) {
+    // Opus B11: Bound scan by min(String_Length(str), 512) and validate skip lengths.
+    len = String_Length(str);
+    if (len > 512u) {
+        len = 512u;
+    }
+
+    for (i = 0; i < len && pos < outSize - 1; i++) {
         charcode_t c = data[i];
         if (c == CHAR_EOS) {
             break;
         }
         if (c == CHAR_FORMAT_ARG) {
-            if (i + 2 < 512) {
-                u16 argc = data[i + 2];
-                i += 2 + argc;
+            if (i + 2u < len) {
+                u16 argc = data[i + 2u];
+                if (i + 2u + (u32)argc < len) {
+                    i += 2u + (u32)argc;
+                } else {
+                    break;
+                }
+            } else {
+                break;
             }
             continue;
         }
@@ -143,7 +156,11 @@ static void OverlayStringToUtf8(const String *str, char *out, int outSize)
             continue;
         }
         if (c == CHAR_CONTROL_SET_COLOR || c == CHAR_CONTROL_SET_SIZE || c == CHAR_CONTROL_MOVE) {
-            i++;
+            if (i + 1u < len) {
+                i++;
+            } else {
+                break;
+            }
             continue;
         }
         if (c >= CHAR_0 && c <= CHAR_9) {
@@ -1406,17 +1423,10 @@ BOOL BattleBdspOverlay_IsActive(void)
     return sOv.mode != OVERLAY_MODE_NONE;
 }
 
-void BattleBdspOverlay_TickAndFillFrame(BattleSystem *battleSys, SIM_HudHD_Frame *frame)
+void BattleBdspOverlay_Tick(BattleSystem *battleSys)
 {
-    SIM_HudHD_Overlay *ov;
-
     (void)battleSys;
-    if (frame == NULL) {
-        return;
-    }
-
     if (sOv.mode == OVERLAY_MODE_NONE) {
-        frame->overlay.kind = SIM_HUDHD_OVERLAY_NONE;
         return;
     }
 
@@ -1438,6 +1448,16 @@ void BattleBdspOverlay_TickAndFillFrame(BattleSystem *battleSys, SIM_HudHD_Frame
         OverlayTickBag();
     } else {
         OverlayTickParty();
+    }
+}
+
+void BattleBdspOverlay_FillFrame(BattleSystem *battleSys, SIM_HudHD_Frame *frame)
+{
+    SIM_HudHD_Overlay *ov;
+
+    (void)battleSys;
+    if (frame == NULL) {
+        return;
     }
 
     if (sOv.mode == OVERLAY_MODE_NONE) {

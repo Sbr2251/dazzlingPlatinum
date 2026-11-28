@@ -103,7 +103,7 @@ u8 Text_IsPrinterActive(u8 printerID)
     return Text_IsPrinterTaskActive(printerID);
 }
 
-BOOL Text_GetPrinterProgress(u8 printerID, TextPrinterProgress *out)
+BOOL Text_GetPrinterProgress(u8 printerID, const u16 *expectedRaw, TextPrinterProgress *out)
 {
     TextPrinter *printer;
     const charcode_t *startRaw;
@@ -114,6 +114,9 @@ BOOL Text_GetPrinterProgress(u8 printerID, TextPrinterProgress *out)
     printer = (TextPrinter *)SysTask_GetParam(sTextPrinterTasks[printerID]);
     startRaw = sTextPrinterStartRaw[printerID];
     if (printer == NULL || startRaw == NULL || printer->template.toPrint.raw < startRaw) {
+        return FALSE;
+    }
+    if (expectedRaw != NULL && startRaw != expectedRaw) {
         return FALSE;
     }
     out->charOffset = (u32)(printer->template.toPrint.raw - startRaw);

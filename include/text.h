@@ -44,7 +44,7 @@ typedef struct TextPrinterProgress {
 void Text_SetFontAttributesPtr(const FontAttributes *fontAttributes);
 void Text_ResetAllPrinters(void);
 u8 Text_IsPrinterActive(u8 printerID);
-BOOL Text_GetPrinterProgress(u8 printerID, TextPrinterProgress *out);
+BOOL Text_GetPrinterProgress(u8 printerID, const u16 *expectedRaw, TextPrinterProgress *out);
 void Text_RemovePrinter(u8 printerID);
 u8 Text_AddPrinterWithParams(Window *window, u32 fontID, const String *string, u32 xOffset, u32 yOffset, u32 renderDelay, TextPrinterCallback callback);
 u8 Text_AddPrinterWithParamsAndColor(Window *window, u32 fontID, const String *string, u32 xOffset, u32 yOffset, u32 renderDelay, TextColor color, TextPrinterCallback callback);
