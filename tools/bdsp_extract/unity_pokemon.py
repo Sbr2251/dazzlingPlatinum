@@ -78,29 +78,47 @@ def _bake_eye_with_iris(eye_img: Image.Image, iris_img: Image.Image) -> Image.Im
     return Image.fromarray(arr, mode="RGBA")
 
 
-def _bake_fire_core_texture(mat: Any) -> Image.Image:
-    """Synthesize a vibrant orange-yellow flame diffuse texture for BDSP FireCore shaders."""
+def _pack_fire_core_channels(mat: Any) -> tuple[Image.Image, list[float], list[float]]:
+    """Pack real BDSP FireCore textures into a 4-channel shader map + (_BaseColor, _LayerColor).
+
+    Channel layout consumed by battle3d_skinned_frag (flags.y == 2):
+      R = _Blend0Tex (scrolling wavy flame ribbon noise)
+      G = _Blend1Tex (scrolling fast flame streaks)
+      B = _LerpTex luminance (base/inner yellow core -> outer orange-red tip gradient)
+      A = _LerpTex alpha (flame silhouette envelope opacity)
+    """
     cols = _get_dict(mat.m_SavedProperties.m_Colors)
     base_c = cols.get("_BaseColor")
     layer_c = cols.get("_LayerColor")
-    c0 = np.array([base_c.r, base_c.g, base_c.b], dtype=np.float32) if base_c else np.array([1.0, 0.22, 0.08], dtype=np.float32)
-    c1 = np.array([layer_c.r, layer_c.g, layer_c.b], dtype=np.float32) if layer_c else np.array([0.98, 0.85, 0.08], dtype=np.float32)
+    outer_rgb = [float(base_c.r), float(base_c.g), float(base_c.b)] if base_c else [1.0, 0.20, 0.10]
+    inner_rgb = [float(layer_c.r), float(layer_c.g), float(layer_c.b)] if layer_c else [0.94, 0.81, 0.0]
 
     tex_envs = _get_dict(mat.m_SavedProperties.m_TexEnvs)
-    sz = 256
-    noise = np.full((sz, sz), 0.5, dtype=np.float32)
-    b0 = tex_envs.get("_Blend0Tex")
-    if b0 and b0.m_Texture.path_id:
-        b0_img = b0.m_Texture.read().image.convert("L").resize((sz, sz), Image.Resampling.BILINEAR)
-        noise = np.array(b0_img, dtype=np.float32) / 255.0
+    sz = 128
 
-    # Vertical gradient: bright yellow core near base (bottom in PNG / V=0 in Unity -> y near sz), orange-red tips at top
-    yy = np.linspace(0.0, 1.0, sz, dtype=np.float32)[:, None]
-    mix = np.clip(0.25 + 0.55 * yy + 0.35 * (noise - 0.5), 0.0, 1.0)
-    rgb = c0[None, None, :] * (1.0 - mix[:, :, None]) + c1[None, None, :] * mix[:, :, None]
-    rgb_u8 = np.clip(rgb * 255.0, 0, 255).astype(np.uint8)
-    rgba = np.concatenate([rgb_u8, np.full((sz, sz, 1), 255, dtype=np.uint8)], axis=2)
-    return Image.fromarray(rgba, mode="RGBA")
+    def _read_l(key: str, default_arr: np.ndarray) -> np.ndarray:
+        te = tex_envs.get(key)
+        if te and te.m_Texture.path_id:
+            im = te.m_Texture.read().image.convert("L").resize((sz, sz), Image.Resampling.BILINEAR)
+            return np.array(im, dtype=np.uint8)
+        return default_arr
+
+    yy = np.linspace(0.0, 255.0, sz, dtype=np.float32)[:, None]
+    default_grad = np.broadcast_to(yy, (sz, sz)).astype(np.uint8)
+    r_ch = _read_l("_Blend0Tex", np.full((sz, sz), 140, dtype=np.uint8))
+    g_ch = _read_l("_Blend1Tex", np.full((sz, sz), 90, dtype=np.uint8))
+
+    b_ch = default_grad.copy()
+    a_ch = np.full((sz, sz), 255, dtype=np.uint8)
+    lt = tex_envs.get("_LerpTex")
+    if lt and lt.m_Texture.path_id:
+        lt_im = lt.m_Texture.read().image.convert("RGBA").resize((sz, sz), Image.Resampling.BILINEAR)
+        lt_arr = np.array(lt_im, dtype=np.uint8)
+        b_ch = lt_arr[:, :, 0]
+        a_ch = lt_arr[:, :, 3]
+
+    rgba = np.stack([r_ch, g_ch, b_ch, a_ch], axis=2)
+    return Image.fromarray(rgba, mode="RGBA"), outer_rgb, inner_rgb
 
 
 def _extract_material_diffuse(mat: Any) -> tuple[Image.Image | None, tuple[float, float], tuple[float, float], bool, list[float] | None]:
@@ -109,7 +127,8 @@ def _extract_material_diffuse(mat: Any) -> tuple[Image.Image | None, tuple[float
     tex_envs = _get_dict(mat.m_SavedProperties.m_TexEnvs)
 
     if "firecore" in mname.lower():
-        return _bake_fire_core_texture(mat), (1.0, 1.0), (0.0, 0.0), False, [0.55, 0.22, 0.04]
+        img, _outer, inner = _pack_fire_core_channels(mat)
+        return img, (1.0, 1.0), (0.0, 0.0), False, inner
 
     c0 = tex_envs.get("_Col0Tex") or tex_envs.get("_MainTex")
     if not c0 or not c0.m_Texture.path_id:
@@ -509,9 +528,11 @@ def extract_pokemon_glb(
                         decoded_textures.append((mat_name, img))
                     alpha_mode = "OPAQUE"
                     base_factor = [1.0, 1.0, 1.0, 1.0]
-                    if species == 479 and "firecore" in lmat:
+                    if "firecore" in lmat and mat_obj is not None:
+                        _, outer_rgb, _ = _pack_fire_core_channels(mat_obj)
                         alpha_mode = "BLEND"
-                        base_factor = [1.0, 1.0, 1.0, 0.38]
+                        alpha_v = 0.45 if species == 479 else 1.0
+                        base_factor = [outer_rgb[0], outer_rgb[1], outer_rgb[2], alpha_v]
                     gltf_mat_idx = builder.add_material(
                         name=mat_name,
                         base_color_tex=tex_idx,
