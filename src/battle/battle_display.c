@@ -1,5 +1,6 @@
 #include "battle/battle_debug.h"
 #include "battle/battle_bdsp_overlay.h"
+#include "battle/battle_bdsp_dialogue.h"
 #include "battle/battle_display.h"
 #include "battle/battle_stage.h"
 
@@ -6201,7 +6202,7 @@ static void MegaCine_ChargeStart(AffinePulseTaskData *data)
     {
         Window *msgWindow = BattleSystem_GetWindow(data->battleSys, 0);
 
-        if (msgWindow != NULL) {
+        if (msgWindow != NULL && !BattleBdspDialogue_ShouldSuppressWindow(msgWindow)) {
             Window_FillTilemap(msgWindow, 0xFF);
             Window_ScheduleCopyToVRAM(msgWindow);
         }

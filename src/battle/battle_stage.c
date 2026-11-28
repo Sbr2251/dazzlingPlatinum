@@ -1940,9 +1940,7 @@ BOOL BattleStage_IsBattler3DModel(BattleSystem *battleSys, int battler)
         if (!anim->has3dModel) {
             return FALSE;
         }
-        if (anim->renderReady) {
-            return TRUE;
-        }
+        // Codex P1-1: always revalidate O(1) GPU residency so an evicted or failed reload never hides the 2D sprite.
         anim->renderReady = SIM_Battle3D_IsModelRenderReady(species, form, isShiny);
         return anim->renderReady;
     }
@@ -2195,12 +2193,16 @@ static void SubmitBdspFrame(void)
                 anim->renderReady = FALSE;
                 anim->hasBbox = FALSE;
             }
-            if (anim->has3dModel && !anim->renderReady) {
+            if (anim->has3dModel) {
                 anim->renderReady = SIM_Battle3D_IsModelRenderReady(slotSpecies[i], slotForm[i], slotShiny[i]);
+                if (!anim->renderReady) {
+                    // Re-check terminal failure so failed loads stop holding close 3D framing.
+                    anim->has3dModel = SIM_Battle3D_HasModelLoaded(slotSpecies[i], slotForm[i], slotShiny[i]);
+                }
             }
             slotHas3d[i] = anim->has3dModel;
             slotRenderReady[i] = anim->renderReady;
-            if (slotHas3d[i]) {
+            if (slotRenderReady[i]) {
                 any3dModel = TRUE;
             }
         }

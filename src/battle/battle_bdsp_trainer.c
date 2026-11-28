@@ -543,6 +543,17 @@ void BattleBdspTrainer_Update(BattleSystem *battleSys, SIM_Battle3DFrame *frame)
 
     hasTrainer3d = SIM_Battle3D_HasActorLoaded(trainerKind);
     if (!hasTrainer3d) {
+        BattlerData *bdRestore = BattleSystem_GetBattlerData(battleSys, playerSlot);
+        if (bdRestore != NULL && bdRestore->managedSprite != NULL) {
+            ManagedSprite_SetDrawFlag(bdRestore->managedSprite, TRUE);
+        }
+        if (bdRestore != NULL && bdRestore->ballRotation != NULL) {
+            ManagedSprite *bsRestore = BallRotation_GetSprite(bdRestore->ballRotation);
+            if (bsRestore != NULL) {
+                ManagedSprite_SetDrawFlag(bsRestore, TRUE);
+                ManagedSprite_SetExplicitOamMode(bsRestore, GX_OAM_MODE_NORMAL);
+            }
+        }
         return;
     }
 
