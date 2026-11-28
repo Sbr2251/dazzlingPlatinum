@@ -18,16 +18,16 @@
 #include "struct_defs/trainer.h"
 
 #define BDSP_TRAINER_DT                 (1.0f / 60.0f)
-#define BDSP_TRAINER_HOME_X             (-2.65f)
+#define BDSP_TRAINER_HOME_X             (-4.05f)
 #define BDSP_TRAINER_HOME_Y             0.0f
-#define BDSP_TRAINER_HOME_Z             3.35f
-#define BDSP_TRAINER_SCALE              1.22f
+#define BDSP_TRAINER_HOME_Z             4.10f
+#define BDSP_TRAINER_SCALE              1.18f
 #define BDSP_TRAINER_SETTLE_X           68
 #define BDSP_TRAINER_THROW_X            60
 
-#define BDSP_OPP_HOME_X                 2.45f
+#define BDSP_OPP_HOME_X                 4.00f
 #define BDSP_OPP_HOME_Y                 0.0f
-#define BDSP_OPP_HOME_Z                 (-2.40f)
+#define BDSP_OPP_HOME_Z                 (-3.75f)
 #define BDSP_OPP_SCALE                  1.32f
 #define BDSP_OPP_SETTLE_X               192
 #define BDSP_OPP_THROW_START_X          197
@@ -41,16 +41,16 @@
 // exact peak forward hand velocity & palm detachment occur on integer frame 19 (19/60s = 0.3167s).
 #define BDSP_THROW_HAND_BONE            2
 #define BDSP_BALL_RELEASE_TICK          21
-#define BDSP_BALL_FLIGHT_TICKS          20
+#define BDSP_BALL_FLIGHT_TICKS          24
 #define BDSP_BALL_EARLY_FINISH_TICKS    4
-#define BDSP_BALL_ARC_PEAK              0.46f
+#define BDSP_BALL_ARC_PEAK              0.55f
 #define BDSP_BALL_SCALE_HELD            0.68f
 #define BDSP_BALL_SCALE_FLIGHT          0.76f
 #define BDSP_BURST_DUR                  0.360f
 #define BDSP_BURST_RADIUS               0.88f
 #define BDSP_BURST_CENTER_Y             0.68f
 #define BDSP_MAT_DUR                    0.440f
-#define BDSP_TRAINER_FOLLOWTHROUGH_END  0.620f
+#define BDSP_TRAINER_FOLLOWTHROUGH_END  0.750f
 #define BDSP_TRAINER_EXIT_DUR           0.300f
 
 enum BdspTrainerPhase {
@@ -1113,8 +1113,8 @@ void BattleBdspTrainer_Update(BattleSystem *battleSys, SIM_Battle3DFrame *frame)
             }
         } else {
             float slideFrac = ClampFloat((float)(sprX - 64) / 160.0f, 0.0f, 1.0f);
-            sTrainer.trainerX = BDSP_TRAINER_HOME_X + slideFrac * 1.45f;
-            sTrainer.trainerZ = BDSP_TRAINER_HOME_Z + slideFrac * 0.45f;
+            sTrainer.trainerX = BDSP_TRAINER_HOME_X - slideFrac * 0.55f;
+            sTrainer.trainerZ = BDSP_TRAINER_HOME_Z + slideFrac * 0.35f;
             sTrainer.animTime += BDSP_TRAINER_DT;
             sTrainer.phaseTime += BDSP_TRAINER_DT;
             if (sprX <= BDSP_TRAINER_SETTLE_X) {

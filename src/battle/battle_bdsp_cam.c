@@ -211,92 +211,88 @@ static void PopulateFallbackBank(void)
     sBank.home.target[2] = -2.00f;
     sBank.home.fov = 38.0f;
 
-    // intro_wild
+    // intro_wild (calm continuous establishing glide showing wild mon -> smoothly framing behind trainer)
     c = &sBank.clips[CAM_CLIP_INTRO_WILD];
     c->loaded = TRUE;
     c->loop = FALSE;
     c->duration = 3.2f;
-    SetKey(c, 0, 0.00f, -5.10f, 3.35f, 5.20f, 1.65f, 1.15f, -1.65f, 32.0f);
-    SetKey(c, 1, 1.25f, -0.95f, 1.72f, 1.85f, 2.30f, 1.02f, -2.12f, 30.0f);
-    SetKey(c, 2, 1.95f, 0.45f, 1.68f, 2.55f, 2.32f, 1.02f, -2.12f, 32.5f);
-    SetKey(c, 3, 3.20f, -3.60f, 2.55f, 8.80f, 0.60f, 1.45f, -2.00f, 38.0f);
+    SetKey(c, 0, 0.00f, -2.60f, 2.35f, 6.20f,  1.40f, 1.15f, -1.65f, 34.0f);
+    SetKey(c, 1, 1.50f, -3.40f, 2.30f, 7.20f,  0.80f, 1.25f, -1.40f, 35.5f);
+    SetKey(c, 2, 2.45f, -4.60f, 2.25f, 7.90f, -0.35f, 1.20f,  0.10f, 36.0f);
+    SetKey(c, 3, 3.20f, -5.60f, 2.15f, 7.60f, -1.20f, 1.15f,  1.20f, 35.5f);
 
-    // throw_cut (BDSP over-the-shoulder left-third framing: never swings past trainer shoulder)
+    // throw_cut (single steady over-the-shoulder shot behind Lucas at (-4.05, 0, +4.10) looking straight
+    // past him toward Infernape's landing spot (-2.15, 0, +2.25) and Bibarel, then smoothly gliding to HOME)
     c = &sBank.clips[CAM_CLIP_THROW_CUT];
     c->loaded = TRUE;
     c->loop = FALSE;
-    c->duration = 1.8f;
-    SetKey(c, 0, 0.00f, -4.20f, 1.85f, 6.20f, 0.15f, 1.15f, -0.35f, 34.5f);
-    SetKey(c, 1, 0.45f, -4.05f, 1.98f, 6.65f, 0.30f, 1.18f, -0.85f, 35.5f);
-    SetKey(c, 2, 1.10f, -3.80f, 2.28f, 7.80f, 0.48f, 1.32f, -1.55f, 37.0f);
-    SetKey(c, 3, 1.80f, -3.60f, 2.55f, 8.80f, 0.60f, 1.45f, -2.00f, 38.0f);
+    c->duration = 1.9f;
+    SetKey(c, 0, 0.00f, -5.75f, 2.12f, 7.55f, -1.20f, 1.12f,  1.25f, 35.5f);
+    SetKey(c, 1, 0.55f, -5.45f, 2.18f, 7.80f, -0.75f, 1.18f,  0.55f, 36.2f);
+    SetKey(c, 2, 1.25f, -4.40f, 2.38f, 8.35f,  0.10f, 1.32f, -1.05f, 37.2f);
+    SetKey(c, 3, 1.90f, -3.60f, 2.55f, 8.80f,  0.60f, 1.45f, -2.00f, 38.0f);
 
-    // wait_idle_0
+    // wait_idle_0/1/2 (calm steady HOME camera with ultra-gentle breathing drift — no jarring cuts)
     c = &sBank.clips[CAM_CLIP_WAIT_IDLE_0];
     c->loaded = TRUE;
     c->loop = TRUE;
-    c->duration = 5.0f;
-    SetKey(c, 0, 0.00f, -4.15f, 2.53f, 8.20f, 0.72f, 1.45f, -2.06f, 36.8f);
-    SetKey(c, 1, 2.50f, -3.55f, 2.53f, 8.48f, 0.60f, 1.45f, -2.00f, 38.0f);
-    SetKey(c, 2, 5.00f, -2.95f, 2.53f, 8.68f, 0.45f, 1.45f, -1.94f, 39.0f);
+    c->duration = 10.0f;
+    SetKey(c, 0,  0.00f, -3.80f, 2.54f, 8.70f, 0.65f, 1.44f, -2.02f, 37.8f);
+    SetKey(c, 1,  5.00f, -3.40f, 2.58f, 8.88f, 0.55f, 1.46f, -1.98f, 38.2f);
+    SetKey(c, 2, 10.00f, -3.80f, 2.54f, 8.70f, 0.65f, 1.44f, -2.02f, 37.8f);
 
-    // wait_idle_1
     c = &sBank.clips[CAM_CLIP_WAIT_IDLE_1];
     c->loaded = TRUE;
     c->loop = TRUE;
-    c->duration = 5.0f;
-    SetKey(c, 0, 0.00f, -4.80f, 2.08f, 7.45f, 0.55f, 1.38f, -1.90f, 36.5f);
-    SetKey(c, 1, 2.50f, -4.35f, 2.08f, 7.95f, 0.45f, 1.38f, -1.90f, 36.5f);
-    SetKey(c, 2, 5.00f, -3.85f, 2.08f, 8.35f, 0.35f, 1.38f, -1.90f, 36.5f);
+    c->duration = 10.0f;
+    SetKey(c, 0,  0.00f, -3.80f, 2.54f, 8.70f, 0.65f, 1.44f, -2.02f, 37.8f);
+    SetKey(c, 1,  5.00f, -3.40f, 2.58f, 8.88f, 0.55f, 1.46f, -1.98f, 38.2f);
+    SetKey(c, 2, 10.00f, -3.80f, 2.54f, 8.70f, 0.65f, 1.44f, -2.02f, 37.8f);
 
-    // wait_idle_2
     c = &sBank.clips[CAM_CLIP_WAIT_IDLE_2];
     c->loaded = TRUE;
     c->loop = TRUE;
-    c->duration = 5.0f;
-    SetKey(c, 0, 0.00f, -4.15f, 2.38f, 7.80f, 0.65f, 1.36f, -1.85f, 36.2f);
-    SetKey(c, 1, 2.50f, -3.45f, 2.75f, 8.35f, 0.50f, 1.38f, -1.95f, 37.5f);
-    SetKey(c, 2, 5.00f, -2.65f, 3.25f, 8.60f, 0.35f, 1.42f, -2.00f, 39.2f);
+    c->duration = 10.0f;
+    SetKey(c, 0,  0.00f, -3.80f, 2.54f, 8.70f, 0.65f, 1.44f, -2.02f, 37.8f);
+    SetKey(c, 1,  5.00f, -3.40f, 2.58f, 8.88f, 0.55f, 1.46f, -1.98f, 38.2f);
+    SetKey(c, 2, 10.00f, -3.80f, 2.54f, 8.70f, 0.65f, 1.44f, -2.02f, 37.8f);
 
-    // attack_player
+    // attack_player (smooth gentle push-in keeping BOTH battlers cleanly composed — zero teleport cuts)
     c = &sBank.clips[CAM_CLIP_ATTACK_PLAYER];
     c->loaded = TRUE;
     c->loop = FALSE;
-    c->duration = 1.2f;
-    SetKey(c, 0, 0.00f, -4.25f, 1.88f, 6.15f, -1.15f, 1.35f, 1.15f, 32.0f);
-    SetKey(c, 1, 0.38f, -3.45f, 1.72f, 5.35f, -0.45f, 1.35f, 0.35f, 29.5f);
-    SetKey(c, 2, 0.82f, -1.45f, 2.02f, 4.15f, 1.85f, 1.15f, -1.80f, 33.0f);
-    SetKey(c, 3, 1.20f, -2.20f, 2.22f, 5.80f, 1.30f, 1.25f, -1.90f, 35.5f);
+    c->duration = 1.95f;
+    SetKey(c, 0, 0.00f, -3.85f, 2.42f, 8.15f, 0.25f, 1.38f, -1.35f, 36.5f);
+    SetKey(c, 1, 0.65f, -3.55f, 2.32f, 7.65f, 0.55f, 1.32f, -1.55f, 35.2f);
+    SetKey(c, 2, 1.40f, -3.25f, 2.35f, 7.75f, 0.85f, 1.32f, -1.80f, 35.5f);
+    SetKey(c, 3, 1.95f, -3.60f, 2.55f, 8.80f, 0.60f, 1.45f, -2.00f, 38.0f);
 
-    // attack_enemy (front-3/4 enemy action angle clear of forward lunges -> player defender impact)
+    // attack_enemy (smooth gentle counter-angle keeping enemy attack + player clearly visible)
     c = &sBank.clips[CAM_CLIP_ATTACK_ENEMY];
     c->loaded = TRUE;
     c->loop = FALSE;
-    c->duration = 1.2f;
-    SetKey(c, 0, 0.00f, -0.85f, 2.10f, 4.10f, 2.05f, 0.95f, -1.90f, 32.5f);
-    SetKey(c, 1, 0.42f, -0.45f, 1.98f, 3.35f, 1.85f, 0.95f, -1.75f, 31.0f);
-    SetKey(c, 2, 0.85f, -4.45f, 2.15f, 6.95f, -1.35f, 1.18f, 1.25f, 34.5f);
-    SetKey(c, 3, 1.20f, -3.90f, 2.40f, 8.05f, 0.10f, 1.38f, -1.10f, 37.0f);
+    c->duration = 1.65f;
+    SetKey(c, 0, 0.00f, -3.10f, 2.38f, 7.95f, 0.85f, 1.30f, -1.75f, 35.8f);
+    SetKey(c, 1, 0.60f, -3.35f, 2.32f, 7.85f, 0.40f, 1.30f, -1.15f, 35.5f);
+    SetKey(c, 2, 1.15f, -3.95f, 2.40f, 8.35f, -0.15f, 1.34f, -0.55f, 36.2f);
+    SetKey(c, 3, 1.65f, -3.60f, 2.55f, 8.80f, 0.60f, 1.45f, -2.00f, 38.0f);
 
-    // hit_player
+    // hit_player & hit_enemy (subtle composed emphasis without jarring 7m teleport jumps)
     c = &sBank.clips[CAM_CLIP_HIT_PLAYER];
     c->loaded = TRUE;
     c->loop = FALSE;
-    c->duration = 0.75f;
-    SetKey(c, 0, 0.00f, -4.70f, 1.90f, 6.35f, -1.72f, 1.25f, 1.82f, 30.0f);
-    SetKey(c, 1, 0.18f, -5.00f, 2.04f, 6.75f, -1.56f, 1.34f, 1.72f, 32.5f);
-    SetKey(c, 2, 0.48f, -4.38f, 2.26f, 7.60f, -0.82f, 1.36f, 0.45f, 35.2f);
-    SetKey(c, 3, 0.75f, -3.90f, 2.45f, 8.30f, 0.05f, 1.40f, -1.05f, 37.0f);
+    c->duration = 0.85f;
+    SetKey(c, 0, 0.00f, -4.05f, 2.38f, 8.20f, -0.25f, 1.32f, -0.45f, 35.8f);
+    SetKey(c, 1, 0.40f, -3.95f, 2.42f, 8.35f,  0.05f, 1.36f, -0.95f, 36.5f);
+    SetKey(c, 2, 0.85f, -3.60f, 2.55f, 8.80f,  0.60f, 1.45f, -2.00f, 38.0f);
 
-    // hit_enemy
     c = &sBank.clips[CAM_CLIP_HIT_ENEMY];
     c->loaded = TRUE;
     c->loop = FALSE;
-    c->duration = 0.75f;
-    SetKey(c, 0, 0.00f, -0.40f, 1.74f, 2.40f, 2.30f, 1.05f, -2.10f, 28.5f);
-    SetKey(c, 1, 0.18f, -0.72f, 1.88f, 2.90f, 2.18f, 1.14f, -2.02f, 31.2f);
-    SetKey(c, 2, 0.48f, -1.65f, 2.12f, 4.85f, 1.72f, 1.22f, -2.00f, 34.2f);
-    SetKey(c, 3, 0.75f, -2.65f, 2.36f, 6.85f, 1.10f, 1.35f, -2.00f, 36.5f);
+    c->duration = 0.85f;
+    SetKey(c, 0, 0.00f, -3.15f, 2.35f, 7.65f,  0.95f, 1.30f, -1.85f, 35.0f);
+    SetKey(c, 1, 0.40f, -3.35f, 2.44f, 8.15f,  0.80f, 1.38f, -1.92f, 36.5f);
+    SetKey(c, 2, 0.85f, -3.60f, 2.55f, 8.80f,  0.60f, 1.45f, -2.00f, 38.0f);
 
     // faint_cut
     c = &sBank.clips[CAM_CLIP_FAINT_CUT];
@@ -919,7 +915,7 @@ void BattleBdspCam_NotifyTrainerThrow(void)
 {
     EnsureCameraBankLoaded();
     sCam.throwTriggered = TRUE;
-    TransitionToMode(CAM_MODE_THROW, CAM_CLIP_THROW_CUT, 0.22f);
+    TransitionToMode(CAM_MODE_THROW, CAM_CLIP_THROW_CUT, 0.45f);
 }
 
 void BattleBdspCam_NotifyAttack(int attacker, u16 move)
@@ -1084,11 +1080,11 @@ void BattleBdspCam_Update(BattleSystem *battleSys, SIM_Battle3DFrame *frame)
         BOOL defIsPlayer = IsPlayerBattler(battleSys, sCam.pendingDefender);
         sCam.pendingHit = FALSE;
         sCam.pendingAttack = FALSE;
-        TransitionToMode(CAM_MODE_HIT, defIsPlayer ? CAM_CLIP_HIT_PLAYER : CAM_CLIP_HIT_ENEMY, 0.12f);
+        TransitionToMode(CAM_MODE_HIT, defIsPlayer ? CAM_CLIP_HIT_PLAYER : CAM_CLIP_HIT_ENEMY, 0.35f);
     } else if (sCam.pendingAttack) {
         BOOL atkIsPlayer = IsPlayerBattler(battleSys, sCam.pendingAttacker);
         sCam.pendingAttack = FALSE;
-        TransitionToMode(CAM_MODE_ATTACK, atkIsPlayer ? CAM_CLIP_ATTACK_PLAYER : CAM_CLIP_ATTACK_ENEMY, 0.18f);
+        TransitionToMode(CAM_MODE_ATTACK, atkIsPlayer ? CAM_CLIP_ATTACK_PLAYER : CAM_CLIP_ATTACK_ENEMY, 0.45f);
     }
 
     // If player's Pokemon just appeared during intro without an explicit throw cut,
@@ -1202,11 +1198,8 @@ void BattleBdspCam_Update(BattleSystem *battleSys, SIM_Battle3DFrame *frame)
         sCam.clipTime += BDSP_CAM_DT;
 
         if (sCam.clipTime >= dur) {
-            // Smoothly advance through wait_idle_0 -> wait_idle_1 -> wait_idle_2
-            // just like BDSP's BattleWaitCameraData periodic angle transitions.
-            sCam.idleCycleIdx = (sCam.idleCycleIdx + 1) % 3;
-            sCam.idlePassDir = (sCam.idleCycleIdx % 2 == 0) ? 1 : -1;
-            TransitionToMode(CAM_MODE_IDLE, CAM_CLIP_WAIT_IDLE_0 + sCam.idleCycleIdx, 0.90f);
+            sCam.clipTime = 0.0f;
+            sCam.idlePassDir = (sCam.idlePassDir > 0) ? -1 : 1;
         }
         break;
     }
@@ -1237,8 +1230,8 @@ void BattleBdspCam_Update(BattleSystem *battleSys, SIM_Battle3DFrame *frame)
         float rx = oz;
         float rz = -ox;
         float rlen = sqrtf(rx * rx + rz * rz);
-        float sx = shakeX * 0.040f;
-        float sy = shakeY * 0.040f;
+        float sx = shakeX * 0.008f;
+        float sy = shakeY * 0.008f;
         if (rlen > 0.0001f) {
             rx /= rlen;
             rz /= rlen;

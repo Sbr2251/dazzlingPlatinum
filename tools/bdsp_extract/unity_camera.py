@@ -375,10 +375,10 @@ def build_camera_bank(aa_root: str) -> dict[str, Any]:
         anchor_eye=HOME_EYE + np.array([0.05, -0.02, -0.05]),
         anchor_target=HOME_TARGET + np.array([0.0, 0.0, 0.0]),
         anchor_fov=38.0,
-        eye_motion_scale=(0.55, 0.35, 0.45),
-        target_motion_scale=(0.30, 0.25, 0.25),
-        fov_delta_scale=0.14,
-        out_duration=5.0,
+        eye_motion_scale=(0.22, 0.14, 0.18),
+        target_motion_scale=(0.12, 0.10, 0.10),
+        fov_delta_scale=0.06,
+        out_duration=10.0,
     )
 
     # wait_idle_1: w_f_103 lower sweeping BDSP command-wait arc (cinematic low-angle drift)
@@ -405,76 +405,60 @@ def build_camera_bank(aa_root: str) -> dict[str, Any]:
         out_duration=5.0,
     )
 
-    # --- INTRO_WILD (derived from BDSP ee300 wild encounter sequence) ---
-    # ee300 beats:
-    #   [0..47]   Wide diagonal establishing sweep across the clearing toward the wild foe
-    #   [47..54]  Crisp push-in onto the wild opponent (CameraMoveRelativePoke z: 6.0m -> 2.5m)
-    #   [55..130] Smooth dramatic arc around wild opponent (+2.0m lateral) -> glide behind player
-    ee300_fov_wide = max(28.0, min(42.0, prof_ee300["fovs"][0] + 14.0)) if prof_ee300["fovs"] else 32.0
+    # --- INTRO_WILD (calm establishing glide showing wild mon -> smoothly behind trainer) ---
     intro_wild_keys = _clamp_clip_keys(
         [
-            _make_key(0.00, [-5.10, 3.35, 5.20], [1.65, 1.15, -1.65], ee300_fov_wide),
-            _make_key(0.75, [-2.60, 2.25, 3.30], [2.15, 1.05, -2.05], 31.5),
-            _make_key(1.25, [-0.95, 1.72, 1.85], [2.30, 1.02, -2.12], 30.0),
-            _make_key(1.95, [0.45, 1.68, 2.55], [2.32, 1.02, -2.12], 32.5),
-            _make_key(2.55, [-2.35, 2.30, 6.75], [0.95, 1.35, -1.95], 36.2),
-            _make_key(3.20, HOME_EYE, HOME_TARGET, HOME_FOV),
+            _make_key(0.00, [-2.60, 2.35, 6.20], [1.40, 1.15, -1.65], 34.0),
+            _make_key(1.50, [-3.40, 2.30, 7.20], [0.80, 1.25, -1.40], 35.5),
+            _make_key(2.45, [-4.60, 2.25, 7.90], [-0.35, 1.20, 0.10], 36.0),
+            _make_key(3.20, [-5.60, 2.15, 7.60], [-1.20, 1.15, 1.20], 35.5),
         ]
     )
 
-    # --- THROW_CUT (derived from BDSP ee400 trainer send-out / ball throw sequence) ---
-    # ee400 beats:
-    #   [0..25]   DprCameraMoveRelativeTrainer: behind trainer's shoulder sweeping around arm
-    #   [26..41]  CameraMoveRelativePoke: tracks Pokeball arc to player Pokemon landing spot
-    #   [42..110] Smooth pull-back into over-the-shoulder battle home pose
+    # --- THROW_CUT (steady behind-trainer framing: trainer stands behind (-4.05,4.10) and throws forward to (-2.15,2.25)) ---
     throw_cut_keys = _clamp_clip_keys(
         [
-            _make_key(0.00, [-4.20, 1.85, 6.20], [0.15, 1.15, -0.35], 34.5),
-            _make_key(0.45, [-4.05, 1.98, 6.65], [0.30, 1.18, -0.85], 35.5),
-            _make_key(0.95, [-3.85, 2.22, 7.60], [0.45, 1.28, -1.45], 36.8),
-            _make_key(1.45, [-3.68, 2.45, 8.40], [0.55, 1.40, -1.85], 37.6),
-            _make_key(1.80, HOME_EYE, HOME_TARGET, HOME_FOV),
+            _make_key(0.00, [-5.75, 2.12, 7.55], [-1.20, 1.12, 1.25], 35.5),
+            _make_key(0.55, [-5.45, 2.18, 7.80], [-0.75, 1.18, 0.55], 36.2),
+            _make_key(1.25, [-4.40, 2.38, 8.35], [0.10, 1.32, -1.05], 37.2),
+            _make_key(1.90, HOME_EYE, HOME_TARGET, HOME_FOV),
         ]
     )
 
-    # --- ATTACK_PLAYER (derived from BDSP ew053 Flamethrower + ew172 Flame Wheel) ---
-    # ew053/ew172 beats: attacker 3/4 hero close-up -> dynamic surge -> pan toward defender
+    # --- ATTACK_PLAYER (calm gentle push-in keeping both battlers composed — zero jarring teleport cuts) ---
     attack_player_keys = _clamp_clip_keys(
         [
-            _make_key(0.00, [-4.25, 1.88, 6.15], [-1.15, 1.35, 1.15], 32.0),
-            _make_key(0.38, [-3.45, 1.72, 5.35], [-0.45, 1.35, 0.35], 29.5),
-            _make_key(0.82, [-1.45, 2.02, 4.15], [1.85, 1.15, -1.80], 33.0),
-            _make_key(1.20, [-2.20, 2.22, 5.80], [1.30, 1.25, -1.90], 35.5),
+            _make_key(0.00, [-3.85, 2.42, 8.15], [0.25, 1.38, -1.35], 36.5),
+            _make_key(0.65, [-3.55, 2.32, 7.65], [0.55, 1.32, -1.55], 35.2),
+            _make_key(1.40, [-3.25, 2.35, 7.75], [0.85, 1.32, -1.80], 35.5),
+            _make_key(1.95, HOME_EYE, HOME_TARGET, HOME_FOV),
         ]
     )
 
-    # --- ATTACK_ENEMY (ew053 + ew172 mirrored for enemy attacker -> player defender) ---
+    # --- ATTACK_ENEMY (calm counter-angle keeping enemy attack & player clearly framed) ---
     attack_enemy_keys = _clamp_clip_keys(
         [
-            _make_key(0.00, [-0.85, 2.10, 4.10], [2.05, 0.95, -1.90], 32.5),
-            _make_key(0.42, [-0.45, 1.98, 3.35], [1.85, 0.95, -1.75], 31.0),
-            _make_key(0.85, [-4.45, 2.15, 6.95], [-1.35, 1.18, 1.25], 34.5),
-            _make_key(1.20, [-3.90, 2.40, 8.05], [0.10, 1.38, -1.10], 37.0),
+            _make_key(0.00, [-3.10, 2.38, 7.95], [0.85, 1.30, -1.75], 35.8),
+            _make_key(0.60, [-3.35, 2.32, 7.85], [0.40, 1.30, -1.15], 35.5),
+            _make_key(1.15, [-3.95, 2.40, 8.35], [-0.15, 1.34, -0.55], 36.2),
+            _make_key(1.65, HOME_EYE, HOME_TARGET, HOME_FOV),
         ]
     )
 
-    # --- HIT_ENEMY (ew053 frame 47 + ew007 defender impact framing with crisp recoil) ---
-    hit_enemy_keys = _clamp_clip_keys(
-        [
-            _make_key(0.00, [-0.40, 1.72, 2.45], [2.30, 1.05, -2.10], 28.5),
-            _make_key(0.24, [-0.68, 1.86, 2.85], [2.22, 1.12, -2.04], 30.8),
-            _make_key(0.58, [-1.55, 2.08, 4.70], [1.75, 1.22, -2.00], 33.8),
-            _make_key(0.95, [-2.70, 2.38, 7.00], [1.05, 1.36, -2.00], 36.8),
-        ]
-    )
-
-    # --- HIT_PLAYER (ew053/ew007 impact framing on player Pokemon with crisp recoil) ---
+    # --- HIT_PLAYER / HIT_ENEMY (subtle composed emphasis, no 7m teleport jumps) ---
     hit_player_keys = _clamp_clip_keys(
         [
-            _make_key(0.00, [-4.70, 1.90, 6.35], [-1.72, 1.25, 1.82], 30.0),
-            _make_key(0.24, [-5.00, 2.04, 6.75], [-1.56, 1.34, 1.72], 32.2),
-            _make_key(0.58, [-4.38, 2.26, 7.60], [-0.82, 1.36, 0.45], 35.0),
-            _make_key(0.95, [-3.90, 2.45, 8.30], [0.05, 1.40, -1.05], 37.0),
+            _make_key(0.00, [-4.05, 2.38, 8.20], [-0.25, 1.32, -0.45], 35.8),
+            _make_key(0.40, [-3.95, 2.42, 8.35], [0.05, 1.36, -0.95], 36.5),
+            _make_key(0.85, HOME_EYE, HOME_TARGET, HOME_FOV),
+        ]
+    )
+
+    hit_enemy_keys = _clamp_clip_keys(
+        [
+            _make_key(0.00, [-3.15, 2.35, 7.65], [0.95, 1.30, -1.85], 35.0),
+            _make_key(0.40, [-3.35, 2.44, 8.15], [0.80, 1.38, -1.92], 36.5),
+            _make_key(0.85, HOME_EYE, HOME_TARGET, HOME_FOV),
         ]
     )
 
@@ -497,13 +481,13 @@ def build_camera_bank(aa_root: str) -> dict[str, Any]:
         },
         "throw_cut": {
             "source": "Battle/btlv/waza/sequence/ee400",
-            "duration": 1.8,
+            "duration": 1.9,
             "loop": False,
             "keys": throw_cut_keys,
         },
         "wait_idle_0": {
             "source": "Battle/btlv/waza/camera/wait/w_f_default",
-            "duration": 5.0,
+            "duration": 10.0,
             "loop": True,
             "keys": wait_idle_0_keys,
         },
@@ -521,25 +505,25 @@ def build_camera_bank(aa_root: str) -> dict[str, Any]:
         },
         "attack_player": {
             "source": "Battle/btlv/waza/sequence/ew053+ew172",
-            "duration": 1.2,
+            "duration": 1.95,
             "loop": False,
             "keys": attack_player_keys,
         },
         "attack_enemy": {
             "source": "Battle/btlv/waza/sequence/ew053+ew172",
-            "duration": 1.2,
+            "duration": 1.65,
             "loop": False,
             "keys": attack_enemy_keys,
         },
         "hit_player": {
             "source": "Battle/btlv/waza/sequence/ew053+ew007",
-            "duration": 0.95,
+            "duration": 0.85,
             "loop": False,
             "keys": hit_player_keys,
         },
         "hit_enemy": {
             "source": "Battle/btlv/waza/sequence/ew053+ew007",
-            "duration": 0.95,
+            "duration": 0.85,
             "loop": False,
             "keys": hit_enemy_keys,
         },
