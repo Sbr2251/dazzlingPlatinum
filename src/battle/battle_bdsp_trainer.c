@@ -7,6 +7,7 @@
 
 #include "constants/battle.h"
 #include "generated/genders.h"
+#include "generated/trainer_classes.h"
 
 #include "battle/battle_bdsp_cam.h"
 #include "battle/battle_context.h"
@@ -14,6 +15,7 @@
 #include "battle_anim/ov12_02235E94.h"
 #include "sprite_system.h"
 #include "struct_defs/battler_data.h"
+#include "struct_defs/trainer.h"
 
 #define BDSP_TRAINER_DT                 (1.0f / 60.0f)
 #define BDSP_TRAINER_HOME_X             (-2.65f)
@@ -22,6 +24,17 @@
 #define BDSP_TRAINER_SCALE              1.22f
 #define BDSP_TRAINER_SETTLE_X           68
 #define BDSP_TRAINER_THROW_X            60
+
+#define BDSP_OPP_HOME_X                 2.45f
+#define BDSP_OPP_HOME_Y                 0.0f
+#define BDSP_OPP_HOME_Z                 (-2.40f)
+#define BDSP_OPP_SCALE                  1.32f
+#define BDSP_OPP_SETTLE_X               192
+#define BDSP_OPP_THROW_START_X          197
+#define BDSP_OPP_ADVENT_POSE_DUR        1.20f
+#define BDSP_OPP_THROW_DUR              0.85f
+#define BDSP_OPP_THROW_MIN_ON_MON       0.55f
+#define BDSP_OPP_EXIT_DUR               0.42f
 
 // BDSP pc0001_00 (Lucas) & pc0002_00 (Dawn) throw clip (advent03_b) metrics:
 // Both trainers throw with LHand (boneKind=2, ee400 _locators[75]=LItem1);
@@ -89,7 +102,144 @@ typedef struct BdspTrainerState {
     u32 tickCount;
 } BdspTrainerState;
 
+typedef struct BdspOppTrainerState {
+    int phase;
+    int trainerModelId;
+    int enemySlot;
+    BOOL hasHidden2d;
+    s16 settledSprX;
+    float animTime;
+    float phaseTime;
+    float throwTime;
+    float fadeTime;
+    int animNonce;
+    float posX;
+    float posZ;
+    float yawDeg;
+} BdspOppTrainerState;
+
 static BdspTrainerState sTrainer;
+static BdspOppTrainerState sOppTrainer;
+
+static int MapTrainerClassToBdspModel(int trainerClass)
+{
+    switch (trainerClass) {
+    case TRAINER_CLASS_YOUNGSTER:               return 28;
+    case TRAINER_CLASS_LASS:                    return 29;
+    case TRAINER_CLASS_CAMPER:                  return 1004;
+    case TRAINER_CLASS_PICNICKER:               return 1005;
+    case TRAINER_CLASS_BUG_CATCHER:             return 1006;
+    case TRAINER_CLASS_AROMA_LADY:              return 1007;
+    case TRAINER_CLASS_TWINS:                   return 1008;
+    case TRAINER_CLASS_HIKER:                   return 49;
+    case TRAINER_CLASS_BATTLE_GIRL:             return 1010;
+    case TRAINER_CLASS_FISHERMAN:               return 48;
+    case TRAINER_CLASS_CYCLIST_MALE:            return 1012;
+    case TRAINER_CLASS_CYCLIST_FEMALE:          return 1013;
+    case TRAINER_CLASS_BLACK_BELT:              return 50;
+    case TRAINER_CLASS_ARTIST:                  return 44;
+    case TRAINER_CLASS_BREEDER_MALE:            return 42;
+    case TRAINER_CLASS_BREEDER_FEMALE:          return 43;
+    case TRAINER_CLASS_COWGIRL:                 return 18;
+    case TRAINER_CLASS_JOGGER:                  return 1019;
+    case TRAINER_CLASS_POKEFAN_MALE:            return 1020;
+    case TRAINER_CLASS_POKEFAN_FEMALE:          return 1021;
+    case TRAINER_CLASS_POKE_KID:                return 27;
+    case TRAINER_CLASS_YOUNG_COUPLE:            return 1023;
+    case TRAINER_CLASS_ACE_TRAINER_MALE:        return 1024;
+    case TRAINER_CLASS_ACE_TRAINER_FEMALE:      return 1025;
+    case TRAINER_CLASS_WAITRESS:                return 1026;
+    case TRAINER_CLASS_VETERAN:                 return 1027;
+    case TRAINER_CLASS_NINJA_BOY:               return 1028;
+    case TRAINER_CLASS_DRAGON_TAMER:            return 1029;
+    case TRAINER_CLASS_BIRD_KEEPER:             return 1030;
+    case TRAINER_CLASS_DOUBLE_TEAM:             return 1024;
+    case TRAINER_CLASS_RICH_BOY:                return 1032;
+    case TRAINER_CLASS_LADY:                    return 1033;
+    case TRAINER_CLASS_GENTLEMAN:               return 46;
+    case TRAINER_CLASS_SOCIALITE:               return 47;
+    case TRAINER_CLASS_BEAUTY:                  return 51;
+    case TRAINER_CLASS_COLLECTOR:               return 1037;
+    case TRAINER_CLASS_POLICEMAN:               return 39;
+    case TRAINER_CLASS_RANGER_MALE:             return 1039;
+    case TRAINER_CLASS_RANGER_FEMALE:           return 1040;
+    case TRAINER_CLASS_SCIENTIST:               return 1041;
+    case TRAINER_CLASS_SWIMMER_MALE:            return 53;
+    case TRAINER_CLASS_SWIMMER_FEMALE:          return 54;
+    case TRAINER_CLASS_TUBER_MALE:              return 1044;
+    case TRAINER_CLASS_TUBER_FEMALE:            return 1045;
+    case TRAINER_CLASS_SAILOR:                  return 1046;
+    case TRAINER_CLASS_SIS_AND_BRO:             return 2018;
+    case TRAINER_CLASS_RUIN_MANIAC:             return 1048;
+    case TRAINER_CLASS_PSYCHIC_MALE:            return 1049;
+    case TRAINER_CLASS_PSYCHIC_FEMALE:          return 1050;
+    case TRAINER_CLASS_PI:                      return 1051;
+    case TRAINER_CLASS_GUITARIST:               return 1052;
+    case TRAINER_CLASS_ACE_TRAINER_SNOW_MALE:   return 1053;
+    case TRAINER_CLASS_ACE_TRAINER_SNOW_FEMALE: return 1054;
+    case TRAINER_CLASS_SKIER_MALE:              return 1055;
+    case TRAINER_CLASS_SKIER_FEMALE:            return 1056;
+    case TRAINER_CLASS_ROUGHNECK:               return 1057;
+    case TRAINER_CLASS_CLOWN:                   return 1058;
+    case TRAINER_CLASS_WORKER:                  return 40;
+    case TRAINER_CLASS_SCHOOL_KID_MALE:         return 30;
+    case TRAINER_CLASS_SCHOOL_KID_FEMALE:       return 31;
+    case TRAINER_CLASS_LEADER_ROARK:            return 1062;
+    case TRAINER_CLASS_RIVAL:                   return 2;
+    case TRAINER_CLASS_LEADER_BYRON:            return 1064;
+    case TRAINER_CLASS_ELITE_FOUR_AARON:        return 1065;
+    case TRAINER_CLASS_ELITE_FOUR_BERTHA:       return 1066;
+    case TRAINER_CLASS_ELITE_FOUR_FLINT:        return 1067;
+    case TRAINER_CLASS_ELITE_FOUR_LUCIAN:       return 1068;
+    case TRAINER_CLASS_CHAMPION_CYNTHIA:        return 1;
+    case TRAINER_CLASS_BELLE_AND_PA:            return 1071;
+    case TRAINER_CLASS_RANCHER:                 return 1071;
+    case TRAINER_CLASS_COMMANDER_MARS:          return 1072;
+    case TRAINER_CLASS_GALACTIC_GRUNT_MALE:     return 1073;
+    case TRAINER_CLASS_LEADER_GARDENIA:         return 1074;
+    case TRAINER_CLASS_LEADER_WAKE:             return 1075;
+    case TRAINER_CLASS_LEADER_MAYLENE:          return 1076;
+    case TRAINER_CLASS_LEADER_FANTINA:          return 1077;
+    case TRAINER_CLASS_LEADER_CANDICE:          return 1078;
+    case TRAINER_CLASS_LEADER_VOLKNER:          return 1079;
+    case TRAINER_CLASS_PARASOL_LADY:            return 1080;
+    case TRAINER_CLASS_WAITER:                  return 1081;
+    case TRAINER_CLASS_INTERVIEWERS:            return 61;
+    case TRAINER_CLASS_CAMERAMAN:               return 62;
+    case TRAINER_CLASS_REPORTER:                return 61;
+    case TRAINER_CLASS_IDOL:                    return 1085;
+    case TRAINER_CLASS_GALACTIC_BOSS:           return 1086;
+    case TRAINER_CLASS_COMMANDER_JUPITER:       return 1087;
+    case TRAINER_CLASS_COMMANDER_SATURN:        return 1088;
+    case TRAINER_CLASS_GALACTIC_GRUNT_FEMALE:   return 1089;
+    case TRAINER_CLASS_TRAINER_CHERYL:          return 2007;
+    case TRAINER_CLASS_TRAINER_RILEY:           return 2009;
+    case TRAINER_CLASS_TRAINER_MARLEY:          return 2010;
+    case TRAINER_CLASS_TRAINER_BUCK:            return 2011;
+    case TRAINER_CLASS_TRAINER_MIRA:            return 2008;
+    case TRAINER_CLASS_TOWER_TYCOON:            return 1097;
+    default:                                    return 0;
+    }
+}
+
+static int FindEnemySlot(BattleSystem *battleSys)
+{
+    int maxBattlers = BattleSystem_GetMaxBattlers(battleSys);
+    int i;
+
+    if (maxBattlers > SIM_BATTLE3D_MAX_BATTLERS) {
+        maxBattlers = SIM_BATTLE3D_MAX_BATTLERS;
+    }
+
+    for (i = 0; i < maxBattlers; i++) {
+        int btype = BattleSystem_GetBattlerType(battleSys, i);
+        if (btype == BATTLER_TYPE_SOLO_ENEMY || btype == BATTLER_TYPE_ENEMY_SIDE_SLOT_1) {
+            return i;
+        }
+    }
+
+    return -1;
+}
 
 static void GetTrainerPalmOffset(int trainerKind, float outOff[3])
 {
@@ -470,6 +620,12 @@ void BattleBdspTrainer_Reset(void)
     sTrainer.targetMonZ = 2.25f;
     sTrainer.targetMon2X = -1.55f;
     sTrainer.targetMon2Z = 2.65f;
+
+    memset(&sOppTrainer, 0, sizeof(sOppTrainer));
+    sOppTrainer.enemySlot = -1;
+    sOppTrainer.posX = BDSP_OPP_HOME_X;
+    sOppTrainer.posZ = BDSP_OPP_HOME_Z;
+    sOppTrainer.yawDeg = -45.0f;
 #ifdef SDK_PORT
     TrainerDumpClose();
 #endif
@@ -477,12 +633,212 @@ void BattleBdspTrainer_Reset(void)
 
 BOOL BattleBdspTrainer_IsIntroActive(void)
 {
-    return (sTrainer.phase == BDSP_TRAINER_PHASE_ENTERING
+    BOOL playerActive = (sTrainer.phase == BDSP_TRAINER_PHASE_ENTERING
         || sTrainer.phase == BDSP_TRAINER_PHASE_STANDING
         || sTrainer.phase == BDSP_TRAINER_PHASE_THROWING
         || sTrainer.phase == BDSP_TRAINER_PHASE_FADING)
         ? TRUE
         : FALSE;
+    BOOL oppActive = (sOppTrainer.phase == BDSP_TRAINER_PHASE_ENTERING
+        || sOppTrainer.phase == BDSP_TRAINER_PHASE_STANDING
+        || sOppTrainer.phase == BDSP_TRAINER_PHASE_THROWING
+        || sOppTrainer.phase == BDSP_TRAINER_PHASE_FADING)
+        ? TRUE
+        : FALSE;
+    return (playerActive || oppActive) ? TRUE : FALSE;
+}
+
+static void UpdateOpponentTrainer(BattleSystem *battleSys, SIM_Battle3DFrame *frame, u32 battleType)
+{
+    int enemySlot;
+    Trainer *trainer;
+    int trId;
+    BattlerData *enemyBd;
+    ManagedSprite *enemySpr;
+    BOOL hasOpp3d;
+    BOOL enemyMonVisible = FALSE;
+    s16 sprX = 192;
+    s16 sprY = 64;
+
+    if ((battleType & BATTLE_TYPE_TRAINER) == 0) {
+        return;
+    }
+
+    enemySlot = FindEnemySlot(battleSys);
+    if (enemySlot < 0) {
+        return;
+    }
+
+    enemyBd = BattleSystem_GetBattlerData(battleSys, enemySlot);
+    enemySpr = (enemyBd != NULL) ? enemyBd->managedSprite : NULL;
+    trainer = BattleSystem_GetTrainer(battleSys, enemySlot);
+    trId = (trainer != NULL) ? MapTrainerClassToBdspModel(trainer->header.trainerType) : 0;
+
+    hasOpp3d = (trId > 0) ? SIM_Battle3D_HasOpponentTrainerReady(trId) : FALSE;
+    if (!hasOpp3d) {
+        if (enemySpr != NULL && sOppTrainer.hasHidden2d) {
+            ManagedSprite_SetDrawFlag(enemySpr, TRUE);
+        }
+        sOppTrainer.hasHidden2d = FALSE;
+        return;
+    }
+
+    if (enemySlot < SIM_BATTLE3D_MAX_BATTLERS && frame->battlers[enemySlot].visible) {
+        enemyMonVisible = TRUE;
+    }
+    if (enemySpr != NULL) {
+        ManagedSprite_GetPositionXY(enemySpr, &sprX, &sprY);
+    }
+
+    sOppTrainer.enemySlot = enemySlot;
+    sOppTrainer.trainerModelId = trId;
+    sOppTrainer.yawDeg = atan2f(BDSP_TRAINER_HOME_X - BDSP_OPP_HOME_X,
+                                BDSP_TRAINER_HOME_Z - BDSP_OPP_HOME_Z) * (180.0f / 3.14159265f);
+
+    switch (sOppTrainer.phase) {
+    case BDSP_TRAINER_PHASE_IDLE:
+        if (enemySpr != NULL && !enemyMonVisible) {
+            sOppTrainer.phase = (sprX < BDSP_OPP_SETTLE_X)
+                ? BDSP_TRAINER_PHASE_ENTERING
+                : BDSP_TRAINER_PHASE_STANDING;
+            sOppTrainer.settledSprX = sprX;
+            sOppTrainer.animTime = 0.0f;
+            sOppTrainer.phaseTime = 0.0f;
+            sOppTrainer.throwTime = 0.0f;
+            sOppTrainer.fadeTime = 0.0f;
+            sOppTrainer.animNonce++;
+            sOppTrainer.posX = BDSP_OPP_HOME_X;
+            sOppTrainer.posZ = BDSP_OPP_HOME_Z;
+        }
+        break;
+
+    case BDSP_TRAINER_PHASE_ENTERING:
+        if (enemySpr == NULL) {
+            if (!enemyMonVisible) {
+                sOppTrainer.phase = BDSP_TRAINER_PHASE_THROWING;
+                sOppTrainer.animTime = 0.0f;
+                sOppTrainer.throwTime = 0.0f;
+                sOppTrainer.animNonce++;
+            } else {
+                sOppTrainer.phase = BDSP_TRAINER_PHASE_DONE;
+            }
+        } else {
+            float slideFrac = ClampFloat((float)(192 - sprX) / 160.0f, 0.0f, 1.0f);
+            sOppTrainer.posX = BDSP_OPP_HOME_X - slideFrac * 1.45f;
+            sOppTrainer.posZ = BDSP_OPP_HOME_Z - slideFrac * 0.45f;
+            sOppTrainer.animTime += BDSP_TRAINER_DT;
+            sOppTrainer.phaseTime += BDSP_TRAINER_DT;
+            if (sprX >= BDSP_OPP_SETTLE_X) {
+                sOppTrainer.phase = BDSP_TRAINER_PHASE_STANDING;
+                sOppTrainer.settledSprX = sprX;
+                sOppTrainer.animTime = 0.0f;
+                sOppTrainer.phaseTime = 0.0f;
+                sOppTrainer.posX = BDSP_OPP_HOME_X;
+                sOppTrainer.posZ = BDSP_OPP_HOME_Z;
+            }
+        }
+        break;
+
+    case BDSP_TRAINER_PHASE_STANDING:
+        sOppTrainer.posX = BDSP_OPP_HOME_X;
+        sOppTrainer.posZ = BDSP_OPP_HOME_Z;
+        if (enemySpr == NULL || sprX >= BDSP_OPP_THROW_START_X || enemyMonVisible) {
+            sOppTrainer.phase = BDSP_TRAINER_PHASE_THROWING;
+            sOppTrainer.animTime = 0.0f;
+            sOppTrainer.phaseTime = 0.0f;
+            sOppTrainer.throwTime = 0.0f;
+            sOppTrainer.animNonce++;
+        } else {
+            sOppTrainer.animTime += BDSP_TRAINER_DT;
+            sOppTrainer.phaseTime += BDSP_TRAINER_DT;
+        }
+        break;
+
+    case BDSP_TRAINER_PHASE_THROWING:
+        sOppTrainer.posX = BDSP_OPP_HOME_X;
+        sOppTrainer.posZ = BDSP_OPP_HOME_Z;
+        sOppTrainer.throwTime += BDSP_TRAINER_DT;
+        sOppTrainer.animTime = sOppTrainer.throwTime;
+        if (sOppTrainer.throwTime >= BDSP_OPP_THROW_DUR
+            || (enemyMonVisible && sOppTrainer.throwTime >= BDSP_OPP_THROW_MIN_ON_MON)) {
+            sOppTrainer.phase = BDSP_TRAINER_PHASE_FADING;
+            sOppTrainer.fadeTime = 0.0f;
+        }
+        break;
+
+    case BDSP_TRAINER_PHASE_FADING:
+        sOppTrainer.fadeTime += BDSP_TRAINER_DT;
+        sOppTrainer.animTime += BDSP_TRAINER_DT;
+        if (sOppTrainer.fadeTime >= BDSP_OPP_EXIT_DUR) {
+            sOppTrainer.phase = BDSP_TRAINER_PHASE_DONE;
+        }
+        break;
+
+    case BDSP_TRAINER_PHASE_DONE:
+    default:
+        break;
+    }
+
+    // Hide the 2D opponent trainer OBJ sprite ONLY while our 3D opponent trainer is active & ready.
+    if (enemySpr != NULL) {
+        BOOL hide2d = (sOppTrainer.phase == BDSP_TRAINER_PHASE_ENTERING
+            || sOppTrainer.phase == BDSP_TRAINER_PHASE_STANDING
+            || sOppTrainer.phase == BDSP_TRAINER_PHASE_THROWING
+            || sOppTrainer.phase == BDSP_TRAINER_PHASE_FADING);
+        ManagedSprite_SetDrawFlag(enemySpr, hide2d ? FALSE : TRUE);
+        sOppTrainer.hasHidden2d = hide2d;
+    } else {
+        sOppTrainer.hasHidden2d = FALSE;
+    }
+
+    if (sOppTrainer.phase == BDSP_TRAINER_PHASE_ENTERING
+        || sOppTrainer.phase == BDSP_TRAINER_PHASE_STANDING
+        || sOppTrainer.phase == BDSP_TRAINER_PHASE_THROWING
+        || sOppTrainer.phase == BDSP_TRAINER_PHASE_FADING) {
+        SIM_Battle3DActor *oa = &frame->actors[3];
+        float alpha = 1.0f;
+        float exitShift = 0.0f;
+        int animState = SIM_BATTLE3D_TRANIM_WAIT;
+        float animTime = sOppTrainer.animTime;
+
+        if (sOppTrainer.phase == BDSP_TRAINER_PHASE_STANDING
+            && sOppTrainer.phaseTime < BDSP_OPP_ADVENT_POSE_DUR) {
+            animState = SIM_BATTLE3D_TRANIM_ADVENT;
+            animTime = sOppTrainer.phaseTime;
+        } else if (sOppTrainer.phase == BDSP_TRAINER_PHASE_THROWING
+            || sOppTrainer.phase == BDSP_TRAINER_PHASE_FADING) {
+            animState = SIM_BATTLE3D_TRANIM_THROW;
+            animTime = sOppTrainer.animTime;
+        }
+
+        if (sOppTrainer.phase == BDSP_TRAINER_PHASE_FADING) {
+            float u = ClampFloat(sOppTrainer.fadeTime / BDSP_OPP_EXIT_DUR, 0.0f, 1.0f);
+            float sm = u * u * (3.0f - 2.0f * u);
+            alpha = 1.0f - sm;
+            exitShift = sm * 1.15f;
+        }
+
+        oa->visible = 1;
+        oa->kind = SIM_BATTLE3D_ACTOR_OPPONENT_TRAINER;
+        oa->trainerId = sOppTrainer.trainerModelId;
+        oa->ballVariant = 0;
+        oa->worldX = sOppTrainer.posX + exitShift * 0.85f;
+        oa->worldY = BDSP_OPP_HOME_Y;
+        oa->worldZ = sOppTrainer.posZ - exitShift * 0.70f;
+        oa->yawDeg = sOppTrainer.yawDeg;
+        oa->pitchDeg = 0.0f;
+        oa->rollDeg = 0.0f;
+        oa->scale = BDSP_OPP_SCALE;
+        oa->alpha = alpha;
+        oa->animState = animState;
+        oa->animTime = animTime;
+        oa->animNonce = sOppTrainer.animNonce;
+        oa->attachActorIdx = 0;
+        oa->attachBoneKind = 0;
+        oa->attachOffset[0] = 0.0f;
+        oa->attachOffset[1] = 0.0f;
+        oa->attachOffset[2] = 0.0f;
+    }
 }
 
 void BattleBdspTrainer_Update(BattleSystem *battleSys, SIM_Battle3DFrame *frame)
@@ -524,6 +880,8 @@ void BattleBdspTrainer_Update(BattleSystem *battleSys, SIM_Battle3DFrame *frame)
     if (frame->alpha <= 0.01f) {
         return;
     }
+
+    UpdateOpponentTrainer(battleSys, frame, battleType);
 
     playerSlot = FindPlayerSlot(battleSys);
     if (playerSlot < 0) {

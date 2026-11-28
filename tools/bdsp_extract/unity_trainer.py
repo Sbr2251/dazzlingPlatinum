@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+from concurrent.futures import ProcessPoolExecutor, as_completed
 import json
 import os
 import sys
@@ -43,19 +44,30 @@ MAX_JOINTS = 192
 
 TRAINER_CLIP_CANDIDATES: dict[str, list[str]] = {
     "wait": ["wait_b", "wait02_b", "stand_b"],
-    "throw": ["advent03_b", "advent06_b", "advent_b", "order_b"],
+    "throw": ["advent03_b", "advent06_b", "order_b", "advent_b"],
     "advent": ["advent_b", "advent05_b", "advent06_b"],
-    "lose": ["look_left_down_b", "wait02_b", "pose_b"],
+    "lose": ["lose01_b", "look_left_down_b", "wait02_b", "pose_b"],
 }
+
+KEY_OPPONENTS: list[tuple[str, str]] = [
+    ("tr0001_00", "Cynthia (tr0001_00)"),
+    ("tr0002_00", "Barry (tr0002_00)"),
+    ("tr1062_00", "Roark (tr1062_00)"),
+    ("tr1086_00", "Cyrus (tr1086_00)"),
+    ("tr0028_00", "Youngster (tr0028_00)"),
+    ("tr0029_00", "Lass (tr0029_00)"),
+    ("tr1024_00", "Ace Trainer (tr1024_00)"),
+    ("tr1073_00", "Galactic Grunt (tr1073_00)"),
+]
 
 STRIP_MAT_NAMES = {"shadow"}
 STRIP_MESH_TOKENS = ("collider", "proxy", "debug", "hitcheck", "dammy")
 
 
-def _extract_color_variation_overrides(env: Any) -> dict[tuple[int, int, int], np.ndarray]:
+def _extract_color_variation_overrides_from(objects: list[Any]) -> dict[tuple[int, int, int], np.ndarray]:
     """Read BDSP ColorVariation MonoBehaviour (ColorIndex==0 / Property00) -> {(smr_pid, mat_idx, channel): rgb}."""
     overrides: dict[tuple[int, int, int], np.ndarray] = {}
-    for obj in env.objects:
+    for obj in objects:
         if obj.type.name != "MonoBehaviour":
             continue
         try:
@@ -166,9 +178,19 @@ def extract_trainer_glb(
         raise FileNotFoundError(f"Missing trainer bundle: {bundle_path}")
 
     env = UnityPy.load(bundle_path)
+    primary_objects = list(env.objects)
+    # Some trainers (Waitress tr1026_00, Dragon Tamer tr1029_00, Idol tr1085_00) reference
+    # shared Pokeball material/texture from Characters/objects/ob0204_00; register it into
+    # env so external PPtr material reads resolve without pulling its GameObjects into this rig.
+    ball_dep = os.path.join(aa_root, "Characters/objects/ob0204_00")
+    if os.path.isfile(ball_dep):
+        try:
+            env.load_file(ball_dep)
+        except Exception:
+            pass
 
     transforms: dict[int, Any] = {}
-    for obj in env.objects:
+    for obj in primary_objects:
         if obj.type.name == "Transform":
             transforms[obj.path_id] = obj.read()
 
@@ -177,10 +199,10 @@ def extract_trainer_glb(
         raise RuntimeError(f"No root Transform found for {trainer_id}")
     root_pid = roots[0]
 
-    color_overrides = _extract_color_variation_overrides(env)
+    color_overrides = _extract_color_variation_overrides_from(primary_objects)
 
     kept_smrs: list[tuple[Any, Any, str, int]] = []
-    for obj in env.objects:
+    for obj in primary_objects:
         if obj.type.name == "SkinnedMeshRenderer":
             smr = obj.read()
             go = smr.m_GameObject.read()
@@ -195,15 +217,32 @@ def extract_trainer_glb(
     if not kept_smrs:
         raise RuntimeError(f"No visible SkinnedMeshRenderer found for {trainer_id}")
 
-    # Build unified bone list (<= MAX_JOINTS)
-    joint_pids: list[int] = []
-    joint_pid_to_idx: dict[int, int] = {}
-    joint_ibms_rh: list[np.ndarray] = []
+    # Pack SMRs into one or more skin buckets (each <= MAX_JOINTS bones).
+    # Nearly all trainers fit into a single unified skin; rigs like tr1020_00 (210 bones)
+    # cleanly split across 2 skins without dropping any geometry or joints.
+    skin_buckets: list[dict[str, Any]] = []
+    all_joint_pids: set[int] = set()
 
-    for smr, mesh, _, _ in kept_smrs:
+    for smr, mesh, go_name, smr_pid in kept_smrs:
+        smr_bone_pids = [bp.path_id for bp in smr.m_Bones]
+        if len(set(smr_bone_pids)) > MAX_JOINTS:
+            raise RuntimeError(f"{trainer_id}/{go_name} uses {len(set(smr_bone_pids))} joints (> {MAX_JOINTS} limit)")
+
+        placed = None
+        for bkt in skin_buckets:
+            new_cnt = sum(1 for pid in set(smr_bone_pids) if pid not in bkt["pid_to_idx"])
+            if len(bkt["pids"]) + new_cnt <= MAX_JOINTS:
+                placed = bkt
+                break
+        if placed is None:
+            placed = {"smrs": [], "pids": [], "pid_to_idx": {}, "ibms_rh": []}
+            skin_buckets.append(placed)
+
+        placed["smrs"].append((smr, mesh, go_name, smr_pid))
         for bi, bp_pptr in enumerate(smr.m_Bones):
             bpid = bp_pptr.path_id
-            if bpid not in joint_pid_to_idx:
+            all_joint_pids.add(bpid)
+            if bpid not in placed["pid_to_idx"]:
                 bp = mesh.m_BindPose[bi]
                 mat_u = np.array(
                     [
@@ -214,15 +253,12 @@ def extract_trainer_glb(
                     ],
                     dtype=np.float64,
                 )
-                joint_pid_to_idx[bpid] = len(joint_pids)
-                joint_pids.append(bpid)
-                joint_ibms_rh.append(lh_to_rh_mat4(mat_u))
-
-    if len(joint_pids) > MAX_JOINTS:
-        raise RuntimeError(f"{trainer_id} uses {len(joint_pids)} joints (> {MAX_JOINTS} limit)")
+                placed["pid_to_idx"][bpid] = len(placed["pids"])
+                placed["pids"].append(bpid)
+                placed["ibms_rh"].append(lh_to_rh_mat4(mat_u))
 
     keep_pids: set[int] = {root_pid}
-    for jpid in joint_pids:
+    for jpid in all_joint_pids:
         cur = jpid
         while cur and cur in transforms:
             keep_pids.add(cur)
@@ -263,172 +299,184 @@ def extract_trainer_glb(
     prefab_root_idx = add_transform_tree(root_pid)
     builder.nodes[align_node_idx]["children"].append(prefab_root_idx)
 
-    joint_node_indices = [pid_to_node_idx[jpid] for jpid in joint_pids]
-    ibm_arr = np.array([m.T.astype(np.float32) for m in joint_ibms_rh], dtype=np.float32)
-    ibm_acc = builder.add_accessor(ibm_arr.reshape((-1, 16)), COMP_FLOAT, "MAT4", target=None)
-    skin_idx = len(builder.skins)
-    builder.skins.append(
-        {
-            "name": f"{trainer_id}_skin",
-            "inverseBindMatrices": ibm_acc,
-            "joints": joint_node_indices,
-            "skeleton": prefab_root_idx,
-        }
-    )
-
     mat_cache: dict[tuple[str, int, int, int], tuple[int, tuple[float, float], tuple[float, float]]] = {}
     baked_tex_cache: dict[tuple[int, int, tuple[int, ...]], int] = {}
     decoded_textures: list[tuple[str, Image.Image]] = []
-    primitives: list[dict[str, Any]] = []
-    all_positions: list[np.ndarray] = []
-    all_joints: list[np.ndarray] = []
-    all_weights: list[np.ndarray] = []
+    bucket_skin_batches: list[tuple[list[int], list[np.ndarray], list[np.ndarray], list[np.ndarray], list[np.ndarray]]] = []
     total_verts = 0
     total_tris = 0
 
-    for smr, mesh, go_name, smr_pid in kept_smrs:
-        mh = MeshHelper.MeshHandler(mesh)
-        mh.process()
+    for b_idx, bkt in enumerate(skin_buckets):
+        joint_node_indices = [pid_to_node_idx.get(jpid, prefab_root_idx) for jpid in bkt["pids"]]
+        ibm_arr = np.array([m.T.astype(np.float32) for m in bkt["ibms_rh"]], dtype=np.float32)
+        ibm_acc = builder.add_accessor(ibm_arr.reshape((-1, 16)), COMP_FLOAT, "MAT4", target=None)
+        skin_idx = len(builder.skins)
+        skin_suffix = "" if len(skin_buckets) == 1 else f"_{b_idx}"
+        builder.skins.append(
+            {
+                "name": f"{trainer_id}_skin{skin_suffix}",
+                "inverseBindMatrices": ibm_acc,
+                "joints": joint_node_indices,
+                "skeleton": prefab_root_idx,
+            }
+        )
 
-        verts_u = np.array(mh.m_Vertices, dtype=np.float32)[:, :3]
-        if mh.m_Normals and len(mh.m_Normals) == len(verts_u):
-            norms_u = np.array(mh.m_Normals, dtype=np.float32)[:, :3]
-        else:
-            norms_u = np.tile(np.array([[0.0, 1.0, 0.0]], dtype=np.float32), (len(verts_u), 1))
-        if mh.m_UV0 and len(mh.m_UV0) == len(verts_u):
-            uv0_u = np.array(mh.m_UV0, dtype=np.float32)[:, :2]
-        else:
-            uv0_u = np.zeros((len(verts_u), 2), dtype=np.float32)
+        primitives: list[dict[str, Any]] = []
+        bkt_positions: list[np.ndarray] = []
+        bkt_joints: list[np.ndarray] = []
+        bkt_weights: list[np.ndarray] = []
+        joint_pid_to_idx = bkt["pid_to_idx"]
 
-        local_to_unified = [joint_pid_to_idx[bp.path_id] for bp in smr.m_Bones]
-        n_v = len(verts_u)
-        j_arr = np.zeros((n_v, 4), dtype=np.uint16)
-        w_arr = np.zeros((n_v, 4), dtype=np.float32)
-        if mh.m_BoneIndices and mh.m_BoneWeights and len(mh.m_BoneWeights) == n_v:
-            raw_j = np.array(mh.m_BoneIndices, dtype=np.int32)
-            raw_w = np.array(mh.m_BoneWeights, dtype=np.float32)
-            for k in range(min(4, raw_j.shape[1])):
-                idx_clamped = np.clip(raw_j[:, k], 0, len(local_to_unified) - 1)
-                j_arr[:, k] = np.array([local_to_unified[i] for i in idx_clamped], dtype=np.uint16)
-                w_arr[:, k] = np.maximum(0.0, raw_w[:, k])
-            w_sum = w_arr.sum(axis=1, keepdims=True)
-            bad = w_sum[:, 0] < 1e-6
-            w_arr[bad] = [1.0, 0.0, 0.0, 0.0]
-            j_arr[bad] = [local_to_unified[0], 0, 0, 0]
-            w_sum = w_arr.sum(axis=1, keepdims=True)
-            w_arr /= w_sum
-        else:
-            j_arr[:, 0] = local_to_unified[0]
-            w_arr[:, 0] = 1.0
+        for smr, mesh, go_name, smr_pid in bkt["smrs"]:
+            mh = MeshHelper.MeshHandler(mesh)
+            mh.process()
 
-        pos_rh = verts_u.copy()
-        pos_rh[:, 0] = -pos_rh[:, 0]
-        norm_rh = norms_u.copy()
-        norm_rh[:, 0] = -norm_rh[:, 0]
-        nlen = np.linalg.norm(norm_rh, axis=1, keepdims=True)
-        norm_rh = np.where(nlen > 1e-6, norm_rh / np.maximum(nlen, 1e-6), np.array([0.0, 1.0, 0.0], dtype=np.float32))
-
-        tris_by_sm = mh.get_triangles()
-        mat_pptrs = list(smr.m_Materials)
-
-        for smi, sm_tris in enumerate(tris_by_sm):
-            if not sm_tris:
-                continue
-            mp = mat_pptrs[smi] if smi < len(mat_pptrs) else None
-            mat_obj = mp.read() if (mp and mp.path_id) else None
-            mat_name = mat_obj.m_Name if mat_obj else f"{go_name}_mat{smi}"
-            if mat_name.lower() in STRIP_MAT_NAMES:
-                continue
-
-            has_ov = any((smr_pid, smi, ch) in color_overrides for ch in (0, 1, 2))
-            mat_key = (mat_name, mp.path_id if mp else 0, smr_pid if has_ov else 0, smi if has_ov else -1)
-            if mat_key not in mat_cache:
-                img, uv_sc, uv_off, ws, wt = _extract_trainer_material(mat_obj, smr_pid, smi, color_overrides)
-                tex_idx = None
-                if img is not None:
-                    te = _get_dict(mat_obj.m_SavedProperties.m_TexEnvs) if mat_obj else {}
-                    c0 = te.get("_MainTex") or te.get("_Col0Tex")
-                    msk = te.get("_MaskTex")
-                    cols = _get_dict(mat_obj.m_SavedProperties.m_Colors) if mat_obj else {}
-                    c_skin = color_overrides.get((smr_pid, smi, 0), _mat_color_rgb(cols, "_SkinColor"))
-                    c_prim = color_overrides.get((smr_pid, smi, 1), _mat_color_rgb(cols, "_PrimaryColor"))
-                    c_sec = color_overrides.get((smr_pid, smi, 2), _mat_color_rgb(cols, "_SecondaryColor"))
-                    csig = tuple(int(round(x * 1000)) for x in (*c_skin, *c_prim, *c_sec))
-                    tkey = (
-                        int(c0.m_Texture.path_id) if (c0 and c0.m_Texture.path_id) else 0,
-                        int(msk.m_Texture.path_id) if (msk and msk.m_Texture.path_id) else 0,
-                        csig,
-                    )
-                    if tkey not in baked_tex_cache:
-                        tex_label = f"{trainer_id}:{mat_name}"
-                        baked_tex_cache[tkey] = builder.add_texture_png(img, tex_label, wrap_s=ws, wrap_t=wt)
-                        decoded_textures.append((tex_label, img))
-                    tex_idx = baked_tex_cache[tkey]
-
-                gltf_mat_idx = builder.add_material(
-                    name=mat_name,
-                    base_color_tex=tex_idx,
-                    base_color_factor=[1.0, 1.0, 1.0, 1.0],
-                    alpha_mode="OPAQUE",
-                    double_sided=False,
-                )
-                mat_cache[mat_key] = (gltf_mat_idx, uv_sc, uv_off)
-
-            gltf_mat_idx, (usx, usy), (uox, uoy) = mat_cache[mat_key]
-
-            tri_arr = np.array(sm_tris, dtype=np.uint32)[:, [0, 2, 1]]
-            uniq, inv = np.unique(tri_arr.ravel(), return_inverse=True)
-            local_indices = inv.astype(np.uint32)
-
-            sub_pos = pos_rh[uniq].astype(np.float32)
-            sub_norm = norm_rh[uniq].astype(np.float32)
-            sub_uv = uv0_u[uniq].copy()
-            sub_uv[:, 0] = sub_uv[:, 0] * usx + uox
-            sub_uv[:, 1] = 1.0 - (sub_uv[:, 1] * usy + uoy)
-            sub_uv = sub_uv.astype(np.float32)
-            sub_j = j_arr[uniq]
-            sub_w = w_arr[uniq]
-
-            all_positions.append(sub_pos)
-            all_joints.append(sub_j)
-            all_weights.append(sub_w)
-            total_verts += len(sub_pos)
-            total_tris += len(sm_tris)
-
-            pos_acc = builder.add_accessor(sub_pos, COMP_FLOAT, "VEC3", TARGET_ARRAY_BUFFER, include_minmax=True)
-            norm_acc = builder.add_accessor(sub_norm, COMP_FLOAT, "VEC3", TARGET_ARRAY_BUFFER)
-            uv_acc = builder.add_accessor(sub_uv, COMP_FLOAT, "VEC2", TARGET_ARRAY_BUFFER)
-            j_acc = builder.add_accessor(sub_j, COMP_UNSIGNED_SHORT, "VEC4", TARGET_ARRAY_BUFFER)
-            w_acc = builder.add_accessor(sub_w, COMP_FLOAT, "VEC4", TARGET_ARRAY_BUFFER)
-
-            if len(sub_pos) < 65535:
-                idx_acc = builder.add_accessor(local_indices.astype(np.uint16), COMP_UNSIGNED_SHORT, "SCALAR", TARGET_ELEMENT_ARRAY_BUFFER)
+            verts_u = np.array(mh.m_Vertices, dtype=np.float32)[:, :3]
+            if mh.m_Normals and len(mh.m_Normals) == len(verts_u):
+                norms_u = np.array(mh.m_Normals, dtype=np.float32)[:, :3]
             else:
-                idx_acc = builder.add_accessor(local_indices, COMP_UNSIGNED_INT, "SCALAR", TARGET_ELEMENT_ARRAY_BUFFER)
+                norms_u = np.tile(np.array([[0.0, 1.0, 0.0]], dtype=np.float32), (len(verts_u), 1))
+            if mh.m_UV0 and len(mh.m_UV0) == len(verts_u):
+                uv0_u = np.array(mh.m_UV0, dtype=np.float32)[:, :2]
+            else:
+                uv0_u = np.zeros((len(verts_u), 2), dtype=np.float32)
 
-            primitives.append(
-                {
-                    "attributes": {
-                        "POSITION": pos_acc,
-                        "NORMAL": norm_acc,
-                        "TEXCOORD_0": uv_acc,
-                        "JOINTS_0": j_acc,
-                        "WEIGHTS_0": w_acc,
-                    },
-                    "indices": idx_acc,
-                    "material": gltf_mat_idx,
-                }
-            )
+            local_to_unified = [joint_pid_to_idx[bp.path_id] for bp in smr.m_Bones]
+            n_v = len(verts_u)
+            j_arr = np.zeros((n_v, 4), dtype=np.uint16)
+            w_arr = np.zeros((n_v, 4), dtype=np.float32)
+            if mh.m_BoneIndices and mh.m_BoneWeights and len(mh.m_BoneWeights) == n_v:
+                raw_j = np.array(mh.m_BoneIndices, dtype=np.int32)
+                raw_w = np.array(mh.m_BoneWeights, dtype=np.float32)
+                for k in range(min(4, raw_j.shape[1])):
+                    idx_clamped = np.clip(raw_j[:, k], 0, len(local_to_unified) - 1)
+                    j_arr[:, k] = np.array([local_to_unified[i] for i in idx_clamped], dtype=np.uint16)
+                    w_arr[:, k] = np.maximum(0.0, raw_w[:, k])
+                w_sum = w_arr.sum(axis=1, keepdims=True)
+                bad = w_sum[:, 0] < 1e-6
+                w_arr[bad] = [1.0, 0.0, 0.0, 0.0]
+                j_arr[bad] = [local_to_unified[0], 0, 0, 0]
+                w_sum = w_arr.sum(axis=1, keepdims=True)
+                w_arr /= w_sum
+            else:
+                j_arr[:, 0] = local_to_unified[0]
+                w_arr[:, 0] = 1.0
 
-    mesh_idx = len(builder.meshes)
-    builder.meshes.append({"name": f"{trainer_id}_mesh", "primitives": primitives})
-    mesh_node_idx = len(builder.nodes)
-    builder.nodes.append({"name": f"{trainer_id}_skinned", "mesh": mesh_idx, "skin": skin_idx})
-    builder.nodes[align_node_idx]["children"].append(mesh_node_idx)
+            pos_rh = verts_u.copy()
+            pos_rh[:, 0] = -pos_rh[:, 0]
+            norm_rh = norms_u.copy()
+            norm_rh[:, 0] = -norm_rh[:, 0]
+            nlen = np.linalg.norm(norm_rh, axis=1, keepdims=True)
+            norm_rh = np.where(nlen > 1e-6, norm_rh / np.maximum(nlen, 1e-6), np.array([0.0, 1.0, 0.0], dtype=np.float32))
+
+            tris_by_sm = mh.get_triangles()
+            mat_pptrs = list(smr.m_Materials)
+
+            for smi, sm_tris in enumerate(tris_by_sm):
+                if not sm_tris:
+                    continue
+                mp = mat_pptrs[smi] if smi < len(mat_pptrs) else None
+                mat_obj = None
+                if mp and mp.path_id:
+                    try:
+                        mat_obj = mp.read()
+                    except FileNotFoundError:
+                        mat_obj = None
+                mat_name = mat_obj.m_Name if mat_obj else f"{go_name}_mat{smi}"
+                if mat_name.lower() in STRIP_MAT_NAMES:
+                    continue
+
+                has_ov = any((smr_pid, smi, ch) in color_overrides for ch in (0, 1, 2))
+                mat_key = (mat_name, mp.path_id if mp else 0, smr_pid if has_ov else 0, smi if has_ov else -1)
+                if mat_key not in mat_cache:
+                    img, uv_sc, uv_off, ws, wt = _extract_trainer_material(mat_obj, smr_pid, smi, color_overrides)
+                    tex_idx = None
+                    if img is not None:
+                        te = _get_dict(mat_obj.m_SavedProperties.m_TexEnvs) if mat_obj else {}
+                        c0 = te.get("_MainTex") or te.get("_Col0Tex")
+                        msk = te.get("_MaskTex")
+                        cols = _get_dict(mat_obj.m_SavedProperties.m_Colors) if mat_obj else {}
+                        c_skin = color_overrides.get((smr_pid, smi, 0), _mat_color_rgb(cols, "_SkinColor"))
+                        c_prim = color_overrides.get((smr_pid, smi, 1), _mat_color_rgb(cols, "_PrimaryColor"))
+                        c_sec = color_overrides.get((smr_pid, smi, 2), _mat_color_rgb(cols, "_SecondaryColor"))
+                        csig = tuple(int(round(x * 1000)) for x in (*c_skin, *c_prim, *c_sec))
+                        tkey = (
+                            int(c0.m_Texture.path_id) if (c0 and c0.m_Texture.path_id) else 0,
+                            int(msk.m_Texture.path_id) if (msk and msk.m_Texture.path_id) else 0,
+                            csig,
+                        )
+                        if tkey not in baked_tex_cache:
+                            tex_label = f"{trainer_id}:{mat_name}"
+                            baked_tex_cache[tkey] = builder.add_texture_png(img, tex_label, wrap_s=ws, wrap_t=wt)
+                            decoded_textures.append((tex_label, img))
+                        tex_idx = baked_tex_cache[tkey]
+
+                    gltf_mat_idx = builder.add_material(
+                        name=mat_name,
+                        base_color_tex=tex_idx,
+                        base_color_factor=[1.0, 1.0, 1.0, 1.0],
+                        alpha_mode="OPAQUE",
+                        double_sided=False,
+                    )
+                    mat_cache[mat_key] = (gltf_mat_idx, uv_sc, uv_off)
+
+                gltf_mat_idx, (usx, usy), (uox, uoy) = mat_cache[mat_key]
+
+                tri_arr = np.array(sm_tris, dtype=np.uint32)[:, [0, 2, 1]]
+                uniq, inv = np.unique(tri_arr.ravel(), return_inverse=True)
+                local_indices = inv.astype(np.uint32)
+
+                sub_pos = pos_rh[uniq].astype(np.float32)
+                sub_norm = norm_rh[uniq].astype(np.float32)
+                sub_uv = uv0_u[uniq].copy()
+                sub_uv[:, 0] = sub_uv[:, 0] * usx + uox
+                sub_uv[:, 1] = 1.0 - (sub_uv[:, 1] * usy + uoy)
+                sub_uv = sub_uv.astype(np.float32)
+                sub_j = j_arr[uniq]
+                sub_w = w_arr[uniq]
+
+                bkt_positions.append(sub_pos)
+                bkt_joints.append(sub_j)
+                bkt_weights.append(sub_w)
+                total_verts += len(sub_pos)
+                total_tris += len(sm_tris)
+
+                pos_acc = builder.add_accessor(sub_pos, COMP_FLOAT, "VEC3", TARGET_ARRAY_BUFFER, include_minmax=True)
+                norm_acc = builder.add_accessor(sub_norm, COMP_FLOAT, "VEC3", TARGET_ARRAY_BUFFER)
+                uv_acc = builder.add_accessor(sub_uv, COMP_FLOAT, "VEC2", TARGET_ARRAY_BUFFER)
+                j_acc = builder.add_accessor(sub_j, COMP_UNSIGNED_SHORT, "VEC4", TARGET_ARRAY_BUFFER)
+                w_acc = builder.add_accessor(sub_w, COMP_FLOAT, "VEC4", TARGET_ARRAY_BUFFER)
+
+                if len(sub_pos) < 65535:
+                    idx_acc = builder.add_accessor(local_indices.astype(np.uint16), COMP_UNSIGNED_SHORT, "SCALAR", TARGET_ELEMENT_ARRAY_BUFFER)
+                else:
+                    idx_acc = builder.add_accessor(local_indices, COMP_UNSIGNED_INT, "SCALAR", TARGET_ELEMENT_ARRAY_BUFFER)
+
+                primitives.append(
+                    {
+                        "attributes": {
+                            "POSITION": pos_acc,
+                            "NORMAL": norm_acc,
+                            "TEXCOORD_0": uv_acc,
+                            "JOINTS_0": j_acc,
+                            "WEIGHTS_0": w_acc,
+                        },
+                        "indices": idx_acc,
+                        "material": gltf_mat_idx,
+                    }
+                )
+
+        if primitives:
+            mesh_idx = len(builder.meshes)
+            builder.meshes.append({"name": f"{trainer_id}_mesh{skin_suffix}", "primitives": primitives})
+            mesh_node_idx = len(builder.nodes)
+            builder.nodes.append({"name": f"{trainer_id}_skinned{skin_suffix}", "mesh": mesh_idx, "skin": skin_idx})
+            builder.nodes[align_node_idx]["children"].append(mesh_node_idx)
+            bucket_skin_batches.append((joint_node_indices, bkt["ibms_rh"], bkt_positions, bkt_joints, bkt_weights))
 
     # Decode battle trainer AnimationClips
     clips_by_name: dict[str, Any] = {}
-    for obj in env.objects:
+    for obj in primary_objects:
         if obj.type.name == "AnimationClip":
             ac = obj.read()
             clips_by_name[ac.m_Name] = ac
@@ -476,12 +524,14 @@ def extract_trainer_glb(
         }
 
     # Ground feet cleanly at Y = 0 in wait frame 0
-    concat_pos = np.concatenate(all_positions, axis=0)
-    concat_j = np.concatenate(all_joints, axis=0)
-    concat_w = np.concatenate(all_weights, axis=0)
-
     world_wait = _compute_world_mats_rh(builder.nodes, overrides=wait_frame0_overrides)
-    skinned_wait = _skin_positions(concat_pos, concat_j, concat_w, joint_node_indices, joint_ibms_rh, world_wait)
+    skinned_parts = []
+    for j_nodes, j_ibms, b_pos, b_j, b_w in bucket_skin_batches:
+        c_pos = np.concatenate(b_pos, axis=0)
+        c_j = np.concatenate(b_j, axis=0)
+        c_w = np.concatenate(b_w, axis=0)
+        skinned_parts.append(_skin_positions(c_pos, c_j, c_w, j_nodes, j_ibms, world_wait))
+    skinned_wait = np.concatenate(skinned_parts, axis=0)
 
     min_y = float(skinned_wait[:, 1].min())
     if abs(min_y) > 1e-4:
@@ -503,7 +553,8 @@ def extract_trainer_glb(
         "size_bytes": file_bytes,
         "vertices": total_verts,
         "triangles": total_tris,
-        "bones": len(joint_pids),
+        "bones": len(all_joint_pids),
+        "skins": len(builder.skins),
         "materials": len(builder.materials),
         "textures": len(builder.textures),
         "bbox_min": bbox_min,
@@ -760,8 +811,60 @@ def _render_pokeball_preview(glb_path: str, out_png: str) -> None:
     sheet.save(out_png)
 
 
+def _extract_one_opponent_worker(task: tuple[str, str, str, float]) -> tuple[str, dict[str, Any] | None, str | None]:
+    aa_root, tid, out_path, sample_fps = task
+    try:
+        info = extract_trainer_glb(aa_root, tid, out_path, sample_fps=sample_fps)
+        info.pop("decoded_textures", None)
+        return tid, info, None
+    except Exception as exc:
+        return tid, None, f"{type(exc).__name__}: {exc}"
+
+
+def _render_opponents_sheet(out_dir: str, out_png: str) -> None:
+    from verify_render import eval_glb_pose, load_glb, render_preview
+
+    pw, ph = 340, 360
+    cols, rows = 4, 2
+    sheet = Image.new("RGB", (pw * cols + (cols + 1) * 6, ph * rows + 72), (18, 22, 34))
+    draw = ImageDraw.Draw(sheet)
+    draw.text((10, 8), "BDSP Extracted Opponent Trainers (Wave 2 Lane 1)", fill=(240, 244, 255))
+
+    for i, (tid, label) in enumerate(KEY_OPPONENTS):
+        glb_path = os.path.join(out_dir, f"{tid}.glb")
+        r, c = divmod(i, cols)
+        x = 6 + c * (pw + 6)
+        y = 32 + r * (ph + 22)
+        if not os.path.isfile(glb_path):
+            draw.rectangle([x, y, x + pw, y + ph], fill=(48, 28, 28))
+            draw.text((x + 12, y + 12), f"MISSING: {label}", fill=(255, 160, 160))
+            continue
+        gltf, bin_data = load_glb(glb_path)
+        prims = eval_glb_pose(gltf, bin_data, clip_name="wait", t_sec=0.0)
+        all_pts = np.concatenate([p[0] for p in prims], axis=0)
+        y_min = float(all_pts[:, 1].min())
+        y_max = float(all_pts[:, 1].max())
+        h = max(0.6, y_max - y_min)
+        mid_y = y_min + h * 0.52
+        dist = max(2.1, h * 1.85)
+        im = render_preview(
+            prims,
+            eye=(dist * 0.25, mid_y + h * 0.08, dist),
+            target=(0.0, mid_y, 0.0),
+            fov_deg=35.0,
+            width=pw,
+            height=ph,
+            bg_rgb=(36, 52, 82),
+        )
+        sheet.paste(im, (x, y))
+        draw.text((x + 6, y + ph + 3), label, fill=(225, 232, 245))
+
+    os.makedirs(os.path.dirname(os.path.abspath(out_png)), exist_ok=True)
+    sheet.save(out_png)
+
+
 def main() -> int:
-    ap = argparse.ArgumentParser(description="Extract BDSP 3D battle trainers (Lucas/Dawn) and Poke Ball to .glb")
+    ap = argparse.ArgumentParser(description="Extract BDSP 3D battle trainers (Lucas/Dawn/opponents) and Poke Ball to .glb")
     ap.add_argument(
         "--romfs",
         default=os.path.expanduser("~/dz-team/bdsp3d-scratch/romfs/Data/StreamingAssets/AssetAssistant"),
@@ -777,12 +880,66 @@ def main() -> int:
         default="",
         help="Optional directory to save verification renders & texture contact sheet",
     )
+    ap.add_argument("--all-opponents", action="store_true", help="Extract all BDSP opponent battle trainers (tr*_00.glb)")
+    ap.add_argument("--workers", type=int, default=8, help="Parallel worker count for --all-opponents (default: 8)")
+    ap.add_argument("--opponents-sheet", default="", help="Optional path to render 2x4 key opponents preview PNG")
     ap.add_argument("--fps", type=float, default=30.0, help="Animation sampling FPS (default: 30)")
     args = ap.parse_args()
 
     os.makedirs(args.out_dir, exist_ok=True)
     all_textures: list[tuple[str, Image.Image]] = []
     summary: dict[str, Any] = {}
+
+    if args.all_opponents:
+        battle_dir = os.path.join(args.romfs, "Characters/persons/battle")
+        if not os.path.isdir(battle_dir):
+            raise FileNotFoundError(f"Missing battle trainers directory: {battle_dir}")
+        opp_ids = sorted(
+            f for f in os.listdir(battle_dir)
+            if f.startswith("tr") and f.endswith("_00") and os.path.isfile(os.path.join(battle_dir, f))
+        )
+        print(f"[info] Extracting {len(opp_ids)} BDSP opponent battle trainers with {args.workers} workers...")
+        tasks = [
+            (args.romfs, tid, os.path.join(args.out_dir, f"{tid}.glb"), args.fps)
+            for tid in opp_ids
+        ]
+        errors: list[tuple[str, str]] = []
+        done = 0
+        if args.workers <= 1:
+            for t in tasks:
+                tid, info, err = _extract_one_opponent_worker(t)
+                done += 1
+                if err:
+                    errors.append((tid, err))
+                    print(f"[ERR] {tid}: {err}", file=sys.stderr)
+                elif info is not None:
+                    summary[tid] = info
+                    if done % 15 == 0 or done == len(tasks):
+                        print(f"[ok] {done}/{len(tasks)} ({tid}: {info['size_bytes']//1024} KB, {info['bones']}b, {info['skins']}s)")
+        else:
+            with ProcessPoolExecutor(max_workers=args.workers) as pool:
+                futs = [pool.submit(_extract_one_opponent_worker, t) for t in tasks]
+                for fut in as_completed(futs):
+                    tid, info, err = fut.result()
+                    done += 1
+                    if err:
+                        errors.append((tid, err))
+                        print(f"[ERR] {tid}: {err}", file=sys.stderr)
+                    elif info is not None:
+                        summary[tid] = info
+                        if done % 15 == 0 or done == len(tasks):
+                            print(f"[ok] {done}/{len(tasks)} ({tid}: {info['size_bytes']//1024} KB, {info['bones']}b, {info['skins']}s)")
+
+        total_kb = sum(v["size_bytes"] for v in summary.values()) // 1024
+        print(f"[done] Extracted {len(summary)}/{len(opp_ids)} opponent trainers ({total_kb} KB total), errors={len(errors)}")
+        if args.opponents_sheet:
+            _render_opponents_sheet(args.out_dir, args.opponents_sheet)
+            print(f"[ok] Opponents sheet saved to {args.opponents_sheet}")
+        if args.preview_dir:
+            os.makedirs(args.preview_dir, exist_ok=True)
+            with open(os.path.join(args.preview_dir, "opponents_summary.json"), "w") as f:
+                json.dump({"count": len(summary), "errors": errors, "trainers": summary}, f, indent=2)
+        return 1 if errors else 0
 
     for tid, label in [("pc0001_00", "Lucas (pc0001_00)"), ("pc0002_00", "Dawn (pc0002_00)")]:
         out_path = os.path.join(args.out_dir, f"{tid}.glb")
