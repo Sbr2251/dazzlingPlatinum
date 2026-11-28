@@ -13,7 +13,6 @@
 
 #include "bg_window.h"
 #include "charcode.h"
-#include "system.h"
 #include "text.h"
 
 #define BDSP_DLG_MAX_PAGES 8
@@ -23,28 +22,22 @@
 typedef struct BdspDialoguePage {
     char text[BDSP_DLG_MAX_TEXT];
     u16 charByteEnd[BDSP_DLG_MAX_TEXT];
-    u16 charPause[BDSP_DLG_MAX_TEXT];
-    u8 isInstantChar[BDSP_DLG_MAX_TEXT];
+    u16 charSrcEnd[BDSP_DLG_MAX_TEXT];
     u16 textLen;
     u16 numChars;
     u16 preRevealedChars;
+    u16 breakSrcOffset;
     BOOL waitAtEnd;
     BOOL isScrollBreak;
 } BdspDialoguePage;
 
 typedef struct BdspDialogueState {
     BOOL hasMessage;
-    BOOL suppressedBg1;
+    BOOL suspended;
+    BOOL fallbackToLegacy;
     BOOL printerActive;
     u8 printerId;
-    int textSpeedBottom;
-    int delayCounter;
-    int pauseCounter;
-    BOOL pauseConsumedForChar;
-    int scrollDelay;
-    int autoScrollDelay;
-    BOOL speedUp;
-    BOOL waitingForConfirm;
+    const Window *activeMsgWindow;
     int numPages;
     int pageIdx;
     int revealedChars;
@@ -63,27 +56,67 @@ BOOL BattleBdspDialogue_IsActive(void)
 #endif
 }
 
-static void SuppressBg1Layer(BattleSystem *battleSys)
+BOOL BattleBdspDialogue_ShouldSuppressWindow(const Window *window)
 {
-    Bg_ToggleLayer(BG_LAYER_MAIN_1, FALSE);
-    sDlg.suppressedBg1 = TRUE;
+    if (!BattleBdspDialogue_IsActive() || sDlg.suspended || sDlg.fallbackToLegacy) {
+        return FALSE;
+    }
+    if (window == NULL || window->bgConfig == NULL || sDlg.activeMsgWindow == NULL) {
+        return FALSE;
+    }
+    return (window == sDlg.activeMsgWindow) ? TRUE : FALSE;
+}
 
-    if (battleSys != NULL) {
-        BgConfig *bgConfig = BattleSystem_GetBgConfig(battleSys);
-        if (bgConfig != NULL) {
-            Bg_ClearTilemap(bgConfig, BG_LAYER_MAIN_1);
-            Bg_ScheduleTilemapTransfer(bgConfig, BG_LAYER_MAIN_1);
-        }
+// Suppress ONLY the battle message window's tile rect (plus its PL_WINFRAME
+// border and scroll-cursor tiles) on BG_LAYER_MAIN_1. Never disables or wipes
+// all of BG_LAYER_MAIN_1, so non-battle / Pokédex sub-apps sharing BgConfig
+// retain full ownership of BG1.
+static void SuppressBattleMsgWindowRect(BattleSystem *battleSys)
+{
+    Window *msgWin;
+    BgConfig *bgConfig;
+    int fx, fy, fw, fh;
+
+    if (battleSys == NULL || sDlg.suspended || sDlg.fallbackToLegacy) {
+        return;
+    }
+
+    msgWin = BattleSystem_GetWindow(battleSys, 0);
+    if (msgWin == NULL || msgWin->bgConfig == NULL || msgWin->bgLayer != BG_LAYER_MAIN_1) {
+        sDlg.activeMsgWindow = NULL;
+        return;
+    }
+
+    sDlg.activeMsgWindow = msgWin;
+    bgConfig = msgWin->bgConfig;
+
+    fx = (msgWin->tilemapLeft >= 2) ? ((int)msgWin->tilemapLeft - 2) : 0;
+    fy = (msgWin->tilemapTop >= 1) ? ((int)msgWin->tilemapTop - 1) : 0;
+    fw = (int)msgWin->width + 5; // 2 left border + window + 3 right border/scroll arrow
+    fh = (int)msgWin->height + 2; // 1 top border + window + 1 bottom border
+    if (fx + fw > 43) {
+        fw = 43 - fx;
+    }
+    if (fy + fh > 24) {
+        fh = 24 - fy;
+    }
+    if (fw > 0 && fh > 0) {
+        Bg_FillTilemapRect(bgConfig, BG_LAYER_MAIN_1, 0, (u8)fx, (u8)fy, (u8)fw, (u8)fh, 0);
+        Bg_ScheduleTilemapTransfer(bgConfig, BG_LAYER_MAIN_1);
     }
 
 #ifdef SDK_PORT
     if (HiResText_IsEnabled()) {
-        HiResText_ClearRect(0, 0, 0, 256, 192);
+        HiResText_ClearRect(0,
+            (int)msgWin->tilemapLeft * 8,
+            (int)msgWin->tilemapTop * 8,
+            (int)msgWin->width * 8,
+            (int)msgWin->height * 8);
     }
 #endif
 }
 
-static BOOL PageAppendUtf8(BdspDialoguePage *pg, const char *bytes, int nBytes, u16 pauseFrames, BOOL instant)
+static BOOL PageAppendUtf8(BdspDialoguePage *pg, const char *bytes, int nBytes, u16 srcEnd)
 {
     int i;
     if (pg == NULL || nBytes <= 0) {
@@ -97,8 +130,7 @@ static BOOL PageAppendUtf8(BdspDialoguePage *pg, const char *bytes, int nBytes, 
     }
     pg->text[pg->textLen] = '\0';
     pg->charByteEnd[pg->numChars] = pg->textLen;
-    pg->charPause[pg->numChars] = pauseFrames;
-    pg->isInstantChar[pg->numChars] = instant ? 1 : 0;
+    pg->charSrcEnd[pg->numChars] = srcEnd;
     pg->numChars++;
     return TRUE;
 }
@@ -323,29 +355,40 @@ static int DecodePlatinumChar(charcode_t c, char out[4])
     }
 }
 
-static BOOL HasMorePrintableChars(const charcode_t *p, const charcode_t *end)
+static BOOL HasMorePrintableChars(const charcode_t *data, u32 startIdx, u32 limit)
 {
-    while (p < end && *p != CHAR_EOS) {
-        charcode_t c = *p;
+    u32 idx = startIdx;
+
+    while (idx < limit && data[idx] != CHAR_EOS) {
+        charcode_t c = data[idx];
         if (c == CHAR_FORMAT_ARG) {
-            const charcode_t *next = CharCode_SkipFormatArg(p);
-            if (next <= p) {
+            u32 argc;
+            u32 recLen;
+            if (idx + 3u > limit) {
                 break;
             }
-            p = next;
+            argc = (u32)data[idx + 2u];
+            recLen = 3u + argc;
+            if (recLen > limit - idx) {
+                break;
+            }
+            idx += recLen;
             continue;
         }
         if (c == CHAR_PLACEHOLDER_BEGIN) {
-            p += 2;
+            if (idx + 2u > limit) {
+                break;
+            }
+            idx += 2u;
             continue;
         }
         if (c == CHAR_CONTROL_CLEAR || c == CHAR_CONTROL_SCROLL || c == CHAR_CR) {
-            p++;
+            idx++;
             continue;
         }
         if (c == CHAR_SPACE || c == CHAR_WIDE_SPACE || c == CHAR_NUM_SPACE
             || (c >= CHAR_SPACE_1px && c <= CHAR_SPACE_16px)) {
-            p++;
+            idx++;
             continue;
         }
         return TRUE;
@@ -385,20 +428,20 @@ static void SeedScrolledPage(const BdspDialoguePage *prev, BdspDialoguePage *nex
     tail = nl + 1;
     while (*tail != '\0') {
         ch = *tail++;
-        PageAppendUtf8(next, &ch, 1, 0, TRUE);
+        PageAppendUtf8(next, &ch, 1, 0);
     }
     ch = '\n';
-    PageAppendUtf8(next, &ch, 1, 0, TRUE);
+    PageAppendUtf8(next, &ch, 1, 0);
     next->preRevealedChars = next->numChars;
 }
 
 static int ParseMessagePages(const String *msg, BdspDialoguePage outPages[BDSP_DLG_MAX_PAGES])
 {
     const charcode_t *data;
-    const charcode_t *p;
-    const charcode_t *end;
+    u32 msgLen;
+    u32 limit;
+    u32 idx = 0;
     int pageCount = 1;
-    u16 pendingPause = 0;
 
     memset(outPages, 0, sizeof(BdspDialoguePage) * BDSP_DLG_MAX_PAGES);
     if (msg == NULL) {
@@ -408,55 +451,61 @@ static int ParseMessagePages(const String *msg, BdspDialoguePage outPages[BDSP_D
     if (data == NULL) {
         return 0;
     }
+    msgLen = String_Length(msg);
+    limit = (msgLen < BDSP_DLG_MAX_SCAN) ? msgLen : BDSP_DLG_MAX_SCAN;
 
-    p = data;
-    end = data + BDSP_DLG_MAX_SCAN;
-
-    while (p < end && *p != CHAR_EOS) {
+    while (idx < limit && data[idx] != CHAR_EOS) {
         BdspDialoguePage *pg = &outPages[pageCount - 1];
-        charcode_t c = *p;
+        charcode_t c = data[idx];
 
         if (c == CHAR_PLACEHOLDER_BEGIN) {
-            p += 2;
+            if (idx + 2u > limit) {
+                break;
+            }
+            idx += 2u;
             continue;
         }
 
         if (c == CHAR_FORMAT_ARG) {
-            u32 argType = CharCode_FormatArgType(p);
-            const charcode_t *next = CharCode_SkipFormatArg(p);
-            if (argType == CHAR_CONTROL_PAUSE) {
-                pendingPause = (u16)(pendingPause + CharCode_FormatArgParam(p, 0));
-            } else if (argType == CHAR_CONTROL_MOVE) {
-                u16 param = (u16)CharCode_FormatArgParam(p, 0);
+            u16 argType;
+            u32 argc;
+            u32 recLen;
+            if (idx + 3u > limit) {
+                break;
+            }
+            argType = data[idx + 1u];
+            argc = (u32)data[idx + 2u];
+            recLen = 3u + argc;
+            if (recLen > limit - idx) {
+                break;
+            }
+            if (argType == CHAR_CONTROL_MOVE && argc >= 1u) {
+                u16 param = data[idx + 3u];
                 if (param == 0xFE01 || param == 0xFE00) {
                     BOOL isScroll = (param == 0xFE00) ? TRUE : FALSE;
+                    u32 nextIdx = idx + recLen;
                     pg->waitAtEnd = TRUE;
                     pg->isScrollBreak = isScroll;
+                    pg->breakSrcOffset = (u16)nextIdx;
                     TrimPageTail(pg);
-                    if (next > p && HasMorePrintableChars(next, end) && pageCount < BDSP_DLG_MAX_PAGES) {
+                    if (HasMorePrintableChars(data, nextIdx, limit) && pageCount < BDSP_DLG_MAX_PAGES) {
                         if (isScroll) {
                             SeedScrolledPage(pg, &outPages[pageCount]);
                         }
                         pageCount++;
                     }
-                    pendingPause = 0;
                 }
             }
-            if (next <= p) {
-                break;
-            }
-            p = next;
+            idx += recLen;
             continue;
         }
 
-        p++;
+        idx++;
 
         if (c == CHAR_CR) {
-            // Avoid leading newline or double blank line.
             if (pg->textLen > 0 && pg->text[pg->textLen - 1] != '\n') {
                 char nl = '\n';
-                PageAppendUtf8(pg, &nl, 1, pendingPause, TRUE);
-                pendingPause = 0;
+                PageAppendUtf8(pg, &nl, 1, (u16)idx);
             }
             continue;
         }
@@ -465,14 +514,14 @@ static int ParseMessagePages(const String *msg, BdspDialoguePage outPages[BDSP_D
             BOOL isScroll = (c == CHAR_CONTROL_SCROLL) ? TRUE : FALSE;
             pg->waitAtEnd = TRUE;
             pg->isScrollBreak = isScroll;
+            pg->breakSrcOffset = (u16)idx;
             TrimPageTail(pg);
-            if (HasMorePrintableChars(p, end) && pageCount < BDSP_DLG_MAX_PAGES) {
+            if (HasMorePrintableChars(data, idx, limit) && pageCount < BDSP_DLG_MAX_PAGES) {
                 if (isScroll) {
                     SeedScrolledPage(pg, &outPages[pageCount]);
                 }
                 pageCount++;
             }
-            pendingPause = 0;
             continue;
         }
 
@@ -480,19 +529,24 @@ static int ParseMessagePages(const String *msg, BdspDialoguePage outPages[BDSP_D
             char utf8[4];
             int n = DecodePlatinumChar(c, utf8);
             if (n > 0) {
-                // Skip leading spaces at start of page or right after newline, and collapse consecutive spaces.
                 if (n == 1 && utf8[0] == ' ') {
                     if (pg->textLen == 0 || pg->text[pg->textLen - 1] == ' ' || pg->text[pg->textLen - 1] == '\n') {
                         continue;
                     }
                 }
-                PageAppendUtf8(pg, utf8, n, pendingPause, FALSE);
-                pendingPause = 0;
+                PageAppendUtf8(pg, utf8, n, (u16)idx);
             }
         }
     }
 
-    TrimPageTail(&outPages[pageCount - 1]);
+    {
+        BdspDialoguePage *lastPg = &outPages[pageCount - 1];
+        TrimPageTail(lastPg);
+        if (lastPg->breakSrcOffset == 0) {
+            lastPg->breakSrcOffset = (u16)idx;
+        }
+    }
+
     if (pageCount == 1 && outPages[0].textLen == 0) {
         return 0;
     }
@@ -532,17 +586,41 @@ void BattleBdspDialogue_Reset(void)
     sDlg.printerId = MAX_TEXT_PRINTERS;
 }
 
+void BattleBdspDialogue_Suspend(void)
+{
+    sDlg.suspended = TRUE;
+    sDlg.hasMessage = FALSE;
+    sDlg.printerActive = FALSE;
+    sDlg.fallbackToLegacy = FALSE;
+    sDlg.activeMsgWindow = NULL;
+    sDlg.alpha = 0.0f;
+}
+
+void BattleBdspDialogue_Resume(void)
+{
+    sDlg.suspended = FALSE;
+    sDlg.hasMessage = FALSE;
+    sDlg.printerActive = FALSE;
+    sDlg.fallbackToLegacy = FALSE;
+    sDlg.alpha = 0.0f;
+}
+
 void BattleBdspDialogue_OnMessagePrint(BattleSystem *battleSys, const String *msg, u8 printerId, int textSpeed)
 {
     BdspDialoguePage parsed[BDSP_DLG_MAX_PAGES];
+    Window *textWindow;
     int numPages;
     BOOL wasVisible;
 
-    if (!BattleBdspDialogue_IsActive()) {
+    if (!BattleBdspDialogue_IsActive() || sDlg.suspended) {
         return;
     }
 
-    SuppressBg1Layer(battleSys);
+    textWindow = (battleSys != NULL) ? BattleSystem_GetWindow(battleSys, 0) : NULL;
+    if (textWindow == NULL || textWindow->bgConfig == NULL) {
+        sDlg.activeMsgWindow = NULL;
+        return;
+    }
 
     if (msg == NULL) {
         return;
@@ -552,8 +630,19 @@ void BattleBdspDialogue_OnMessagePrint(BattleSystem *battleSys, const String *ms
     if (numPages <= 0) {
         sDlg.hasMessage = FALSE;
         sDlg.printerActive = FALSE;
+        if (String_Length(msg) > 0) {
+            // Unparseable non-empty message: fall back cleanly to the legacy window.
+            sDlg.fallbackToLegacy = TRUE;
+            if (textSpeed == TEXT_SPEED_INSTANT) {
+                Window_CopyToVRAM(textWindow);
+            }
+        }
         return;
     }
+
+    sDlg.fallbackToLegacy = FALSE;
+    sDlg.activeMsgWindow = textWindow;
+    SuppressBattleMsgWindowRect(battleSys);
 
     // "What will <POKEMON> do?" / "What will <PLAYER> do/throw?" is printed
     // instantaneously (textSpeed == 0) right before the Action/Move menu opens.
@@ -572,48 +661,52 @@ void BattleBdspDialogue_OnMessagePrint(BattleSystem *battleSys, const String *ms
     sDlg.pageIdx = 0;
     sDlg.hasMessage = TRUE;
     sDlg.printerId = printerId;
-    sDlg.delayCounter = 0;
-    sDlg.pauseCounter = 0;
-    sDlg.pauseConsumedForChar = FALSE;
-    sDlg.scrollDelay = 0;
-    sDlg.autoScrollDelay = 0;
-    sDlg.speedUp = FALSE;
-    sDlg.waitingForConfirm = FALSE;
     sDlg.alpha = wasVisible ? 1.0f : 0.25f;
 
     if (textSpeed == TEXT_SPEED_INSTANT || textSpeed == TEXT_SPEED_NO_TRANSFER || printerId >= MAX_TEXT_PRINTERS) {
         sDlg.printerActive = FALSE;
         sDlg.pageIdx = numPages - 1;
         sDlg.revealedChars = sDlg.pages[sDlg.pageIdx].numChars;
-        sDlg.textSpeedBottom = 0;
     } else {
         sDlg.printerActive = TRUE;
-        sDlg.textSpeedBottom = (textSpeed > 0) ? (textSpeed - 1) : 0;
         sDlg.revealedChars = 0;
     }
 }
 
 void BattleBdspDialogue_FillFrame(BattleSystem *battleSys, SIM_HudHD_Frame *frame)
 {
+    Window *msgWin;
     BOOL overlayOpen;
     BOOL isYesNoMenu;
     BOOL menuOpen;
+    int waitArrow = 0;
     int i;
 
     if (frame == NULL) {
         return;
     }
 
-    if (!BattleBdspDialogue_IsActive()) {
-        if (sDlg.suppressedBg1) {
-            Bg_ToggleLayer(BG_LAYER_MAIN_1, TRUE);
-            sDlg.suppressedBg1 = FALSE;
-        }
+    if (!BattleBdspDialogue_IsActive() || sDlg.suspended) {
+        frame->dialogue.visible = 0;
         return;
     }
 
-    // Keep Platinum's old pixel-art BG_LAYER_MAIN_1 battle text box completely suppressed.
-    SuppressBg1Layer(battleSys);
+    // Do not touch BG_LAYER_MAIN_1 if windows[0] is removed (e.g. Pokédex
+    // registration screen or battle screen hidden).
+    msgWin = (battleSys != NULL) ? BattleSystem_GetWindow(battleSys, 0) : NULL;
+    if (msgWin == NULL || msgWin->bgConfig == NULL) {
+        sDlg.activeMsgWindow = NULL;
+        frame->dialogue.visible = 0;
+        return;
+    }
+
+    if (sDlg.fallbackToLegacy) {
+        frame->dialogue.visible = 0;
+        return;
+    }
+
+    // Suppress ONLY the battle message window tile rect on BG_LAYER_MAIN_1.
+    SuppressBattleMsgWindowRect(battleSys);
 
     // Hide cleanly when Bag/Party/Summary overlays are active.
     overlayOpen = BattleBdspOverlay_IsActive() || (frame->overlay.kind != SIM_HUDHD_OVERLAY_NONE);
@@ -642,7 +735,6 @@ void BattleBdspDialogue_FillFrame(BattleSystem *battleSys, SIM_HudHD_Frame *fram
     if (menuOpen) {
         sDlg.hasMessage = FALSE;
         sDlg.printerActive = FALSE;
-        sDlg.waitingForConfirm = FALSE;
         sDlg.alpha = 0.0f;
         frame->dialogue.visible = 0;
         return;
@@ -653,73 +745,43 @@ void BattleBdspDialogue_FillFrame(BattleSystem *battleSys, SIM_HudHD_Frame *fram
         return;
     }
 
-    // Sync live typewriter progress with Platinum's TextPrinter task.
+    // Sync live page, character progress, and waitArrow directly from the real TextPrinter.
     if (sDlg.printerActive) {
-        BOOL live = (sDlg.printerId < MAX_TEXT_PRINTERS && Text_IsPrinterActive(sDlg.printerId)) ? TRUE : FALSE;
-        if (!live) {
+        TextPrinterProgress prog;
+        if (!Text_GetPrinterProgress(sDlg.printerId, &prog)) {
             sDlg.printerActive = FALSE;
             sDlg.pageIdx = sDlg.numPages - 1;
             sDlg.revealedChars = sDlg.pages[sDlg.pageIdx].numChars;
-            sDlg.waitingForConfirm = FALSE;
-            sDlg.autoScrollDelay = 0;
-        } else if (sDlg.scrollDelay > 0) {
-            sDlg.scrollDelay--;
-        } else if (sDlg.waitingForConfirm) {
-            BOOL confirmed = (JOY_NEW(PAD_BUTTON_A | PAD_BUTTON_B) || gSystem.touchPressed) ? TRUE : FALSE;
-            if (confirmed || sDlg.autoScrollDelay >= 100) {
-                sDlg.waitingForConfirm = FALSE;
-                sDlg.autoScrollDelay = 0;
-                if (sDlg.pageIdx + 1 < sDlg.numPages) {
-                    BOOL wasScroll = sDlg.pages[sDlg.pageIdx].isScrollBreak;
-                    sDlg.pageIdx++;
-                    sDlg.revealedChars = sDlg.pages[sDlg.pageIdx].preRevealedChars;
-                    sDlg.delayCounter = 0;
-                    sDlg.pauseCounter = 0;
-                    sDlg.pauseConsumedForChar = FALSE;
-                    if (wasScroll) {
-                        sDlg.scrollDelay = 4;
-                    }
-                }
-            } else {
-                sDlg.autoScrollDelay++;
-            }
-        } else if (sDlg.pauseCounter > 0) {
-            sDlg.pauseCounter--;
+            waitArrow = 0;
         } else {
-            BdspDialoguePage *pg = &sDlg.pages[sDlg.pageIdx];
-            if ((JOY_HELD(PAD_BUTTON_A | PAD_BUTTON_B) && sDlg.speedUp) || gSystem.touchHeld) {
-                sDlg.delayCounter = 0;
+            int p = 0;
+            while (p + 1 < sDlg.numPages) {
+                u16 brk = sDlg.pages[p].breakSrcOffset;
+                if (prog.charOffset < brk) {
+                    break;
+                }
+                // Stay on page p while the real printer is still waiting on its
+                // page break (WAIT/CLEAR/START_SCROLL) or mid-scroll (state 4).
+                if (prog.charOffset == brk && (prog.waitingInput || prog.state == 4)) {
+                    break;
+                }
+                p++;
             }
-            if (sDlg.delayCounter > 0 && sDlg.textSpeedBottom > 0) {
-                sDlg.delayCounter--;
-                if (JOY_NEW(PAD_BUTTON_A | PAD_BUTTON_B) || gSystem.touchPressed) {
-                    sDlg.speedUp = TRUE;
-                    sDlg.delayCounter = 0;
+            sDlg.pageIdx = p;
+            {
+                const BdspDialoguePage *pg = &sDlg.pages[p];
+                int r = (int)pg->preRevealedChars;
+                while (r < (int)pg->numChars && pg->charSrcEnd[r] <= prog.charOffset) {
+                    r++;
                 }
-            } else {
-                sDlg.delayCounter = sDlg.textSpeedBottom;
-                if (sDlg.revealedChars < pg->numChars) {
-                    if (pg->charPause[sDlg.revealedChars] > 0 && !sDlg.pauseConsumedForChar) {
-                        sDlg.pauseCounter = pg->charPause[sDlg.revealedChars];
-                        sDlg.pauseConsumedForChar = TRUE;
-                    } else {
-                        sDlg.revealedChars++;
-                        sDlg.pauseConsumedForChar = FALSE;
-                        while (sDlg.revealedChars < pg->numChars && pg->isInstantChar[sDlg.revealedChars - 1]) {
-                            sDlg.revealedChars++;
-                        }
-                    }
-                }
-                if (sDlg.revealedChars >= pg->numChars && pg->waitAtEnd) {
-                    sDlg.waitingForConfirm = TRUE;
-                    sDlg.autoScrollDelay = 0;
-                }
+                sDlg.revealedChars = r;
             }
+            waitArrow = prog.waitingInput ? 1 : 0;
         }
-    } else if (battleSys != NULL) {
+    } else {
         // If Platinum explicitly cleared windows[0] (BtlIOCmd_ClearMessageBox / MegaCine),
         // hide the dialogue bar cleanly.
-        if (IsWindowBitmapCleared(BattleSystem_GetWindow(battleSys, 0))) {
+        if (IsWindowBitmapCleared(msgWin)) {
             sDlg.hasMessage = FALSE;
             sDlg.alpha = 0.0f;
             frame->dialogue.visible = 0;
@@ -746,11 +808,11 @@ void BattleBdspDialogue_FillFrame(BattleSystem *battleSys, SIM_HudHD_Frame *fram
         frame->dialogue.visible = 1;
         memcpy(frame->dialogue.text, pg->text, byteLen);
         frame->dialogue.text[byteLen] = '\0';
-        frame->dialogue.waitArrow = (sDlg.printerActive && sDlg.waitingForConfirm) ? 1 : 0;
+        frame->dialogue.waitArrow = waitArrow;
         frame->dialogue.alpha = sDlg.alpha;
 
         // Lift bottom-left player HP cards cleanly above the wide dialogue bar
-        // (y=148..184) so HP drains remain readable with zero overlap.
+        // (y=150..184) so HP drains remain readable with zero overlap.
         for (i = 0; i < SIM_HUDHD_MAX_CARDS; i++) {
             if (frame->cards[i].visible && frame->cards[i].isPlayer
                 && frame->cards[i].rect.y + frame->cards[i].rect.h > 142.0f) {

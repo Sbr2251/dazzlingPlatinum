@@ -2132,6 +2132,19 @@ static void HdHudQuickBallInfo(BattleSystem *battleSys, u16 *outItem, int *outCo
     }
 }
 
+static BOOL HdHudQuickBallEnabled(BattleSystem *battleSys, int *outCount)
+{
+    u16 qbItem = ITEM_NONE;
+    int qbCount = 0;
+
+    HdHudQuickBallInfo(battleSys, &qbItem, &qbCount);
+    (void)qbItem;
+    if (outCount != NULL) {
+        *outCount = qbCount;
+    }
+    return (qbCount > 0 || !SIM_Battle3D_ModelsEnabled()) ? TRUE : FALSE;
+}
+
 static void HdHudPrepareQuickBallBag(BattleSubscreen *btlSubscreen)
 {
     BagCursor *bagCursor;
@@ -2797,18 +2810,16 @@ static void HdHudPopulateButtonsAndMoves(BattleSubscreen *btlSubscreen, SIM_HudH
         }
 
         if (BdspHudHasWildQuickBall(btlSubscreen, menu)) {
-            u16 qbItem = ITEM_NONE;
             int qbCount = 0;
+            BOOL qbEnabled = HdHudQuickBallEnabled(battleSys, &qbCount);
             SIM_HudHD_Button *qb = &frame->buttons[frame->numButtons];
-            HdHudQuickBallInfo(battleSys, &qbItem, &qbCount);
-            (void)qbItem;
             frame->quickBallCount = qbCount;
             qb->visible = 1;
             qb->style = SIM_HUDHD_BUTTON_QUICK_BALL;
             qb->rect = (SIM_HudHD_Rect){ 248.0f, 74.0f, 86.0f, 18.0f };
             snprintf(qb->label, sizeof(qb->label), "Ball");
             qb->selected = 0;
-            qb->enabled = (qbCount > 0 || !SIM_Battle3D_ModelsEnabled()) ? 1 : 0;
+            qb->enabled = qbEnabled ? 1 : 0;
             btnTouchIdx[frame->numButtons] = 1;
             frame->numButtons++;
         }
@@ -2910,8 +2921,13 @@ static int HdHudTouchButtonIndexEx(BattleSubscreen *btlSubscreen, int x, int y,
             continue;
         }
         if (HdHudRectContains(frame.buttons[i].rect, x, y)) {
-            if (frame.buttons[i].style == SIM_HUDHD_BUTTON_QUICK_BALL && outIsQuickBall != NULL) {
-                *outIsQuickBall = TRUE;
+            if (frame.buttons[i].style == SIM_HUDHD_BUTTON_QUICK_BALL) {
+                if (!frame.buttons[i].enabled) {
+                    return -1;
+                }
+                if (outIsQuickBall != NULL) {
+                    *outIsQuickBall = TRUE;
+                }
             }
             return btnTouchIdx[i];
         }
@@ -3458,6 +3474,7 @@ int BattleHud_Update(BattleSubscreen *btlSubscreen)
     // Wild quick-ball shortcut: X opens Bag focused on Poké Balls pocket cleanly.
     if ((bdsp3d || hdMode) && !btlSubscreen->isPanelSliding
         && BdspHudHasWildQuickBall(btlSubscreen, menu)
+        && HdHudQuickBallEnabled(btlSubscreen->battleSys, NULL)
         && (gSystem.pressedKeys & PAD_BUTTON_X)) {
         HdHudPrepareQuickBallBag(btlSubscreen);
         sHud.lastConfirmWasKey = TRUE;
